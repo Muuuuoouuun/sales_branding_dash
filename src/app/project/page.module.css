@@ -91,3 +91,24 @@
     font-size: 0.875rem;
     color: var(--accent);
 }
+
+/* Stagger Delays */
+.delay1 {
+    animation-delay: 0.1s;
+}
+
+.delay2 {
+    animation-delay: 0.2s;
+}
+
+.delay3 {
+    animation-delay: 0.3s;
+}
+
+.delay4 {
+    animation-delay: 0.4s;
+}
+
+.delay5 {
+    animation-delay: 0.5s;
+}

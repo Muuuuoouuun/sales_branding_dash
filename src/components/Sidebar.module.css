@@ -4,18 +4,24 @@
     position: fixed;
     left: 0;
     top: 0;
-    background-color: var(--sidebar-bg);
-    border-right: 1px solid var(--card-border);
+    background-color: rgba(15, 17, 21, 0.6);
+    /* Semi-transparent */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    /* Softer border */
     display: flex;
     flex-direction: column;
     padding: 1.5rem;
     z-index: 50;
+    transition: all 0.3s ease;
 }
 
 .logo {
     font-size: 1.25rem;
     font-weight: 700;
-    margin-bottom: 2.5rem;
+    margin-bottom: 3rem;
+    /* More spacing */
     color: var(--foreground);
     display: flex;
     align-items: center;
@@ -24,6 +30,8 @@
 
 .logoIcon {
     color: var(--primary);
+    filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.5));
+    /* Glow effect */
 }
 
 .logo span {
@@ -44,22 +52,29 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    padding: 0.875rem 1rem;
+    /* Slightly taller */
     border-radius: 0.75rem;
     color: var(--text-muted);
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 500;
     font-size: 0.95rem;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
 }
 
 .navItem:hover {
-    background-color: var(--glass-bg);
+    background-color: rgba(255, 255, 255, 0.03);
     color: var(--foreground);
+    transform: translateX(4px);
 }
 
 .active {
-    background-color: rgba(99, 102, 241, 0.1);
-    color: var(--primary);
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+    color: #818cf8;
+    /* Lighter Indigo */
+    border-left: 3px solid #6366f1;
 }
 
 .active svg {
