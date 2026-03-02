@@ -9,6 +9,19 @@ interface RegionRow {
   deals_closed: number;
 }
 
+interface LeadRow {
+  id: string;
+  company: string;
+  contact: string;
+  region: string;
+  stage: string;
+  probability: number;
+  revenue_potential: number;
+  owner: string;
+  last_contact: string;
+  due_date: string;
+}
+
 // 지역별 SVG 좌표 (viewBox 0 0 340 445 기준)
 const REGION_COORDINATES: Record<string, [number, number]> = {
   '서울':  [170,  88],
@@ -75,5 +88,50 @@ export async function GET() {
     { stage: 'Contract',    value:  35, fullMark: 150 },
   ];
 
-  return NextResponse.json({ regional, bottleneck: bottleneckData });
+  // ── Individual (per-owner) stats from leads.csv ──────────────────────────
+  const leads = loadCSV<LeadRow>('leads.csv');
+  const teamTarget = regional.reduce((s, r) => s + r.target, 0);
+
+  interface OwnerAcc {
+    name: string;
+    wonRevenue: number;
+    pipelineRevenue: number;
+    deals_total: number;
+    deals_won: number;
+  }
+  const ownerMap: Record<string, OwnerAcc> = {};
+
+  leads.forEach(lead => {
+    const owner = lead.owner?.trim();
+    if (!owner) return;
+    if (!ownerMap[owner]) {
+      ownerMap[owner] = { name: owner, wonRevenue: 0, pipelineRevenue: 0, deals_total: 0, deals_won: 0 };
+    }
+    ownerMap[owner].deals_total++;
+    const revPotential = Number(lead.revenue_potential) || 0;
+    const prob         = Number(lead.probability)       || 0;
+    if (lead.stage === 'Contract') {
+      ownerMap[owner].wonRevenue += revPotential;
+      ownerMap[owner].deals_won++;
+    } else {
+      ownerMap[owner].pipelineRevenue += Math.round(revPotential * (prob / 100));
+    }
+  });
+
+  const owners = Object.values(ownerMap);
+  const perPersonTarget = owners.length > 0
+    ? Math.round(teamTarget / owners.length)
+    : 10_000;
+
+  const individuals = owners.map(o => ({
+    name:             o.name,
+    wonRevenue:       o.wonRevenue,
+    pipelineRevenue:  o.pipelineRevenue,
+    target:           perPersonTarget,
+    progress:         Math.round((o.wonRevenue / perPersonTarget) * 100),
+    deals_total:      o.deals_total,
+    deals_won:        o.deals_won,
+  })).sort((a, b) => b.wonRevenue - a.wonRevenue);
+
+  return NextResponse.json({ regional, bottleneck: bottleneckData, individuals });
 }

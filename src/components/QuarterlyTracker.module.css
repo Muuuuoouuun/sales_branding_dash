@@ -1,0 +1,374 @@
+/* ── Quarterly Tracker Card ──────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg, rgba(255,255,255,0.03));
+  border: 1px solid var(--card-border, rgba(255,255,255,0.08));
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.qBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 2px;
+}
+
+.sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Toggle ── */
+.toggleGroup {
+  display: flex;
+  gap: 3px;
+  background: rgba(255,255,255,0.04);
+  padding: 3px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggleOn {
+  background: rgba(99, 102, 241, 0.22);
+  color: #a5b4fc;
+  font-weight: 600;
+}
+
+/* ── Progress Track Area ── */
+.trackArea {
+  position: relative;
+  margin-bottom: 1.25rem;
+  padding-top: 2.25rem; /* space for milestone labels above */
+  padding-bottom: 1.25rem; /* space for pct labels below */
+}
+
+/* Milestone emoji + label row (above bar) */
+.milestoneRow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.25rem;
+  pointer-events: none;
+}
+
+.milestone {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.msEmoji {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.msLabel {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+
+/* Tick lines + track container */
+.trackOuter {
+  position: relative;
+  height: 14px;
+}
+
+.tick {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 1px;
+  background: rgba(255,255,255,0.1);
+  transform: translateX(-50%);
+  border: none;
+  transition: background 0.3s;
+  z-index: 1;
+}
+.tickReached {
+  background: currentColor;
+  opacity: 0.5;
+}
+
+/* The actual bar */
+.track {
+  position: relative;
+  height: 10px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 5px;
+  overflow: visible;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(
+    to right,
+    #6366f1 0%,
+    #8b5cf6 28%,
+    #fbbf24 62%,
+    #22c55e 82%,
+    #4ade80 100%
+  );
+  position: relative;
+  overflow: hidden;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fillShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Cursor / pill indicator */
+.cursor {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.cursorPill {
+  background: #18181b;
+  border: 1.5px solid rgba(99, 102, 241, 0.6);
+  color: #a5b4fc;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+  margin-top: -22px;
+}
+
+.cursorLine {
+  width: 1.5px;
+  height: 8px;
+  background: rgba(99, 102, 241, 0.5);
+  margin-top: 2px;
+}
+
+/* Pct labels below bar */
+.pctRow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1.25rem;
+  pointer-events: none;
+}
+
+.pctLabel {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.58rem;
+  font-weight: 600;
+  top: 4px;
+  transition: color 0.3s;
+}
+
+/* ── Team stats row ── */
+.teamRow {
+  display: flex;
+  gap: 0;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.statItem {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 1rem;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.statItem:first-child { padding-left: 0; }
+.statItem:last-child  { border-right: none; }
+
+.statLbl {
+  font-size: 0.67rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statVal {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+/* ── Individual list ── */
+.indivList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-top: 0.875rem;
+}
+
+/* col: rank | name | bar | pct | won | pipeline | deals */
+.indivHeader {
+  display: grid;
+  grid-template-columns: 26px 76px 1fr 44px 88px 80px 36px;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 2px;
+}
+
+.indivRow {
+  display: grid;
+  grid-template-columns: 26px 76px 1fr 44px 88px 80px 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: 5px;
+  transition: background 0.12s;
+}
+.indivRow:hover {
+  background: rgba(255,255,255,0.025);
+}
+
+.indivRank {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.indivName {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.indivMs {
+  font-size: 0.7rem;
+}
+
+.indivBarWrap {
+  height: 7px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.indivTick {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: rgba(255,255,255,0.14);
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.indivPct {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.indivRev {
+  font-size: 0.68rem;
+  color: var(--foreground);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.indivPipe {
+  font-size: 0.68rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.indivDeals {
+  font-size: 0.68rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.indivNote {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.2);
+  margin: 4px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}

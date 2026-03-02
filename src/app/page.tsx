@@ -5,6 +5,8 @@ import styles from "./page.module.css";
 import Card from "@/components/Card";
 import KoreaProvinceMap, { RegionData } from "@/components/KoreaProvinceMap";
 import RegionDrilldown from "@/components/RegionDrilldown";
+import QuarterlyTracker from "@/components/QuarterlyTracker";
+import SalesTip from "@/components/SalesTip";
 import { getHeatColor } from "@/lib/heatUtils";
 import {
   TrendingUp, TrendingDown, AlertTriangle,
@@ -32,6 +34,16 @@ interface BottleneckData {
 
 type StatusFilter = "all" | "good" | "warning" | "critical";
 
+export interface IndividualData {
+  name: string;
+  wonRevenue: number;
+  pipelineRevenue: number;
+  target: number;
+  progress: number;
+  deals_total: number;
+  deals_won: number;
+}
+
 const FILTER_LABELS: Record<StatusFilter, string> = {
   all: "전체", good: "순조", warning: "주의", critical: "위험",
 };
@@ -45,6 +57,7 @@ export default function Dashboard() {
   const [stats, setStats]               = useState<Stat[]>([]);
   const [regionalData, setRegionalData] = useState<RegionData[]>([]);
   const [bottleneckData, setBottleneckData] = useState<BottleneckData[]>([]);
+  const [individuals, setIndividuals]   = useState<IndividualData[]>([]);
   const [loading, setLoading]           = useState(true);
   const [aiInsight, setAiInsight]       = useState<string>("");
   const [insightLoading, setInsightLoading] = useState(false);
@@ -70,6 +83,7 @@ export default function Dashboard() {
         const regionsJson = await regionsRes.json();
         setRegionalData(regionsJson.regional);
         setBottleneckData(regionsJson.bottleneck);
+        setIndividuals(regionsJson.individuals ?? []);
       } catch (err) {
         console.error("Failed to fetch dashboard data:", err);
       } finally {
@@ -144,6 +158,14 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* ── Quarterly Tracker ── */}
+      {regionalData.length > 0 && (
+        <QuarterlyTracker data={regionalData} individuals={individuals} />
+      )}
+
+      {/* ── Sales Tip #1 ── */}
+      <SalesTip offset={0} />
+
       {/* ── Charts Row ── */}
       <div className={styles.chartsGrid}>
         <Card title="매출 vs 목표" action={<button className={styles.viewReportBtn}>리포트 보기</button>}>
@@ -188,6 +210,9 @@ export default function Dashboard() {
           </p>
         </Card>
       </div>
+
+      {/* ── Sales Tip #2 ── */}
+      <SalesTip offset={7} />
 
       {/* ── Heatmap Section ── */}
       <Card
