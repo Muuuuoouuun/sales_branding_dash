@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Target, Users, Brain, FileText, Zap } from "lucide-react";
+import { LayoutDashboard, Target, Users, Brain, FileText, Zap, Database } from "lucide-react";
 import styles from "./Sidebar.module.css";
 import clsx from "clsx";
 
 const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Project Stra.", href: "/project", icon: Target },
+    { name: "Input Data", href: "/input/data", icon: Database },
     { name: "CRM Tactics", href: "/crm", icon: Users },
     { name: "Research Hub", href: "/research", icon: Brain },
     { name: "Reports", href: "/report", icon: FileText },

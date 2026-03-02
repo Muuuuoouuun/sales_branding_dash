@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import Card from "@/components/Card";
 import KoreaMap from "@/components/KoreaMap";
+import GoalTracker from "@/components/GoalTracker";
 import { TrendingUp, TrendingDown, AlertTriangle, Zap, Brain, Loader2 } from "lucide-react";
 import {
   BarChart,
@@ -113,6 +114,24 @@ export default function Dashboard() {
           {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
       </header>
+
+      {/* Target vs KPI Progress */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <Card className="mb-6">
+          <GoalTracker
+            title="Q1 Revenue Target vs KPI"
+            currentKpi={24500}
+            monthlyTarget={10000}
+            quarterlyTarget={30000}
+            unit="$"
+            milestones={[
+              { label: "Kick-off", value: 5000, achieved: true },
+              { label: "Mid-Term", value: 15000, achieved: true },
+              { label: "Final Push", value: 25000, achieved: false }
+            ]}
+          />
+        </Card>
+      </div>
 
       {/* Stats Row */}
       <div className={styles.statsGrid}>
@@ -224,6 +243,6 @@ export default function Dashboard() {
           </div>
         </div>
       </Card>
-    </div>
+    </div >
   );
 }
