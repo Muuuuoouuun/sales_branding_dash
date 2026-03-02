@@ -29,7 +29,7 @@ export default function KoreaMap({ data }: KoreaMapProps) {
 
     return (
         <div className={styles.mapContainer}>
-            <svg viewBox="0 0 300 350" className={styles.mapSvg}>
+            <svg viewBox="0 0 300 400" className={styles.mapSvg}>
                 {/* Background Grid Pattern */}
                 <defs>
                     <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -38,11 +38,17 @@ export default function KoreaMap({ data }: KoreaMapProps) {
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid)" />
 
-                {/* Simplified Korea Outline (Abstract) */}
+                {/* Realistic-ish Korea Outline */}
                 <path
-                    d="M100,70 L160,50 L200,80 L230,120 L240,180 L250,230 L230,280 L180,310 L120,300 L90,260 L70,180 L80,120 Z"
+                    d="M 110 38 C 130 35 160 40 185 85 C 200 95 220 100 230 110 C 240 140 250 180 260 210 C 265 240 260 270 240 280 C 210 285 160 300 130 310 C 110 315 90 300 80 270 C 70 240 85 190 90 150 C 95 120 90 80 110 38 Z"
                     fill="rgba(99, 102, 241, 0.05)"
-                    stroke="rgba(99, 102, 241, 0.2)"
+                    stroke="rgba(99, 102, 241, 0.3)"
+                    strokeWidth="2"
+                />
+                <path
+                    d="M 60 355 C 70 345 100 345 110 355 C 115 365 90 375 70 365 Z"
+                    fill="rgba(99, 102, 241, 0.05)"
+                    stroke="rgba(99, 102, 241, 0.3)"
                     strokeWidth="2"
                 />
 
