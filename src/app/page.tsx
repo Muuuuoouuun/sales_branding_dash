@@ -3,39 +3,25 @@
 import React, { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import Card from "@/components/Card";
-import KoreaMap from "@/components/KoreaMap";
-import { TrendingUp, TrendingDown, AlertTriangle, Zap, Brain, Loader2 } from "lucide-react";
+import KoreaProvinceMap, { RegionData } from "@/components/KoreaProvinceMap";
+import RegionDrilldown from "@/components/RegionDrilldown";
+import { getHeatColor } from "@/lib/heatUtils";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
+  TrendingUp, TrendingDown, AlertTriangle,
+  Brain, Loader2, Filter,
+} from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from "recharts";
 
-// Interfaces
+// ─── Types ───────────────────────────────────────────────
 interface Stat {
   label: string;
   value: string;
   trend: string;
-  trendType: 'up' | 'down' | 'critical';
+  trendType: "up" | "down" | "critical";
   trendLabel: string;
-}
-
-interface RegionalData {
-  name: string;
-  revenue: number;
-  target: number;
-  velocity: number;
-  coordinates: [number, number];
-  status: "good" | "warning" | "critical";
 }
 
 interface BottleneckData {
@@ -44,183 +30,281 @@ interface BottleneckData {
   fullMark: number;
 }
 
+type StatusFilter = "all" | "good" | "warning" | "critical";
+
+const FILTER_LABELS: Record<StatusFilter, string> = {
+  all: "전체", good: "순조", warning: "주의", critical: "위험",
+};
+
+const FILTER_COLORS: Record<StatusFilter, string> = {
+  all: "#818cf8", good: "#4ade80", warning: "#fbbf24", critical: "#ef4444",
+};
+
+// ─── Component ───────────────────────────────────────────
 export default function Dashboard() {
-  const [stats, setStats] = useState<Stat[]>([]);
-  const [regionalData, setRegionalData] = useState<RegionalData[]>([]);
+  const [stats, setStats]               = useState<Stat[]>([]);
+  const [regionalData, setRegionalData] = useState<RegionData[]>([]);
   const [bottleneckData, setBottleneckData] = useState<BottleneckData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [aiInsight, setAiInsight] = useState<string>("");
+  const [loading, setLoading]           = useState(true);
+  const [aiInsight, setAiInsight]       = useState<string>("");
   const [insightLoading, setInsightLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // Drill-down modal state
+  const [drilldownGeo,  setDrilldownGeo]  = useState<string | null>(null);
+  const [drilldownData, setDrilldownData] = useState<RegionData | null>(null);
+
+  const handleRegionClick = (geoName: string, regionData: RegionData | null) => {
+    setDrilldownGeo(geoName);
+    setDrilldownData(regionData);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [statsRes, regionsRes] = await Promise.all([
-          fetch('/api/dashboard/stats'),
-          fetch('/api/dashboard/regions')
+          fetch("/api/dashboard/stats"),
+          fetch("/api/dashboard/regions"),
         ]);
-
-        const statsData = await statsRes.json();
-        const regionsData = await regionsRes.json();
-
-        setStats(statsData);
-        setRegionalData(regionsData.regional);
-        setBottleneckData(regionsData.bottleneck);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
+        setStats(await statsRes.json());
+        const regionsJson = await regionsRes.json();
+        setRegionalData(regionsJson.regional);
+        setBottleneckData(regionsJson.bottleneck);
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
   const handleGenerateInsight = async () => {
     setInsightLoading(true);
     try {
-      const res = await fetch('/api/ai/insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ regionalData, bottleneckData })
+      const res = await fetch("/api/ai/insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regionalData, bottleneckData }),
       });
       const data = await res.json();
       setAiInsight(data.insight);
-    } catch (error) {
-      console.error("Failed to generate insight:", error);
-      setAiInsight("Failed to generate insight. Please try again.");
+    } catch {
+      setAiInsight("인사이트 생성에 실패했습니다. 다시 시도해 주세요.");
     } finally {
       setInsightLoading(false);
     }
   };
 
+  const filteredRegions = regionalData
+    .filter(r => statusFilter === "all" || r.status === statusFilter)
+    .sort((a, b) => b.progress - a.progress);
+
   if (loading) {
     return (
-      <div className={styles.container} style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 className="animate-spin text-primary" size={48} />
+      <div className={styles.container} style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Loader2 size={48} style={{ color: "var(--primary)", animation: "spin 1s linear infinite" }} />
       </div>
     );
   }
 
   return (
     <div className={styles.container}>
+
+      {/* ── Header ── */}
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Dashboard Intelligence</h1>
-          <p className={styles.subtitle}>Real-time Sales Velocity & Regional Performance</p>
+          <p className={styles.subtitle}>Real-time Sales Velocity &amp; Regional Performance</p>
         </div>
         <div className={`glass ${styles.dateBadge}`}>
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          {new Date().toLocaleDateString("ko-KR", {
+            year: "numeric", month: "long", day: "numeric", weekday: "short",
+          })}
         </div>
       </header>
 
-      {/* Stats Row */}
+      {/* ── Stats Row ── */}
       <div className={styles.statsGrid}>
         {stats.map((stat, idx) => (
           <Card key={idx} className={styles.statCard}>
             <span className={styles.statLabel}>{stat.label}</span>
             <span className={styles.statValue}>{stat.value}</span>
-            <span className={`${styles.statTrend} ${stat.trendType === 'up' ? styles.trendUp : ''} ${stat.trendType === 'down' ? styles.trendDown : ''} ${stat.trendType === 'critical' ? styles.trendCritical : ''}`}>
-              {stat.trendType === 'up' && <TrendingUp size={16} />}
-              {stat.trendType === 'down' && <TrendingDown size={16} />}
-              {stat.trendType === 'critical' && <AlertTriangle size={16} />}
+            <span className={`${styles.statTrend} ${
+              stat.trendType === "up"       ? styles.trendUp :
+              stat.trendType === "down"     ? styles.trendDown :
+              styles.trendCritical
+            }`}>
+              {stat.trendType === "up"       && <TrendingUp   size={14} />}
+              {stat.trendType === "down"     && <TrendingDown  size={14} />}
+              {stat.trendType === "critical" && <AlertTriangle size={14} />}
               {stat.trend}
             </span>
           </Card>
         ))}
       </div>
 
-      {/* Main Grid: Regional & Bottlenecks */}
-      <div className={styles.mainGrid} style={{ gridTemplateColumns: '1fr 1fr 0.8fr' }}>
-        <Card title="Revenue vs Target" action={<button className={styles.viewReportBtn}>View Report</button>}>
+      {/* ── Charts Row ── */}
+      <div className={styles.chartsGrid}>
+        <Card title="매출 vs 목표" action={<button className={styles.viewReportBtn}>리포트 보기</button>}>
           <div className={styles.chartContainer}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={regionalData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                <XAxis dataKey="name" stroke="#666" />
-                <YAxis stroke="#666" />
+                <XAxis dataKey="name" stroke="#666" tick={{ fontSize: 11 }} />
+                <YAxis stroke="#666" tick={{ fontSize: 11 }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#18181b', borderColor: '#333' }}
-                  itemStyle={{ color: '#fff' }}
+                  contentStyle={{ backgroundColor: "#18181b", borderColor: "#333" }}
+                  itemStyle={{ color: "#fff" }}
+                  formatter={(v: number | undefined) => v != null ? `₩${v.toLocaleString()}M` : ''}
                 />
-                <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} name="Revenue" />
-                <Bar dataKey="target" fill="#27272a" radius={[4, 4, 0, 0]} name="Target" />
+                <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} name="매출" />
+                <Bar dataKey="target"  fill="#27272a" radius={[4, 4, 0, 0]} name="목표" />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className={styles.insightText}>
-            <strong>Insight:</strong> Busan and Daegu are showing high variance against targets (-30%). Immediate intervention required in Daegu.
-          </div>
+          <p className={styles.insightText}>
+            <strong>Insight:</strong> 부산·대구가 목표 대비 큰 편차 발생. 대구는 즉각적 개입이 필요합니다.
+          </p>
         </Card>
 
-        <Card title="Bottleneck Radar">
+        <Card title="단계별 병목 레이더">
           <div className={styles.chartContainer}>
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="80%" data={bottleneckData}>
                 <PolarGrid stroke="#333" />
-                <PolarAngleAxis dataKey="stage" stroke="#888" />
+                <PolarAngleAxis dataKey="stage" stroke="#888" tick={{ fontSize: 12 }} />
                 <PolarRadiusAxis angle={30} domain={[0, 150]} stroke="#333" />
-                <Radar
-                  name="Deal Flow"
-                  dataKey="value"
-                  stroke="#ef4444"
-                  fill="#ef4444"
-                  fillOpacity={0.3}
-                />
+                <Radar name="Deal Flow" dataKey="value" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
-          <div className={styles.bottleneckList}>
-            <div className={styles.bottleneckItem}>
-              <span className={styles.bottleneckStage}>Negotiation</span>
-              <span className={styles.bottleneckMetric}>55% Drop-off</span>
-            </div>
-            <p className={styles.bottleneckAction}>
-              <strong>Action:</strong> Review discount approval process. Speed is the kill factor here.
-            </p>
+          <div className={styles.bottleneckItem}>
+            <span className={styles.bottleneckStage}>Negotiation</span>
+            <span className={styles.bottleneckMetric}>55% Drop-off</span>
           </div>
-        </Card>
-
-        <Card title="Regional Performance (Map)" className="min-h-[400px]">
-          <KoreaMap data={regionalData} />
-          <div className={styles.insightText}>
-            <strong>Insight:</strong> Mouse-over regions to view real-time velocity.
-          </div>
+          <p className={styles.bottleneckAction}>
+            <strong>Action:</strong> 할인 승인 프로세스 재검토. 속도가 클로즈 핵심 요인입니다.
+          </p>
         </Card>
       </div>
 
-      {/* AI Box */}
+      {/* ── Heatmap Section ── */}
+      <Card
+        title="지역별 성과 히트맵"
+        className={styles.heatmapCard}
+        action={
+          <div className={styles.filterRow}>
+            <Filter size={13} style={{ color: "var(--text-muted)" }} />
+            {(Object.keys(FILTER_LABELS) as StatusFilter[]).map(f => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={`${styles.filterBtn} ${statusFilter === f ? styles.filterBtnActive : ""}`}
+                style={statusFilter === f ? {
+                  background:  `${FILTER_COLORS[f]}22`,
+                  color:       FILTER_COLORS[f],
+                  borderColor: `${FILTER_COLORS[f]}44`,
+                } : {}}
+              >
+                {FILTER_LABELS[f]}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <div className={styles.heatmapLayout}>
+          {/* map */}
+          <div className={styles.mapWrapper}>
+            <KoreaProvinceMap
+              data={regionalData}
+              filter={statusFilter}
+              onRegionClick={handleRegionClick}
+            />
+          </div>
+
+          {/* region ranking list */}
+          <div className={styles.regionList}>
+            <div className={styles.regionListHeader}>
+              <span>지역</span>
+              <span style={{ gridColumn: "2 / 4" }}>달성률</span>
+              <span>매출 / 목표</span>
+            </div>
+
+            {filteredRegions.length === 0 ? (
+              <p className={styles.emptyMsg}>해당 상태의 지역이 없습니다.</p>
+            ) : filteredRegions.map(region => {
+              const color = getHeatColor(region.progress);
+              return (
+                <div key={region.name} className={styles.regionRow}>
+                  <div className={styles.regionName}>
+                    <span className={styles.regionDot} style={{ background: color }} />
+                    {region.name}
+                  </div>
+                  <div className={styles.progressBarWrap}>
+                    <div
+                      className={styles.progressBarFill}
+                      style={{ width: `${Math.min(region.progress, 100)}%`, background: color }}
+                    />
+                  </div>
+                  <span className={styles.progressPct} style={{ color }}>
+                    {region.progress}%
+                  </span>
+                  <span className={styles.revenueText}>
+                    ₩{region.revenue.toLocaleString()}
+                    <span className={styles.targetText}> / {region.target.toLocaleString()}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {/* ── Region Drilldown Modal ── */}
+      {drilldownGeo && (
+        <RegionDrilldown
+          geoName={drilldownGeo}
+          regionData={drilldownData}
+          onClose={() => { setDrilldownGeo(null); setDrilldownData(null); }}
+        />
+      )}
+
+      {/* ── AI Insight ── */}
       <Card className={styles.alertCard} title="AI Predictive Alert (Gemini Insight)">
         <div className={styles.aiBoxContent}>
           <div className={styles.aiIconBox}>
             <Brain size={24} className={styles.aiIcon} />
           </div>
           <div style={{ flex: 1 }}>
-            <div className="flex justify-between items-start">
+            <div className={styles.aiTitleRow}>
               <h4 className={styles.aiTitle}>Strategic AI Insight</h4>
               <button
                 onClick={handleGenerateInsight}
                 disabled={insightLoading}
-                className="text-xs bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 px-3 py-1 rounded transition-colors disabled:opacity-50"
+                className={styles.generateBtn}
               >
-                {insightLoading ? <Loader2 className="animate-spin" size={14} /> : "Generate Strategy"}
+                {insightLoading
+                  ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                  : "전략 생성"}
               </button>
             </div>
 
             {aiInsight ? (
-              <div className="mt-2 p-3 bg-black/20 rounded border border-white/5 animate-fade-in">
-                <p className={styles.aiText} style={{ whiteSpace: 'pre-line' }}>{aiInsight}</p>
+              <div className={styles.aiResult}>
+                <p className={styles.aiText} style={{ whiteSpace: "pre-line" }}>{aiInsight}</p>
               </div>
             ) : (
               <p className={styles.aiText}>
-                Based on activity logs, <strong className={styles.highlightText}>Team Alpha</strong> is projected to miss Q1 targets by 15% if 'Proposal' volume does not increase by 20% this week.
-                <br /><span className="text-xs text-gray-500 mt-2 block">(Click 'Generate Strategy' for real-time Gemini analysis)</span>
+                활동 로그 기반으로{" "}
+                <strong className={styles.highlightText}>Team Alpha</strong>는
+                이번 주 Proposal 볼륨이 20% 증가하지 않으면 Q1 목표를 15% 미달할 것으로 예측됩니다.
+                <br />
+                <span className={styles.aiHint}>(「전략 생성」 클릭 시 Gemini 실시간 분석)</span>
               </p>
             )}
 
-            <p className={styles.actionLink}>
-              → View Recommended Scripts & Action Plan
-            </p>
+            <p className={styles.actionLink}>→ 추천 스크립트 &amp; 실행 플랜 보기</p>
           </div>
         </div>
       </Card>

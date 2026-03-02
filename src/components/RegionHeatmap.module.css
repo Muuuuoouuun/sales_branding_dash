@@ -1,0 +1,155 @@
+.container {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Bubble ── */
+.bubble {
+  cursor: pointer;
+  transition: r 0.15s ease, fill-opacity 0.15s ease;
+}
+.bubble:hover {
+  fill-opacity: 1 !important;
+}
+
+.regionGroup {
+  cursor: pointer;
+}
+
+/* ── Labels ── */
+.label {
+  font-size: 9px;
+  fill: rgba(255, 255, 255, 0.65);
+  font-family: 'Outfit', sans-serif;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}
+
+.progressText {
+  font-size: 8px;
+  font-weight: 700;
+  fill: #ffffff;
+  font-family: 'Outfit', sans-serif;
+  pointer-events: none;
+}
+
+/* ── Tooltip ── */
+.tooltip {
+  position: absolute;
+  z-index: 100;
+  pointer-events: none;
+  background: rgba(12, 12, 16, 0.96);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  border-radius: 10px;
+  padding: 12px 14px;
+  width: 172px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: tooltipIn 0.12s ease-out forwards;
+}
+
+@keyframes tooltipIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.tooltipTitle {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tooltipBadge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+}
+.tooltipRow span:last-child {
+  color: #fff;
+  font-weight: 600;
+}
+
+.tooltipProgressBar {
+  margin-top: 8px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tooltipProgressFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.legendTitle {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+}
+
+.legendGradient {
+  width: 90px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    #dc2626,
+    #ef4444,
+    #f97316,
+    #fbbf24,
+    #a3e635,
+    #22c55e
+  );
+}
+
+.legendLabels {
+  display: flex;
+  justify-content: space-between;
+  width: 90px;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.3);
+  margin-left: -90px;
+  margin-top: 8px;
+  position: absolute;
+}
+
+.legendNote {
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+  margin-left: 4px;
+}
