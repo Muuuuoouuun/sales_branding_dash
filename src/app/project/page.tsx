@@ -12,6 +12,7 @@ import {
 const OKR_STORAGE_KEY = "salesmaster-okr-v1";
 import type { RegionData } from "@/components/KoreaProvinceMap";
 import type { IndividualData } from "@/app/page";
+import { SALES_LEGENDS, getLegendOfDay, type SalesLegend } from "@/lib/salesTips";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tab = "okr" | "methodology" | "ai";
@@ -587,6 +588,119 @@ function MethodologyTab({
           </ul>
         </div>
       </div>
+
+      {/* Sales Legends Hall */}
+      <SalesLegendsSection active={methodology} />
+    </div>
+  );
+}
+
+// ── Sales Legends Section ─────────────────────────────────────────────────────
+function SalesLegendsSection({ active }: { active: MethodologyId }) {
+  const [quoteIdx, setQuoteIdx] = useState(0);
+  const todayLegend = getLegendOfDay();
+
+  return (
+    <div style={{ marginTop: "1.25rem" }}>
+      {/* Section header */}
+      <div className={styles.legendsHeader}>
+        <span className={styles.sectionTitle} style={{ margin: 0 }}>🏆 Sales Legends Hall of Fame</span>
+        <span className={styles.legendToday}>
+          이번 주 레전드: <span style={{ color: todayLegend.color, fontWeight: 700 }}>{todayLegend.name}</span>
+        </span>
+      </div>
+
+      {/* Legend cards grid */}
+      <div className={styles.legendGrid}>
+        {SALES_LEGENDS.map((legend) => (
+          <LegendCard
+            key={legend.id}
+            legend={legend}
+            isActive={active === legend.id}
+            isFeatured={todayLegend.id === legend.id}
+            quoteIdx={quoteIdx}
+            onNextQuote={() => setQuoteIdx(i => (i + 1) % 3)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LegendCard({
+  legend, isActive, isFeatured, quoteIdx, onNextQuote,
+}: {
+  legend: SalesLegend;
+  isActive: boolean;
+  isFeatured: boolean;
+  quoteIdx: number;
+  onNextQuote: () => void;
+}) {
+  const quote = legend.quotes[quoteIdx % legend.quotes.length];
+  return (
+    <div
+      className={styles.legendCard}
+      style={{
+        borderColor: isActive ? `${legend.color}55` : isFeatured ? `${legend.color}33` : "rgba(255,255,255,0.07)",
+        background:  isActive ? legend.colorBg : isFeatured ? `${legend.color}08` : "rgba(255,255,255,0.02)",
+      }}
+    >
+      {/* Header */}
+      <div className={styles.legendCardHeader}>
+        <div className={styles.legendEmoji} style={{ background: legend.colorBg, borderColor: `${legend.color}44` }}>
+          {legend.emoji}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div className={styles.legendName} style={{ color: isActive ? legend.color : "var(--foreground)" }}>
+            {legend.name}
+          </div>
+          <div className={styles.legendTitle}>{legend.title}</div>
+        </div>
+        {isFeatured && (
+          <span className={styles.featuredBadge} style={{ background: `${legend.color}22`, color: legend.color, borderColor: `${legend.color}44` }}>
+            이번 주
+          </span>
+        )}
+        {isActive && (
+          <span className={styles.activeBadge} style={{ background: `${legend.color}22`, color: legend.color, borderColor: `${legend.color}44` }}>
+            선택됨
+          </span>
+        )}
+      </div>
+
+      {/* Bio */}
+      <p className={styles.legendBio}>{legend.bio}</p>
+
+      {/* Rotating quote */}
+      <div className={styles.legendQuoteBox} style={{ borderLeftColor: legend.color }}>
+        <p className={styles.legendQuote}>&ldquo;{quote}&rdquo;</p>
+        <button
+          className={styles.quoteNextBtn}
+          onClick={onNextQuote}
+          style={{ color: legend.color }}
+          title="다음 명언"
+        >
+          ↻
+        </button>
+      </div>
+
+      {/* Signature move */}
+      <div className={styles.legendSig} style={{ background: `${legend.color}10`, borderColor: `${legend.color}22` }}>
+        <span style={{ color: legend.color, fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+          시그니처
+        </span>
+        <span className={styles.legendSigText}>{legend.signatureMove}</span>
+      </div>
+
+      {/* Principles */}
+      <ul className={styles.legendPrinciples}>
+        {legend.principles.map((p, i) => (
+          <li key={i} className={styles.legendPrincipleItem}>
+            <span style={{ color: legend.color, fontWeight: 700 }}>✓</span>
+            <span>{p}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

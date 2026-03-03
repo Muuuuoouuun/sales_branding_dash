@@ -558,6 +558,157 @@
   line-height: 1.45;
 }
 
+/* ── Sales Legends ── */
+.legendsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.875rem;
+}
+
+.legendToday {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.legendGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.875rem;
+}
+
+@media (max-width: 820px) {
+  .legendGrid { grid-template-columns: 1fr; }
+}
+
+.legendCard {
+  border: 1px solid;
+  border-radius: 1rem;
+  padding: 1rem 1.125rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.legendCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.625rem;
+}
+
+.legendEmoji {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.legendName {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.legendTitle {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.featuredBadge,
+.activeBadge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.legendBio {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.55;
+  margin: 0 0 0.75rem;
+}
+
+.legendQuoteBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  border-left: 2px solid;
+  padding-left: 0.75rem;
+  margin-bottom: 0.625rem;
+  position: relative;
+}
+
+.legendQuote {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.55;
+  margin: 0;
+  flex: 1;
+}
+
+.quoteNextBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0.6;
+  transition: opacity 0.15s, transform 0.2s;
+}
+
+.quoteNextBtn:hover {
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
+.legendSig {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0.5rem 0.625rem;
+  border-radius: 7px;
+  border: 1px solid;
+  margin-bottom: 0.625rem;
+}
+
+.legendSigText {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.4;
+}
+
+.legendPrinciples {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.legendPrincipleItem {
+  display: flex;
+  gap: 7px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.45;
+}
+
 /* ── AI Tab ── */
 .aiTab {
   background: var(--card-bg, rgba(255, 255, 255, 0.03));
