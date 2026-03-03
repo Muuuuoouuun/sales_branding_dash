@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styles from "./page.module.css";
 import SalesTip from "@/components/SalesTip";
 import {
   Target, Brain, Loader2,
   CheckCircle2, AlertTriangle, XCircle, Lightbulb, Zap,
+  Pencil, Save, RotateCcw, X,
 } from "lucide-react";
+
+const OKR_STORAGE_KEY = "salesmaster-okr-v1";
 import type { RegionData } from "@/components/KoreaProvinceMap";
 import type { IndividualData } from "@/app/page";
 
@@ -234,8 +237,33 @@ export default function ProjectPage() {
   );
 }
 
+// ── OKR Types & Storage ───────────────────────────────────────────────────────
+interface OkrStore {
+  targets: Record<string, number>;  // kr label → custom target
+  values:  Record<string, number>;  // kr label → manual value override
+}
+
+const EMPTY_STORE: OkrStore = { targets: {}, values: {} };
+
+// KRs whose value is NOT computed from live data (can be manually overridden)
+const MANUAL_VALUE_KRS = new Set(["Negotiation 단계 전환율"]);
+
 // ── OKR Tab ───────────────────────────────────────────────────────────────────
 function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: IndividualData[] }) {
+  const [store,    setStore]    = useState<OkrStore>(EMPTY_STORE);
+  const [editMode, setEditMode] = useState(false);
+  const [draft,    setDraft]    = useState<OkrStore>(EMPTY_STORE);
+  const [saved,    setSaved]    = useState(false);
+
+  // Load from localStorage once
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(OKR_STORAGE_KEY);
+      if (s) setStore(JSON.parse(s));
+    } catch {}
+  }, []);
+
+  // ── Computed live values ───────────────────────────────────────────────────
   const teamRevenue  = regions.reduce((s, r) => s + r.revenue, 0);
   const teamTarget   = regions.reduce((s, r) => s + r.target,  0);
   const teamProgress = teamTarget > 0 ? Math.round((teamRevenue / teamTarget) * 100) : 0;
@@ -252,37 +280,143 @@ function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: 
   const getStatus = (v: number, t: number): KrStatus =>
     v >= t ? "ontrack" : v >= t * 0.75 ? "atrisk" : "behind";
 
+  // Apply overrides: use draft in edit mode, store otherwise
+  const active = editMode ? draft : store;
+  const getTarget = (label: string, def: number) => active.targets[label] ?? def;
+  const getValue  = (label: string, computed: number) => active.values[label] ?? computed;
+
+  // Raw default data (before overrides)
+  const RAW_KRS: { label: string; computedValue: number; defaultTarget: number; unit: string }[] = [
+    { label: "팀 전체 달성률",                                      computedValue: teamProgress,    defaultTarget: 100,          unit: "%" },
+    { label: `최저 지역 (${worst?.name ?? "—"}) 회복`,              computedValue: worst?.progress ?? 0, defaultTarget: 80,      unit: "%" },
+    { label: "Legend(115%) 달성 인원",                               computedValue: legendCount,     defaultTarget: targetLegend, unit: "명" },
+    { label: "평균 딜 전환율",                                       computedValue: convRate,        defaultTarget: 65,           unit: "%" },
+    { label: "Negotiation 단계 전환율",                              computedValue: 44,              defaultTarget: 70,           unit: "%" },
+    { label: "개인 100% 달성자 비율",                                computedValue: indivRate,       defaultTarget: 70,           unit: "%" },
+  ];
+
   const okrs: Objective[] = [
     {
       objective: "O1. 분기 매출 목표 초과 달성",
       description: `팀 목표 ₩${teamTarget.toLocaleString()}M · 현재 ₩${teamRevenue.toLocaleString()}M (${teamProgress}%)`,
-      keyResults: [
-        { label: "팀 전체 달성률",              value: teamProgress,     target: 100, unit: "%", status: getStatus(teamProgress, 100) },
-        { label: `최저 지역 (${worst?.name ?? "—"}) 회복`, value: worst?.progress ?? 0, target: 80,  unit: "%", status: getStatus(worst?.progress ?? 0, 80) },
-        { label: "Legend(115%) 달성 인원",       value: legendCount,      target: targetLegend, unit: "명", status: getStatus(legendCount, targetLegend) },
-      ],
+      keyResults: RAW_KRS.slice(0, 3).map(k => {
+        const t = getTarget(k.label, k.defaultTarget);
+        const v = getValue(k.label, k.computedValue);
+        return { label: k.label, value: v, target: t, unit: k.unit, status: getStatus(v, t) };
+      }),
     },
     {
       objective: "O2. 파이프라인 건전성 강화",
       description: "딜 전환율 향상 및 Negotiation 병목 해소",
-      keyResults: [
-        { label: "평균 딜 전환율",          value: convRate,  target: 65, unit: "%", status: getStatus(convRate, 65) },
-        { label: "Negotiation 단계 전환율", value: 44,        target: 70, unit: "%", status: "behind" },
-        { label: "개인 100% 달성자 비율",   value: indivRate, target: 70, unit: "%", status: getStatus(indivRate, 70) },
-      ],
+      keyResults: RAW_KRS.slice(3).map(k => {
+        const t = getTarget(k.label, k.defaultTarget);
+        const v = getValue(k.label, k.computedValue);
+        return { label: k.label, value: v, target: t, unit: k.unit, status: getStatus(v, t) };
+      }),
     },
   ];
 
+  // ── Handlers ─────────────────────────────────────────────────────────────
+  const startEdit = () => { setDraft({ ...store }); setEditMode(true); setSaved(false); };
+  const cancelEdit = () => setEditMode(false);
+
+  const handleSave = () => {
+    setStore(draft);
+    localStorage.setItem(OKR_STORAGE_KEY, JSON.stringify(draft));
+    setEditMode(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleReset = () => {
+    setStore(EMPTY_STORE);
+    setDraft(EMPTY_STORE);
+    localStorage.removeItem(OKR_STORAGE_KEY);
+    setEditMode(false);
+  };
+
+  const setDraftTarget = useCallback((label: string, val: number) => {
+    setDraft(d => ({ ...d, targets: { ...d.targets, [label]: val } }));
+  }, []);
+
+  const setDraftValue = useCallback((label: string, val: number) => {
+    setDraft(d => ({ ...d, values: { ...d.values, [label]: val } }));
+  }, []);
+
+  const hasOverrides = Object.keys(store.targets).length > 0 || Object.keys(store.values).length > 0;
+
   return (
-    <div className={styles.okrGrid}>
-      {okrs.map((okr, i) => <OkrCard key={i} okr={okr} index={i} />)}
+    <div>
+      {/* ── Toolbar ── */}
+      <div className={styles.okrToolbar}>
+        <div className={styles.okrToolbarLeft}>
+          <span className={styles.okrToolbarTitle}>Q1 2026 OKR</span>
+          {hasOverrides && !editMode && (
+            <span className={styles.customBadge}>수동 설정 적용 중</span>
+          )}
+          {saved && (
+            <span className={styles.savedBadge}>✓ 저장됨</span>
+          )}
+        </div>
+        <div className={styles.okrToolbarRight}>
+          {!editMode ? (
+            <>
+              <button className={styles.editBtn} onClick={startEdit}>
+                <Pencil size={13} /> 편집
+              </button>
+              {hasOverrides && (
+                <button className={styles.resetBtn} onClick={handleReset}>
+                  <RotateCcw size={13} /> 초기화
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <button className={styles.saveBtn} onClick={handleSave}>
+                <Save size={13} /> 저장
+              </button>
+              <button className={styles.cancelBtn} onClick={cancelEdit}>
+                <X size={13} /> 취소
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── OKR Cards ── */}
+      <div className={styles.okrGrid}>
+        {okrs.map((okr, i) => (
+          <OkrCard
+            key={i}
+            okr={okr}
+            index={i}
+            editMode={editMode}
+            rawKrs={RAW_KRS.slice(i === 0 ? 0 : 3, i === 0 ? 3 : 6)}
+            store={store}
+            onTargetChange={setDraftTarget}
+            onValueChange={setDraftValue}
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
-function OkrCard({ okr, index }: { okr: Objective; index: number }) {
+// ── OKR Card ──────────────────────────────────────────────────────────────────
+function OkrCard({
+  okr, index, editMode, rawKrs, store, onTargetChange, onValueChange,
+}: {
+  okr: Objective;
+  index: number;
+  editMode: boolean;
+  rawKrs: { label: string; computedValue: number; defaultTarget: number; unit: string }[];
+  store: OkrStore;
+  onTargetChange: (label: string, val: number) => void;
+  onValueChange:  (label: string, val: number) => void;
+}) {
   const OBJ_COLORS = ["#6366f1", "#f59e0b"];
   const color = OBJ_COLORS[index] ?? "#818cf8";
+
   return (
     <div className={styles.okrCard}>
       <div className={styles.okrHeader} style={{ borderLeftColor: color }}>
@@ -291,32 +425,77 @@ function OkrCard({ okr, index }: { okr: Objective; index: number }) {
       </div>
       <div className={styles.krList}>
         {okr.keyResults.map((kr, j) => {
-          const s   = STATUS_CONFIG[kr.status];
-          const pct = Math.min((kr.value / Math.max(kr.target, 1)) * 100, 100);
+          const s        = STATUS_CONFIG[kr.status];
+          const pct      = Math.min((kr.value / Math.max(kr.target, 1)) * 100, 100);
+          const rawKr    = rawKrs[j];
+          const isManual = MANUAL_VALUE_KRS.has(kr.label);
+          const hasTargetOverride = store.targets[kr.label] !== undefined;
+          const hasValueOverride  = store.values[kr.label]  !== undefined;
+
           return (
             <div key={j} className={styles.krItem}>
               <div className={styles.krTop}>
-                <span className={styles.krLabel}>{kr.label}</span>
+                <div className={styles.krLabelWrap}>
+                  <span className={styles.krLabel}>{kr.label}</span>
+                  {(hasTargetOverride || hasValueOverride) && !editMode && (
+                    <span className={styles.manualDot} title="수동 설정된 값">●</span>
+                  )}
+                </div>
                 <div className={styles.krRight}>
-                  <span className={styles.krValue} style={{ color: s.color }}>{kr.value}{kr.unit}</span>
-                  <span className={styles.krTarget}>/ {kr.target}{kr.unit}</span>
-                  <span className={styles.krChip} style={{ color: s.color, background: s.bg, borderColor: s.border }}>
-                    {s.icon} {s.label}
-                  </span>
+                  {editMode ? (
+                    <div className={styles.krEditGroup}>
+                      {/* Value override (only for manual KRs) */}
+                      {isManual && (
+                        <label className={styles.krInputWrap}>
+                          <span className={styles.krInputLabel}>현재값</span>
+                          <input
+                            type="number"
+                            className={styles.krInput}
+                            defaultValue={rawKr?.computedValue ?? kr.value}
+                            onChange={e => onValueChange(kr.label, Number(e.target.value))}
+                            style={{ borderColor: `${color}44` }}
+                          />
+                          <span className={styles.krInputUnit}>{kr.unit}</span>
+                        </label>
+                      )}
+                      {/* Target override (all KRs) */}
+                      <label className={styles.krInputWrap}>
+                        <span className={styles.krInputLabel}>목표값</span>
+                        <input
+                          type="number"
+                          className={styles.krInput}
+                          defaultValue={rawKr?.defaultTarget ?? kr.target}
+                          onChange={e => onTargetChange(kr.label, Number(e.target.value))}
+                          style={{ borderColor: `${color}44` }}
+                        />
+                        <span className={styles.krInputUnit}>{kr.unit}</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <>
+                      <span className={styles.krValue} style={{ color: s.color }}>{kr.value}{kr.unit}</span>
+                      <span className={styles.krTarget}>/ {kr.target}{kr.unit}</span>
+                      <span className={styles.krChip} style={{ color: s.color, background: s.bg, borderColor: s.border }}>
+                        {s.icon} {s.label}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className={styles.krBarOuter}>
-                <div
-                  className={styles.krBarFill}
-                  style={{
-                    width: `${pct}%`,
-                    background:
-                      kr.status === "ontrack" ? "linear-gradient(90deg,#16a34a,#4ade80)"
-                      : kr.status === "atrisk" ? "linear-gradient(90deg,#d97706,#fbbf24)"
-                      : "linear-gradient(90deg,#b91c1c,#ef4444)",
-                  }}
-                />
-              </div>
+              {!editMode && (
+                <div className={styles.krBarOuter}>
+                  <div
+                    className={styles.krBarFill}
+                    style={{
+                      width: `${pct}%`,
+                      background:
+                        kr.status === "ontrack" ? "linear-gradient(90deg,#16a34a,#4ade80)"
+                        : kr.status === "atrisk" ? "linear-gradient(90deg,#d97706,#fbbf24)"
+                        : "linear-gradient(90deg,#b91c1c,#ef4444)",
+                    }}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
