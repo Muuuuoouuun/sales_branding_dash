@@ -1,114 +1,446 @@
+/* ── Project Strategy Page ───────────────────────────────────────────────── */
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
 }
 
 .title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: var(--foreground);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.25rem;
 }
 
 .subtitle {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
 }
 
-.grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2rem;
+.qBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  flex-shrink: 0;
 }
 
-.sectionMargin {
-    margin-bottom: 1.5rem;
+/* ── Tab Bar ── */
+.tabBar {
+  display: flex;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 4px;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  width: fit-content;
 }
 
-@media (min-width: 768px) {
-    .grid {
-        grid-template-columns: 1fr 1fr;
-    }
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
-.subHeader {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--accent);
-    margin-bottom: 0.5rem;
+.tabBtnActive {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  font-weight: 700;
 }
 
-.text {
-    color: #d1d5db;
-    line-height: 1.6;
+/* ── Loading ── */
+.loadingBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
 }
 
-.implementationHeader {
-    font-weight: 500;
-    color: white;
-    margin-bottom: 1rem;
-    margin-top: 1.5rem;
+.spinner {
+  color: var(--primary, #6366f1);
+  animation: spin 1s linear infinite;
 }
 
-.steps {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
-.stepItem {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 0.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.875rem;
+/* ── OKR Tab ── */
+.okrGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
-.simContainer {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 0.5rem;
-    padding: 1rem;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    min-height: 200px;
+.okrCard {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
 }
 
-.simValue {
-    font-size: 3rem;
-    font-weight: 700;
-    color: var(--foreground);
-    margin-bottom: 0.5rem;
+.okrHeader {
+  border-left: 3px solid;
+  padding-left: 0.875rem;
+  margin-bottom: 1.25rem;
 }
 
-.simLabel {
-    font-size: 0.875rem;
-    color: var(--accent);
+.okrTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 4px;
 }
 
-/* Stagger Delays */
-.delay1 {
-    animation-delay: 0.1s;
+.okrDesc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
 }
 
-.delay2 {
-    animation-delay: 0.2s;
+.krList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
 }
 
-.delay3 {
-    animation-delay: 0.3s;
+.krItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.delay4 {
-    animation-delay: 0.4s;
+.krTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.delay5 {
-    animation-delay: 0.5s;
+.krLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.krRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.krValue {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.krTarget {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.krChip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.krBarOuter {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.krBarFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Methodology Tab ── */
+.methodSelector {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.methodBtn {
+  padding: 6px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.methodBtn:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--foreground);
+}
+
+.methodBtnActive {
+  font-weight: 700;
+}
+
+/* Guru card: full width */
+.guruCard {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid;
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.guruHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  margin-bottom: 0.875rem;
+}
+
+.guruAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.guruName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 3px;
+}
+
+.guruBook {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin: 0;
+  font-style: italic;
+}
+
+.guruQuote {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+  border-left: 3px solid;
+  padding-left: 0.875rem;
+  margin: 0 0 0.875rem;
+}
+
+.guruTip {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 0.625rem 0.875rem;
+  border-radius: 8px;
+  border: 1px solid;
+}
+
+/* 2-col grid for stages + principles */
+.methodGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 720px) {
+  .methodGrid { grid-template-columns: 1fr; }
+}
+
+.methodCard {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 1rem;
+  padding: 1.25rem;
+}
+
+.sectionTitle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.875rem;
+}
+
+.stageList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.stageItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.stageNum {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.stageLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.stageDesc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.principleList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.principleItem {
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.45;
+}
+
+/* ── AI Tab ── */
+.aiTab {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.aiHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.aiTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 4px;
+}
+
+.aiSubtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.aiGenBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.aiGenBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aiPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.8;
+}
+
+.aiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.aiSection {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 2px solid;
+  border-radius: 0 0 8px 8px;
+  padding: 1rem;
+}
+
+.aiSectionTitle {
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0 0 0.625rem;
+}
+
+.aiText {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.65;
+  margin: 0;
 }

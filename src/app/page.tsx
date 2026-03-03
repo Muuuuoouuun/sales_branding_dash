@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from "recharts";
 
 // ─── Types ───────────────────────────────────────────────
@@ -190,23 +189,10 @@ export default function Dashboard() {
           </p>
         </Card>
 
-        <Card title="단계별 병목 레이더">
-          <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={bottleneckData}>
-                <PolarGrid stroke="#333" />
-                <PolarAngleAxis dataKey="stage" stroke="#888" tick={{ fontSize: 12 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 150]} stroke="#333" />
-                <Radar name="Deal Flow" dataKey="value" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className={styles.bottleneckItem}>
-            <span className={styles.bottleneckStage}>Negotiation</span>
-            <span className={styles.bottleneckMetric}>55% Drop-off</span>
-          </div>
-          <p className={styles.bottleneckAction}>
-            <strong>Action:</strong> 할인 승인 프로세스 재검토. 속도가 클로즈 핵심 요인입니다.
+        <Card title="딜 파이프라인 전환율">
+          <PipelineFunnel data={bottleneckData} />
+          <p className={styles.bottleneckAction} style={{ marginTop: "0.75rem" }}>
+            <strong>Action:</strong> 할인 승인 프로세스 단축 + Negotiation 진입 전 MEDDIC 검증 강화
           </p>
         </Card>
       </div>
@@ -333,6 +319,79 @@ export default function Dashboard() {
           </div>
         </div>
       </Card>
+    </div>
+  );
+}
+
+// ── Pipeline Funnel (replaces RadarChart) ─────────────────────────────────────
+function PipelineFunnel({ data }: { data: { stage: string; value: number; fullMark: number }[] }) {
+  const max = data[0]?.value ?? 1;
+  const STAGE_KR: Record<string, string> = {
+    Lead: "리드", Proposal: "제안", Negotiation: "협상", Contract: "계약",
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem", padding: "0.25rem 0" }}>
+      {data.map((d, i) => {
+        const prev = data[i - 1];
+        const dropPct = prev ? Math.round((1 - d.value / prev.value) * 100) : null;
+        const isBottleneck = dropPct !== null && dropPct >= 40;
+        const barW = (d.value / max) * 100;
+
+        return (
+          <div key={d.stage}>
+            {dropPct !== null && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "5px 0 5px 100px",
+                fontSize: "0.61rem", fontWeight: 700, letterSpacing: "0.02em",
+                color: isBottleneck ? "#ef4444" : "rgba(255,255,255,0.18)",
+              }}>
+                <span>↓</span>
+                <span>{dropPct}% drop-off</span>
+                {isBottleneck && (
+                  <span style={{
+                    background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.28)",
+                    borderRadius: 4, padding: "1px 7px", color: "#f87171",
+                    fontSize: "0.58rem", textTransform: "uppercase" as const, letterSpacing: "0.04em",
+                  }}>BOTTLENECK</span>
+                )}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                width: 90, flexShrink: 0, textAlign: "right" as const,
+                fontSize: "0.7rem", fontWeight: 600, color: "var(--text-muted)",
+              }}>
+                {STAGE_KR[d.stage] ?? d.stage}
+              </div>
+              <div style={{ flex: 1, height: 28, background: "rgba(255,255,255,0.05)", borderRadius: 5, overflow: "hidden" }}>
+                <div style={{
+                  width: `${barW}%`, height: "100%", borderRadius: 5,
+                  background: isBottleneck
+                    ? "linear-gradient(90deg,#b91c1c,#ef4444)"
+                    : i === 0
+                      ? "linear-gradient(90deg,#4338ca,#6366f1)"
+                      : "linear-gradient(90deg,#6366f1,#818cf8)",
+                  transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)",
+                  display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 10,
+                }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+                    {d.value}건
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <div style={{
+        marginTop: "0.625rem", padding: "0.5rem 0.75rem",
+        background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)",
+        borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#f87171" }}>⚠️ Negotiation 단계 최대 병목</span>
+        <span style={{ fontSize: "0.67rem", color: "rgba(255,255,255,0.35)" }}>전환율 44% — 목표 대비 26%p 부족</span>
+      </div>
     </div>
   );
 }
