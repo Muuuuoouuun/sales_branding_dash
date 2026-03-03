@@ -1,163 +1,557 @@
+/* ── CRM Tactics Page ────────────────────────────────────────────────────── */
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  margin-bottom: 1.25rem;
 }
 
 .title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: var(--foreground);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.25rem;
 }
 
 .subtitle {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
 }
 
-.scoreGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+/* ── Focus Score Row ── */
+.scoreRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.875rem;
+  margin-bottom: 1.25rem;
 }
 
-.scoreHeader {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+.scoreCard {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 0.875rem;
+  padding: 1rem 1.125rem;
 }
 
-.scoreValue {
-    font-size: 2.25rem;
-    font-weight: 700;
-    color: var(--foreground);
+.scoreTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.scoreName {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--foreground);
 }
 
 .scoreLabel {
-    font-size: 0.875rem;
-    color: var(--accent);
-    margin-bottom: 0.25rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.progressBar {
-    height: 0.5rem;
-    background-color: #374151;
-    border-radius: 9999px;
-    overflow: hidden;
+.scoreNum {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 0.5rem;
 }
 
-.progressFill {
-    height: 100%;
-    background-color: var(--accent);
+.scoreBar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.625rem;
 }
 
-.sectionTitle {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    color: var(--foreground);
+.scoreBarFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.actionList {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+.scoreMeta {
+  display: flex;
+  gap: 10px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
 }
 
-.actionItem {
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+/* ── Tab Bar ── */
+.tabBar {
+  display: flex;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 4px;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  width: fit-content;
 }
 
-@media (min-width: 768px) {
-    .actionItem {
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-    }
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
-.repBadge {
-    background: rgba(99, 102, 241, 0.2);
-    color: #a5b4fc;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 600;
+.tabBtnActive {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  font-weight: 700;
 }
 
-.targetName {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--foreground);
+/* ── Loading ── */
+.loadingBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
 }
 
-.metaInfo {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
+.spinner {
+  color: var(--primary, #6366f1);
+  animation: spin 1s linear infinite;
 }
 
-.probText {
-    color: var(--text-muted);
-    font-size: 0.875rem;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
-.actionText {
-    color: #d1d5db;
-    font-size: 0.875rem;
+/* ── Kill-List Tab ── */
+.killList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+.killCard {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 0.875rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  transition: border-color 0.15s;
 }
 
-.dueDate {
-    font-size: 0.75rem;
-    color: var(--danger);
-    font-weight: 500;
-    text-align: right;
-    margin-right: 1rem;
+.killCard:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.killLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.killMeta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.ownerBadge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+
+.stageBadge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.region {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.killCompany {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 0.375rem;
+}
+
+.killAction {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.killRight {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.probBlock {
+  text-align: center;
+}
+
+.probNum {
+  display: block;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.probLabel {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dueTag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.killBtns {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .iconBtn {
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    color: var(--text-muted);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
 .iconBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--foreground);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
 }
 
 .execBtn {
-    background-color: var(--primary);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    border: none;
-    cursor: pointer;
-    transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 7px;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #a5b4fc;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
 }
 
 .execBtn:hover {
-    background-color: var(--primary-hover);
+  background: rgba(99, 102, 241, 0.3);
+}
+
+/* ── Pipeline Kanban Tab ── */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.875rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .kanban { grid-template-columns: repeat(2, 1fr); }
+}
+
+.kanbanCol {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.875rem;
+  overflow: hidden;
+}
+
+.kanbanHeader {
+  border-top: 2px solid;
+  padding: 0.875rem 1rem 0.625rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.kanbanHeaderTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.kanbanStage {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kanbanCount {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.kanbanRevenue {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.kanbanCards {
+  padding: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dealCard {
+  background: var(--card-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid;
+  border-radius: 0 7px 7px 0;
+  padding: 0.625rem 0.75rem;
+  cursor: default;
+  transition: background 0.15s;
+}
+
+.dealCard:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dealTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.dealCompany {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.3;
+}
+
+.dealProb {
+  font-size: 0.72rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.dealContact {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-bottom: 0.375rem;
+}
+
+.dealProbBar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.dealBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.dealRev {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.dealOwner {
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.dealDue {
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+
+.emptyCol {
+  text-align: center;
+  padding: 1.5rem 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Leads Table Tab ── */
+.filters {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.875rem;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 3px;
+}
+
+.filterChip {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.filterChip:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--foreground);
+}
+
+.filterChipActive {
+  font-weight: 700;
+}
+
+.tableWrap {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 0.875rem;
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.th {
+  padding: 0.625rem 0.875rem;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.th:hover {
+  color: var(--foreground);
+}
+
+.thInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.1s;
+}
+
+.tr:last-child {
+  border-bottom: none;
+}
+
+.tr:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.td {
+  padding: 0.625rem 0.875rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.65);
+  vertical-align: middle;
+}
+
+.stageTag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.probCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.miniBar {
+  width: 48px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tableFooter {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: right;
 }
