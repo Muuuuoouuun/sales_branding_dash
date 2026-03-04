@@ -76,6 +76,192 @@
   margin-bottom: 2rem;
 }
 
+/* ── 2-column charts row ── */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Heatmap section ── */
+.heatmapCard {
+  margin-bottom: 1.5rem;
+}
+
+.heatmapLayout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.mapWrapper {
+  /* Taller wrapper so the react-simple-maps fills nicely */
+  height: 500px;
+  position: relative;
+}
+
+/* ── Region ranking list ── */
+.regionList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.regionListHeader {
+  display: grid;
+  grid-template-columns: 52px 1fr 48px 108px;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.regionRow {
+  display: grid;
+  grid-template-columns: 52px 1fr 48px 108px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 4px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.regionRow:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.regionName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+.regionDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.progressBarWrap {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressBarFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.progressPct {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.revenueText {
+  font-size: 0.72rem;
+  color: var(--foreground);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.targetText {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.emptyMsg {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+/* ── Filter row ── */
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filterBtn {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filterBtn:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--foreground);
+}
+.filterBtnActive {
+  font-weight: 700;
+}
+
+/* ── AI Box tweaks ── */
+.aiTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.generateBtn {
+  font-size: 0.72rem;
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s;
+}
+.generateBtn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.28);
+}
+.generateBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aiResult {
+  margin-top: 8px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.aiHint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 4px;
+}
+
 .chartContainer {
   height: 300px;
   width: 100%;
