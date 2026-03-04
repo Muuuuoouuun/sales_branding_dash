@@ -5,7 +5,7 @@ import styles from "./page.module.css";
 import SalesTip from "@/components/SalesTip";
 import {
   Phone, Mail, MessageSquare, ArrowRight, Loader2,
-  LayoutKanban, TableProperties, Crosshair,
+  Kanban, TableProperties, Crosshair,
   ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 
@@ -82,7 +82,7 @@ export default function CRMPage() {
 
   const TABS: { id: CrmTab; label: string; icon: React.ReactNode }[] = [
     { id: "killist",  label: "Kill-List",     icon: <Crosshair size={14} /> },
-    { id: "pipeline", label: "Pipeline",      icon: <LayoutKanban size={14} /> },
+    { id: "pipeline", label: "Pipeline",      icon: <Kanban size={14} /> },
     { id: "leads",    label: "Leads 테이블",   icon: <TableProperties size={14} /> },
   ];
 
