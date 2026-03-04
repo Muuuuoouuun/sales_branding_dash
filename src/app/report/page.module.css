@@ -1,89 +1,368 @@
+/* ── Reports Page ──────────────────────────────────────────────────────────── */
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: var(--foreground);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.25rem;
 }
 
 .subtitle {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
 }
 
-.reportList {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+.exportBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--foreground);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.reportItem {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    transition: all 0.2s;
+.exportBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
 }
 
-.reportItem:hover {
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.05);
+.exportBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-.reportInfo {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+/* ── KPI Grid ── */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
-.iconBox {
-    width: 48px;
-    height: 48px;
-    border-radius: 0.5rem;
-    background: rgba(99, 102, 241, 0.1);
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+@media (max-width: 900px) {
+  .kpiGrid { grid-template-columns: repeat(2, 1fr); }
 }
 
-.reportText {
-    display: flex;
-    flex-direction: column;
+.kpiCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.875rem;
+  padding: 1rem 1.1rem;
 }
 
-.reportTitle {
-    font-weight: 600;
-    color: var(--foreground);
-    margin-bottom: 0.25rem;
+.kpiIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.625rem;
 }
 
-.reportDate {
-    font-size: 0.875rem;
-    color: var(--text-muted);
+.kpiLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
 }
 
-.downloadBtn {
-    padding: 0.5rem 1rem;
-    background: transparent;
-    border: 1px solid var(--card-border);
-    color: var(--foreground);
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.kpiValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 0.25rem;
 }
 
-.downloadBtn:hover {
-    background: var(--primary);
-    border-color: var(--primary);
+.kpiSub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.kpiSkeleton {
+  height: 110px;
+  border-radius: 0.875rem;
+  background: rgba(255, 255, 255, 0.04);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Section ── */
+.section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.875rem;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 1rem;
+}
+
+/* ── Table ── */
+.tableWrap {
+  overflow-x: auto;
+  margin: 0 -0.25rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.th {
+  padding: 0.375rem 0.75rem;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+.tr:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.td {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.tdBold {
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.rowSkeleton {
+  height: 14px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Progress Bar Cell ── */
+.pctCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pctBar {
+  flex: 1;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.pctFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ── Status Badge ── */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ── Velocity ── */
+.velNum {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── Score Chip ── */
+.scoreChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: 1px solid;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.scoreLabel {
+  font-size: 0.6rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.dimText {
+  color: var(--text-muted);
+}
+
+/* ── AI Section ── */
+.aiHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.generateBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.generateBtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.generateBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── AI Placeholder ── */
+.aiPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+.placeholderIcon {
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.placeholderText {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0 0 0.75rem;
+}
+
+.placeholderArrow {
+  color: var(--text-muted);
+  opacity: 0.5;
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+/* ── AI Output ── */
+.aiOutput {
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.aiH3 {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #a5b4fc;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1.1rem 0 0.5rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.aiH3:first-child {
+  margin-top: 0;
+}
+
+.aiText {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.7;
+  margin: 0 0 0.25rem;
+}
+
+.aiBullet {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.7;
+  margin: 0 0 0.25rem;
+  padding-left: 0.5rem;
+}
+
+.aiNumbered {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.7;
+  margin: 0 0 0.25rem;
+  padding-left: 0.25rem;
+  font-weight: 600;
+}
+
+.aiSpacer {
+  height: 0.4rem;
+}
+
+/* ── Animations ── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(4px); }
 }
