@@ -1,99 +1,416 @@
+/* ── Research Hub Page ─────────────────────────────────────────────────────── */
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  margin-bottom: 1.25rem;
 }
 
 .title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: var(--foreground);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.25rem;
 }
 
 .subtitle {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
 }
 
+/* ── Search ── */
 .searchBar {
-    margin-bottom: 2rem;
-    position: relative;
-}
-
-.input {
-    width: 100%;
-    padding: 1rem 1rem 1rem 3rem;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 0.75rem;
-    color: var(--foreground);
-    font-family: inherit;
-    font-size: 1rem;
+  position: relative;
+  margin-bottom: 1.25rem;
 }
 
 .searchIcon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
-.sectionHeader {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    color: var(--foreground);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.searchInput {
+  width: 100%;
+  padding: 0.625rem 0.875rem 0.625rem 2.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.875rem;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
 }
 
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
+.searchInput:focus {
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
-.tag {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--accent);
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    margin-bottom: 0.5rem;
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+/* ── Tab Bar ── */
+.tabBar {
+  display: flex;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 4px;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  width: fit-content;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tabBtnActive {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  font-weight: 700;
+}
+
+/* ── Methodology Grid ── */
+.methodGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.875rem;
+}
+
+@media (max-width: 900px) {
+  .methodGrid { grid-template-columns: 1fr; }
+}
+
+.methodCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.875rem;
+  padding: 1rem 1.25rem;
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+
+.methodCardExpanded {
+  border-width: 1.5px;
+}
+
+.methodTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+}
+
+.methodLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.methodEmoji {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.methodId {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.methodName {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.methodChevron {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  user-select: none;
+}
+
+.methodTagline {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.methodStages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.stageChip {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Method Detail (expanded) */
+.methodDetail {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.detailSection {
+  flex: 1;
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.875rem;
+}
+
+.detailLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.detailList {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+}
+
+.detailList li {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.6;
+}
+
+.detailText {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.detailQuote {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.65);
+  font-style: italic;
+  border-left: 2px solid rgba(99, 102, 241, 0.4);
+  padding-left: 0.75rem;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ── Pattern Grid ── */
+.patternGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.875rem;
+}
+
+@media (max-width: 900px) {
+  .patternGrid { grid-template-columns: 1fr; }
+}
+
+.patternCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.875rem;
+  padding: 1rem 1.25rem;
+  transition: border-color 0.15s;
+}
+
+.patternCard:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.patternTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.patternTag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.patternMethod {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .patternTitle {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--foreground);
-    margin-bottom: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.375rem;
 }
 
 .patternDesc {
-    color: var(--text-muted);
-    font-size: 0.875rem;
-    line-height: 1.5;
-    margin-bottom: 1rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+  margin: 0 0 0.875rem;
 }
 
-.iconYellow {
-    color: #eab308;
-    /* yellow-500 */
+.patternMeta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.iconBlue {
-    color: #60a5fa;
-    /* blue-400 */
+.winRateBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
 }
 
-.metaInfo {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    /* gray-400 ~ text-muted */
+.winNum {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.winLabel {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.patternMetaRight {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metaLine {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/* ── Intel List ── */
+.intelList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.intelCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid;
+  border-radius: 0 0.875rem 0.875rem 0;
+  padding: 1rem 1.25rem;
+}
+
+.intelTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.urgencyBadge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  margin-right: 8px;
+}
+
+.intelRegion {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.intelDate {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.intelTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.375rem;
+}
+
+.intelDesc {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+}
+
+.counterBox {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+}
+
+.counterLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #a5b4fc;
+  white-space: nowrap;
+}
+
+.counterText {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.4;
 }
