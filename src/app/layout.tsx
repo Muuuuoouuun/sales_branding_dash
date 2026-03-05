@@ -15,9 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div style={{ display: "flex", minHeight: "100vh" }}>
+        <div className="layout-wrapper">
           <Sidebar />
-          <main style={{ marginLeft: "260px", flex: 1, padding: "2rem", width: "calc(100vw - 260px)" }}>
+          <main className="layout-main">
             {children}
           </main>
         </div>

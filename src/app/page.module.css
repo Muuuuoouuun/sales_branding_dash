@@ -389,3 +389,42 @@
 .actionLink:hover {
   text-decoration: underline;
 }
+
+/* ── 모바일 반응형 ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  /* KPI 카드 4열 → 2열 */
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* 차트 + 히트맵 2열 → 1열 */
+  .chartsGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 개인 트래커 3열 → 1열 */
+  .bottomGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .chartContainer {
+    height: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 초소형: KPI 2열 → 1열 */
+  .statsGrid {
+    grid-template-columns: 1fr !important;
+  }
+}

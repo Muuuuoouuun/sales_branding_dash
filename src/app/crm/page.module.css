@@ -107,6 +107,7 @@
   color: var(--text-muted);
   font-size: 0.8rem;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -295,6 +296,10 @@
 
 @media (max-width: 900px) {
   .kanban { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .kanban { grid-template-columns: 1fr; }
 }
 
 .kanbanCol {
@@ -554,4 +559,19 @@
   color: var(--text-muted);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   text-align: right;
+}
+
+/* ── Mobile Responsive ── */
+@media (max-width: 768px) {
+  .tabBar {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .tabBtn {
+    padding: 7px 12px;
+    font-size: 0.75rem;
+  }
+  .kanban {
+    grid-template-columns: 1fr;
+  }
 }

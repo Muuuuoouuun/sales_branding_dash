@@ -134,3 +134,62 @@ h6 {
 .animate-slide-up {
   animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ── 반응형 레이아웃 ────────────────────────────────────────────────────────── */
+.layout-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+.layout-main {
+  margin-left: 260px;
+  flex: 1;
+  padding: 2rem;
+  width: calc(100vw - 260px);
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .layout-main {
+    margin-left: 0;
+    width: 100vw;
+    padding: 1rem;
+    padding-top: 4rem; /* 햄버거 버튼 공간 */
+  }
+}
+
+/* ── 공통 반응형 그리드 유틸 ── */
+@media (max-width: 768px) {
+  /* 대시보드 KPI 카드 */
+  [class*="statsGrid"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* CRM 칸반 4열 → 1열 */
+  [class*="kanban"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 헤더 액션 버튼 줄바꿈 허용 */
+  [class*="pageHeader"] {
+    flex-wrap: wrap;
+  }
+
+  /* 프로젝트 OKR 카드 그리드 */
+  [class*="okrGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 범례 카드 그리드 */
+  [class*="legendGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 탭 바 스크롤 허용 */
+  [class*="tabBar"] {
+    overflow-x: auto;
+    width: 100% !important;
+    flex-wrap: nowrap;
+  }
+}

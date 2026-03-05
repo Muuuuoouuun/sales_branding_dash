@@ -81,6 +81,7 @@
   color: var(--text-muted);
   font-size: 0.8rem;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -413,4 +414,22 @@
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.65);
   line-height: 1.4;
+}
+
+/* ── Mobile Responsive ── */
+@media (max-width: 768px) {
+  .tabBar {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .tabBtn {
+    padding: 7px 10px;
+    font-size: 0.75rem;
+  }
+  .methodGrid {
+    grid-template-columns: 1fr;
+  }
+  .patternGrid {
+    grid-template-columns: 1fr;
+  }
 }
