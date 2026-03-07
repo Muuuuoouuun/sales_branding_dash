@@ -630,3 +630,10 @@
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+/* ── 라이트 모드 오버라이드 ── */
+:global(html.light) .tabBar         { background: rgba(0, 0, 0, 0.04); }
+:global(html.light) .fieldInput     { background: rgba(0, 0, 0, 0.04); color: var(--foreground); }
+:global(html.light) .table th       { background: rgba(0, 0, 0, 0.04); color: var(--text-muted); }
+:global(html.light) .tableRow:hover { background: rgba(0, 0, 0, 0.03); }
+:global(html.light) .platformCard:hover { border-color: rgba(0, 0, 0, 0.12); }

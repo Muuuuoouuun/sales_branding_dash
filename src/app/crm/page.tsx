@@ -6,12 +6,14 @@ import SalesTip from "@/components/SalesTip";
 import {
   Phone, Mail, MessageSquare, ArrowRight, Loader2,
   Kanban, TableProperties, Crosshair,
-  ChevronUp, ChevronDown, ChevronsUpDown,
+  ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type CrmTab = "killist" | "pipeline" | "leads";
-type SortDir = "asc" | "desc" | null;
+type CrmTab    = "killist" | "pipeline" | "leads";
+type SortDir   = "asc" | "desc" | null;
+type LeadStatus = "critical" | "warning" | "good";
+type QuickSort  = "critical" | "revenue" | "due" | "contact" | null;
 
 interface Lead {
   id: number;
@@ -27,6 +29,8 @@ interface Lead {
   due_label: string;
   action: string;
 }
+
+type LeadWithStatus = Lead & { _status: LeadStatus };
 
 interface FocusScore {
   name: string;
@@ -60,6 +64,41 @@ const OWNER_COLORS: Record<string, string> = {
   "이지원": "#22c55e",
   "박웨이": "#f59e0b",
 };
+
+const STAGE_COLOR: Record<string, string> = {
+  Lead: "#64748b", Proposal: "#6366f1", Negotiation: "#f59e0b", Contract: "#22c55e",
+};
+const STAGE_KR: Record<string, string> = {
+  Lead: "리드", Proposal: "제안", Negotiation: "협상", Contract: "계약",
+};
+
+// ── Helper functions ──────────────────────────────────────────────────────────
+function getLeadStatus(lead: Lead): LeadStatus {
+  if (lead.stage === "Contract") return "good";
+
+  let dueDays = 0;
+  if (lead.due_label.includes("초과"))     dueDays = -parseInt(lead.due_label);
+  else if (lead.due_label === "오늘")       dueDays = 0;
+  else if (lead.due_label === "내일")       dueDays = 1;
+  else                                      dueDays = parseInt(lead.due_label);
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const lc = new Date(lead.last_contact);  lc.setHours(0, 0, 0, 0);
+  const daysSinceContact = Math.floor((today.getTime() - lc.getTime()) / 86_400_000);
+
+  if (dueDays < 0 || lead.probability < 40)                           return "critical";
+  if (dueDays <= 7 || lead.probability < 65 || daysSinceContact > 14) return "warning";
+  return "good";
+}
+
+function formatLastContact(dateStr: string): string {
+  const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
+  const today = new Date();    today.setHours(0, 0, 0, 0);
+  const days = Math.floor((today.getTime() - d.getTime()) / 86_400_000);
+  if (days === 0) return "오늘";
+  if (days === 1) return "어제";
+  return `${days}일 전`;
+}
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function CRMPage() {
@@ -166,9 +205,6 @@ export default function CRMPage() {
 
 // ── Kill-List Tab ─────────────────────────────────────────────────────────────
 function KillListTab({ actions }: { actions: ActionItem[] }) {
-  const STAGE_COLOR: Record<string, string> = {
-    Lead: "#64748b", Proposal: "#6366f1", Negotiation: "#f59e0b", Contract: "#22c55e",
-  };
   return (
     <div className={styles.killList}>
       {actions.map((item, idx) => {
@@ -235,7 +271,6 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
         const totalRevenue = cards.reduce((s, c) => s + c.revenue_potential, 0);
         return (
           <div key={st.id} className={styles.kanbanCol}>
-            {/* Column header */}
             <div className={styles.kanbanHeader} style={{ borderTopColor: st.color }}>
               <div className={styles.kanbanHeaderTop}>
                 <span className={styles.kanbanStage} style={{ color: st.color }}>{st.label}</span>
@@ -245,8 +280,6 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
               </div>
               <span className={styles.kanbanRevenue}>₩{(totalRevenue / 1000).toFixed(1)}B</span>
             </div>
-
-            {/* Deal cards */}
             <div className={styles.kanbanCards}>
               {cards.map(c => {
                 const ownerColor = OWNER_COLORS[c.owner] ?? "#818cf8";
@@ -260,7 +293,6 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
                       }}>{c.probability}%</span>
                     </div>
                     <div className={styles.dealContact}>{c.contact} · {c.region}</div>
-                    {/* Probability bar */}
                     <div className={styles.dealProbBar}>
                       <div style={{
                         width: `${c.probability}%`, height: "100%", borderRadius: 2,
@@ -270,9 +302,7 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
                     </div>
                     <div className={styles.dealBottom}>
                       <span className={styles.dealRev}>₩{(c.revenue_potential / 1000).toFixed(1)}B</span>
-                      <span className={styles.dealOwner} style={{ color: ownerColor }}>
-                        {c.owner}
-                      </span>
+                      <span className={styles.dealOwner} style={{ color: ownerColor }}>{c.owner}</span>
                       <span className={styles.dealDue} style={{ color: isOverdue ? "#f87171" : "var(--text-muted)" }}>
                         {c.due_label}
                       </span>
@@ -291,24 +321,123 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
   );
 }
 
+// ── Pipeline Summary Strip ────────────────────────────────────────────────────
+function PipelineStrip({
+  leads,
+  activeStage,
+  onStageClick,
+}: {
+  leads: Lead[];
+  activeStage: string | null;
+  onStageClick: (stage: string | null) => void;
+}) {
+  const stats = useMemo(() => {
+    return STAGES.map(st => {
+      const rows = leads.filter(l => l.stage === st.id);
+      return {
+        ...st,
+        count: rows.length,
+        totalRevenue: rows.reduce((s, l) => s + l.revenue_potential, 0),
+      };
+    });
+  }, [leads]);
+
+  return (
+    <div className={styles.pipelineStrip}>
+      {stats.map(st => {
+        const isActive = activeStage === st.id;
+        return (
+          <div
+            key={st.id}
+            className={`${styles.pipelineCard} ${isActive ? styles.pipelineCardActive : ""}`}
+            style={{ "--stage-color": st.color } as React.CSSProperties}
+            onClick={() => onStageClick(isActive ? null : st.id)}
+          >
+            {/* colored top bar via ::before color set by style */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: st.color, borderRadius: "0.75rem 0.75rem 0 0" }} />
+            <div className={styles.pipelineCardHeader}>
+              <span className={styles.pipelineStageLabel} style={{ color: st.color }}>
+                {st.label}
+              </span>
+              <span className={styles.pipelineCount}>{st.count}건</span>
+            </div>
+            <div className={styles.pipelineRevenue}>
+              ₩{st.totalRevenue >= 1000
+                ? `${(st.totalRevenue / 1000).toFixed(1)}B`
+                : `${st.totalRevenue}M`}
+            </div>
+            <div className={styles.pipelineRevLabel}>파이프라인 매출</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Status Badge ──────────────────────────────────────────────────────────────
+function StatusBadge({ status }: { status: LeadStatus }) {
+  const cfg = {
+    critical: { label: "위험", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+    warning:  { label: "주의", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+    good:     { label: "양호", color: "#22c55e", bg: "rgba(34,197,94,0.12)"  },
+  }[status];
+  return (
+    <span
+      className={styles.statusBadge}
+      style={{ color: cfg.color, background: cfg.bg, borderColor: `${cfg.color}44` }}
+    >
+      {status === "critical" ? "🔴" : status === "warning" ? "🟡" : "🟢"} {cfg.label}
+    </span>
+  );
+}
+
 // ── Leads Table Tab ───────────────────────────────────────────────────────────
 type SortKey = keyof Lead;
 
+const QUICK_SORTS: { id: Exclude<QuickSort, null>; label: string }[] = [
+  { id: "critical", label: "⚡ 위험 우선"    },
+  { id: "revenue",  label: "💰 매출 높은 순" },
+  { id: "due",      label: "⏰ 마감 임박 순" },
+  { id: "contact",  label: "📞 최근 연락 순" },
+];
+
 function LeadsTab({ leads }: { leads: Lead[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("probability");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortKey, setSortKey]       = useState<SortKey>("probability");
+  const [sortDir, setSortDir]       = useState<SortDir>("desc");
   const [filterOwner, setFilterOwner] = useState("전체");
-  const [filterStage, setFilterStage] = useState("전체");
+  const [filterStage, setFilterStage] = useState<string | null>(null);
+  const [quickSort, setQuickSort]   = useState<QuickSort>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   const owners = useMemo(() => ["전체", ...Array.from(new Set(leads.map(l => l.owner)))], [leads]);
-  const stageLabels = useMemo(() => ["전체", ...STAGES.map(s => s.id)], []);
 
-  const sorted = useMemo(() => {
-    let rows = leads.filter(l =>
-      (filterOwner === "전체" || l.owner === filterOwner) &&
-      (filterStage === "전체" || l.stage === filterStage),
-    );
-    if (sortDir) {
+  const toggleExpand = (id: number) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const sorted: LeadWithStatus[] = useMemo(() => {
+    const STATUS_ORDER: Record<LeadStatus, number> = { critical: 0, warning: 1, good: 2 };
+
+    let rows: LeadWithStatus[] = leads
+      .filter(l =>
+        (filterOwner === "전체" || l.owner === filterOwner) &&
+        (filterStage === null    || l.stage === filterStage),
+      )
+      .map(l => ({ ...l, _status: getLeadStatus(l) }));
+
+    if (quickSort === "critical") {
+      rows.sort((a, b) => STATUS_ORDER[a._status] - STATUS_ORDER[b._status]);
+    } else if (quickSort === "revenue") {
+      rows.sort((a, b) => b.revenue_potential - a.revenue_potential);
+    } else if (quickSort === "due") {
+      rows.sort((a, b) => a.due_date.localeCompare(b.due_date));
+    } else if (quickSort === "contact") {
+      rows.sort((a, b) => b.last_contact.localeCompare(a.last_contact));
+    } else if (sortDir) {
       rows = [...rows].sort((a, b) => {
         const av = a[sortKey], bv = b[sortKey];
         const cmp = typeof av === "number" && typeof bv === "number"
@@ -318,9 +447,15 @@ function LeadsTab({ leads }: { leads: Lead[] }) {
       });
     }
     return rows;
-  }, [leads, sortKey, sortDir, filterOwner, filterStage]);
+  }, [leads, filterOwner, filterStage, quickSort, sortKey, sortDir]);
+
+  const maxRevenue = useMemo(
+    () => Math.max(...sorted.map(l => l.revenue_potential), 1),
+    [sorted],
+  );
 
   const handleSort = (key: SortKey) => {
+    setQuickSort(null);
     if (sortKey === key) {
       setSortDir(d => d === "asc" ? "desc" : d === "desc" ? null : "asc");
     } else {
@@ -329,17 +464,52 @@ function LeadsTab({ leads }: { leads: Lead[] }) {
     }
   };
 
+  const handleQuickSort = (id: Exclude<QuickSort, null>) => {
+    setQuickSort(prev => prev === id ? null : id);
+    setSortDir(null);
+  };
+
   const SortIcon = ({ k }: { k: SortKey }) => {
-    if (sortKey !== k || !sortDir) return <ChevronsUpDown size={11} style={{ opacity: 0.3 }} />;
+    if (sortKey !== k || !sortDir || quickSort !== null)
+      return <ChevronsUpDown size={11} style={{ opacity: 0.3 }} />;
     return sortDir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />;
   };
 
-  const STAGE_COLOR: Record<string, string> = { Lead: "#64748b", Proposal: "#6366f1", Negotiation: "#f59e0b", Contract: "#22c55e" };
-  const STAGE_KR: Record<string, string> = { Lead: "리드", Proposal: "제안", Negotiation: "협상", Contract: "계약" };
+  const totalRevenue = sorted.reduce((s, l) => s + l.revenue_potential, 0);
+
+  // Sortable column headers
+  const SORTABLE_COLS: [SortKey, string][] = [
+    ["company",           "회사명"],
+    ["stage",             "단계"],
+    ["probability",       "확률"],
+    ["revenue_potential", "예상매출"],
+    ["last_contact",      "마지막연락"],
+    ["due_label",         "마감"],
+  ];
 
   return (
     <div>
-      {/* Filters */}
+      {/* ── Pipeline Summary Strip ── */}
+      <PipelineStrip
+        leads={leads}
+        activeStage={filterStage}
+        onStageClick={setFilterStage}
+      />
+
+      {/* ── Quick Sort Chips ── */}
+      <div className={styles.quickSortBar}>
+        {QUICK_SORTS.map(qs => (
+          <button
+            key={qs.id}
+            className={`${styles.quickSortChip} ${quickSort === qs.id ? styles.quickSortActive : ""}`}
+            onClick={() => handleQuickSort(qs.id)}
+          >
+            {qs.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Filters ── */}
       <div className={styles.filters}>
         <div className={styles.filterGroup}>
           <span className={styles.filterLabel}>담당자</span>
@@ -347,87 +517,166 @@ function LeadsTab({ leads }: { leads: Lead[] }) {
             <button
               key={o}
               className={`${styles.filterChip} ${filterOwner === o ? styles.filterChipActive : ""}`}
-              style={filterOwner === o && o !== "전체" ? { color: OWNER_COLORS[o], borderColor: `${OWNER_COLORS[o]}55`, background: `${OWNER_COLORS[o]}11` } : {}}
+              style={filterOwner === o && o !== "전체"
+                ? { color: OWNER_COLORS[o], borderColor: `${OWNER_COLORS[o]}55`, background: `${OWNER_COLORS[o]}11` }
+                : {}}
               onClick={() => setFilterOwner(o)}
             >{o}</button>
           ))}
         </div>
         <div className={styles.filterGroup}>
           <span className={styles.filterLabel}>단계</span>
-          {stageLabels.map(s => {
-            const sc = STAGE_COLOR[s];
-            return (
-              <button
-                key={s}
-                className={`${styles.filterChip} ${filterStage === s ? styles.filterChipActive : ""}`}
-                style={filterStage === s && s !== "전체" ? { color: sc, borderColor: `${sc}55`, background: `${sc}11` } : {}}
-                onClick={() => setFilterStage(s)}
-              >{s === "전체" ? "전체" : STAGE_KR[s]}</button>
-            );
-          })}
+          <button
+            className={`${styles.filterChip} ${filterStage === null ? styles.filterChipActive : ""}`}
+            onClick={() => setFilterStage(null)}
+          >전체</button>
+          {STAGES.map(st => (
+            <button
+              key={st.id}
+              className={`${styles.filterChip} ${filterStage === st.id ? styles.filterChipActive : ""}`}
+              style={filterStage === st.id
+                ? { color: st.color, borderColor: `${st.color}55`, background: `${st.color}11` }
+                : {}}
+              onClick={() => setFilterStage(prev => prev === st.id ? null : st.id)}
+            >{st.label}</button>
+          ))}
         </div>
       </div>
 
-      {/* Table */}
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
+      {/* ── Table ── */}
+      <div className={styles.tableWrap} style={{ overflowX: "auto" }}>
+        <table className={styles.table} style={{ minWidth: 760 }}>
           <thead>
             <tr>
-              {([
-                ["company",           "회사명"],
-                ["contact",           "담당자"],
-                ["region",            "지역"],
-                ["stage",             "단계"],
-                ["owner",             "영업담당"],
-                ["probability",       "확률"],
-                ["revenue_potential", "예상매출(M)"],
-                ["due_label",         "마감"],
-              ] as [SortKey, string][]).map(([key, label]) => (
+              <th className={styles.th}>상태</th>
+              {SORTABLE_COLS.map(([key, label]) => (
                 <th key={key} className={styles.th} onClick={() => handleSort(key)}>
                   <span className={styles.thInner}>{label} <SortIcon k={key} /></span>
                 </th>
               ))}
+              <th className={styles.th}>다음 액션</th>
             </tr>
           </thead>
           <tbody>
             {sorted.map(l => {
-              const sc  = STAGE_COLOR[l.stage] ?? "#818cf8";
-              const oc  = OWNER_COLORS[l.owner] ?? "#818cf8";
+              const sc        = STAGE_COLOR[l.stage] ?? "#818cf8";
+              const oc        = OWNER_COLORS[l.owner] ?? "#818cf8";
               const isOverdue = l.due_label.includes("초과");
+              const isExpanded = expandedIds.has(l.id);
+
               return (
-                <tr key={l.id} className={styles.tr}>
-                  <td className={styles.td} style={{ fontWeight: 600, color: "var(--foreground)" }}>{l.company}</td>
-                  <td className={styles.td}>{l.contact}</td>
-                  <td className={styles.td}>{l.region}</td>
-                  <td className={styles.td}>
-                    <span className={styles.stageTag} style={{ color: sc, background: `${sc}18`, borderColor: `${sc}33` }}>
-                      {STAGE_KR[l.stage] ?? l.stage}
-                    </span>
-                  </td>
-                  <td className={styles.td}>
-                    <span style={{ color: oc, fontWeight: 600 }}>{l.owner}</span>
-                  </td>
-                  <td className={styles.td}>
-                    <div className={styles.probCell}>
-                      <span style={{ color: l.probability >= 70 ? "#4ade80" : l.probability >= 50 ? "#fbbf24" : "#f87171", fontWeight: 700, width: 32, display: "inline-block", textAlign: "right" }}>
-                        {l.probability}%
+                <React.Fragment key={l.id}>
+                  <tr
+                    className={`${styles.tr} ${isExpanded ? styles.trExpanded : ""}`}
+                    onClick={() => toggleExpand(l.id)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {/* 상태 */}
+                    <td className={styles.td}>
+                      <StatusBadge status={l._status} />
+                    </td>
+                    {/* 회사명 */}
+                    <td className={styles.td} style={{ fontWeight: 600, color: "var(--foreground)" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <ChevronRight
+                          size={12}
+                          style={{
+                            transition: "transform 0.2s",
+                            transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                            opacity: 0.4,
+                            flexShrink: 0,
+                          }}
+                        />
+                        {l.company}
                       </span>
-                      <div className={styles.miniBar}>
-                        <div style={{ width: `${l.probability}%`, height: "100%", borderRadius: 2, background: sc }} />
+                    </td>
+                    {/* 단계 */}
+                    <td className={styles.td}>
+                      <span className={styles.stageTag} style={{ color: sc, background: `${sc}18`, borderColor: `${sc}33` }}>
+                        {STAGE_KR[l.stage] ?? l.stage}
+                      </span>
+                    </td>
+                    {/* 확률 */}
+                    <td className={styles.td}>
+                      <div className={styles.probCell}>
+                        <span style={{
+                          color: l.probability >= 70 ? "#4ade80" : l.probability >= 50 ? "#fbbf24" : "#f87171",
+                          fontWeight: 700,
+                          width: 32,
+                          display: "inline-block",
+                          textAlign: "right",
+                        }}>
+                          {l.probability}%
+                        </span>
+                        <div className={styles.miniBar}>
+                          <div style={{ width: `${l.probability}%`, height: "100%", borderRadius: 2, background: sc }} />
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className={styles.td} style={{ fontWeight: 600 }}>₩{l.revenue_potential.toLocaleString()}</td>
-                  <td className={styles.td} style={{ color: isOverdue ? "#f87171" : "var(--text-muted)", fontWeight: isOverdue ? 700 : 400 }}>
-                    {isOverdue && "⚠️ "}{l.due_label}
-                  </td>
-                </tr>
+                    </td>
+                    {/* 예상매출 */}
+                    <td className={styles.td}>
+                      <div className={styles.revCell}>
+                        <span style={{ fontWeight: 600 }}>₩{l.revenue_potential.toLocaleString()}M</span>
+                        <div className={styles.revBar}>
+                          <div style={{
+                            width: `${(l.revenue_potential / maxRevenue) * 100}%`,
+                            height: "100%",
+                            borderRadius: 2,
+                            background: "var(--primary)",
+                            opacity: 0.65,
+                          }} />
+                        </div>
+                      </div>
+                    </td>
+                    {/* 마지막연락 */}
+                    <td className={styles.td} style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                      {formatLastContact(l.last_contact)}
+                    </td>
+                    {/* 마감 */}
+                    <td className={styles.td} style={{
+                      color: isOverdue ? "#f87171" : "var(--text-muted)",
+                      fontWeight: isOverdue ? 700 : 400,
+                    }}>
+                      {isOverdue && "⚠️ "}{l.due_label}
+                    </td>
+                    {/* 다음 액션 */}
+                    <td className={styles.actionCell} style={{ paddingTop: 12, paddingBottom: 12 }}>
+                      {l.action}
+                    </td>
+                  </tr>
+
+                  {/* ── 확장 행 ── */}
+                  {isExpanded && (
+                    <tr className={styles.expandRow}>
+                      <td colSpan={8}>
+                        <div className={styles.expandContent}>
+                          <div className={styles.expandField}>
+                            <span className={styles.expandLabel}>담당자</span>
+                            <span>{l.contact}</span>
+                          </div>
+                          <div className={styles.expandField}>
+                            <span className={styles.expandLabel}>영업담당</span>
+                            <span style={{ color: oc, fontWeight: 600 }}>{l.owner}</span>
+                          </div>
+                          <div className={styles.expandField}>
+                            <span className={styles.expandLabel}>지역</span>
+                            <span>{l.region}</span>
+                          </div>
+                          <div className={`${styles.expandField} ${styles.expandAction}`}>
+                            <span className={styles.expandLabel}>다음 액션 (전체)</span>
+                            <span>{l.action}</span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
           </tbody>
         </table>
         <div className={styles.tableFooter}>
-          총 {sorted.length}건 · 예상 매출 ₩{sorted.reduce((s, l) => s + l.revenue_potential, 0).toLocaleString()}M
+          총 {sorted.length}건 · 예상 매출 ₩{totalRevenue.toLocaleString()}M
         </div>
       </div>
     </div>

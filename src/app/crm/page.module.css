@@ -561,6 +561,192 @@
   text-align: right;
 }
 
+/* ── Pipeline Strip ── */
+.pipelineStrip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+}
+
+.pipelineCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  cursor: pointer;
+  transition: all 0.18s;
+  position: relative;
+  overflow: hidden;
+}
+
+.pipelineCard::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+
+.pipelineCard:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.pipelineCardActive {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.pipelineCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.pipelineStageLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pipelineCount {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.pipelineRevenue {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.pipelineRevLabel {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Quick Sort Bar ── */
+.quickSortBar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.quickSortChip {
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+
+.quickSortChip:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--foreground);
+}
+
+.quickSortActive {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #a5b4fc;
+}
+
+/* ── Status Badge ── */
+.statusBadge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ── Revenue Cell ── */
+.revCell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.revBar {
+  width: 72px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+/* ── Action Cell ── */
+.actionCell {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+/* ── Expand Row ── */
+.trExpanded {
+  background: rgba(99, 102, 241, 0.05) !important;
+}
+
+.expandRow td {
+  padding: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.expandContent {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  border-top: 1px dashed rgba(99, 102, 241, 0.2);
+  animation: expandIn 0.15s ease;
+}
+
+@keyframes expandIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.expandField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.78rem;
+  color: var(--foreground);
+  min-width: 100px;
+}
+
+.expandLabel {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.expandAction {
+  flex: 1;
+  min-width: 200px;
+}
+
 /* ── 라이트 모드 텍스트 오버라이드 ── */
 :global(html.light) .td { color: var(--foreground); }
 :global(html.light) .killAction { color: var(--text-muted); }
@@ -568,6 +754,12 @@
 :global(html.light) .dealCompany { color: var(--foreground); }
 :global(html.light) .dealContact { color: var(--text-muted); }
 :global(html.light) .dealOwner { color: var(--text-muted); }
+:global(html.light) .actionCell { color: var(--text-muted); }
+:global(html.light) .pipelineCard { background: #ffffff; border-color: var(--card-border); }
+:global(html.light) .pipelineCount { background: rgba(0, 0, 0, 0.06); }
+:global(html.light) .quickSortChip { border-color: rgba(0, 0, 0, 0.12); }
+:global(html.light) .revBar { background: rgba(0, 0, 0, 0.07); }
+:global(html.light) .expandContent { border-top-color: rgba(99, 102, 241, 0.15); }
 
 /* ── Mobile Responsive ── */
 @media (max-width: 768px) {
