@@ -57,7 +57,36 @@ body {
   background: #52525b;
 }
 
-/* Utilities */
+/* ── 라이트 모드 CSS 변수 ─────────────────────────────────────────────────────── */
+html.light {
+  --background: #f1f5f9;
+  --sidebar-bg: #e8edf4;
+  --foreground: #0f172a;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --accent: #059669;
+  --accent-glow: rgba(5, 150, 105, 0.2);
+  --danger: #dc2626;
+  --text-muted: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(0, 0, 0, 0.07);
+}
+
+html.light body {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.04), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.04), transparent 25%);
+  color: var(--foreground);
+}
+
+/* 라이트 모드: 스크롤바 */
+html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+html.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Utilities ──────────────────────────────────────────────────────────────── */
 .glass {
   background: rgba(24, 24, 27, 0.6);
   /* Semi-transparent zinc */

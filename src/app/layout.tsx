@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Sales Master Intelligence System",
@@ -13,14 +14,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <div className="layout-wrapper">
-          <Sidebar />
-          <main className="layout-main">
-            {children}
-          </main>
-        </div>
+        <ThemeProvider>
+          <div className="layout-wrapper">
+            <Sidebar />
+            <main className="layout-main">
+              {children}
+            </main>
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

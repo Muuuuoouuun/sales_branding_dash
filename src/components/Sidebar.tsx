@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Target, Users, Brain,
-  FileText, Zap, Database, Menu, X,
+  FileText, Zap, Database, Menu, X, Sun, Moon,
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
 import clsx from "clsx";
+import { useTheme } from "./ThemeProvider";
 
 const navItems = [
   { name: "Dashboard",     href: "/",        icon: LayoutDashboard },
@@ -22,6 +23,7 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { theme, toggle } = useTheme();
 
   // 페이지 이동 시 자동 닫기
   useEffect(() => {
@@ -87,6 +89,14 @@ export default function Sidebar() {
             <span className={styles.userName}>Top-C Admin</span>
             <span className={styles.userRole}>Strategy Lead</span>
           </div>
+          <button
+            className={styles.themeToggle}
+            onClick={toggle}
+            aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+            title={theme === "dark" ? "라이트 모드" : "다크 모드"}
+          >
+            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
         </div>
       </aside>
     </>

@@ -127,6 +127,45 @@
     color: var(--text-muted);
 }
 
+/* ── 테마 토글 버튼 ── */
+.themeToggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.themeToggle:hover {
+    color: var(--foreground);
+    background: rgba(99, 102, 241, 0.12);
+    border-color: var(--primary);
+}
+
+/* ── 라이트 모드 사이드바 오버라이드 ── */
+:global(html.light) .sidebar {
+    background-color: rgba(232, 237, 244, 0.88);
+    border-right-color: rgba(0, 0, 0, 0.07);
+}
+
+:global(html.light) .navItem:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+:global(html.light) .hamburger {
+    background: rgba(241, 245, 249, 0.95);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: var(--foreground);
+}
+
 /* ── 햄버거 버튼 (모바일 전용) ── */
 .hamburger {
     display: none;
