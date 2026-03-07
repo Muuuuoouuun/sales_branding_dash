@@ -796,6 +796,16 @@
   margin: 0;
 }
 
+/* ── 라이트 모드 텍스트 오버라이드 ── */
+:global(html.light) .guruQuote { color: rgba(15, 23, 42, 0.6); }
+:global(html.light) .principleItem { color: var(--text-muted); }
+:global(html.light) .legendBio { color: rgba(15, 23, 42, 0.55); }
+:global(html.light) .legendQuote { color: rgba(15, 23, 42, 0.6); }
+:global(html.light) .legendSigText { color: var(--text-muted); }
+:global(html.light) .legendPrincipleItem { color: rgba(15, 23, 42, 0.6); }
+:global(html.light) .aiText { color: var(--text-muted); }
+:global(html.light) .stageDesc { color: var(--text-muted); }
+
 /* ── Mobile Responsive ── */
 @media (max-width: 768px) {
   .tabBar {

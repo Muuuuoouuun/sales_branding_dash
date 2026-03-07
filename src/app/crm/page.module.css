@@ -561,6 +561,14 @@
   text-align: right;
 }
 
+/* ── 라이트 모드 텍스트 오버라이드 ── */
+:global(html.light) .td { color: var(--foreground); }
+:global(html.light) .killAction { color: var(--text-muted); }
+:global(html.light) .emptyCol { color: rgba(0, 0, 0, 0.3); }
+:global(html.light) .dealCompany { color: var(--foreground); }
+:global(html.light) .dealContact { color: var(--text-muted); }
+:global(html.light) .dealOwner { color: var(--text-muted); }
+
 /* ── Mobile Responsive ── */
 @media (max-width: 768px) {
   .tabBar {

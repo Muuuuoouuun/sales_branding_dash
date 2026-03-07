@@ -352,6 +352,16 @@
   height: 0.4rem;
 }
 
+/* ── 라이트 모드 텍스트 오버라이드 ── */
+:global(html.light) .td { color: var(--foreground); }
+:global(html.light) .tdBold { color: var(--foreground); }
+:global(html.light) .velNum { color: var(--text-muted); }
+:global(html.light) .dimText { color: var(--text-muted); }
+:global(html.light) .th { color: var(--text-muted); }
+:global(html.light) .aiText { color: rgba(15, 23, 42, 0.72); }
+:global(html.light) .aiBullet { color: rgba(15, 23, 42, 0.72); }
+:global(html.light) .aiNumbered { color: rgba(15, 23, 42, 0.72); }
+
 /* ── Animations ── */
 @keyframes spin {
   to { transform: rotate(360deg); }

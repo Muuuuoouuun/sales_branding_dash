@@ -416,6 +416,17 @@
   line-height: 1.4;
 }
 
+/* ── 라이트 모드 텍스트 오버라이드 ── */
+:global(html.light) .methodTagline { color: var(--text-muted); }
+:global(html.light) .detailList li { color: var(--text-muted); }
+:global(html.light) .detailText { color: var(--text-muted); }
+:global(html.light) .detailQuote { color: var(--text-muted); }
+:global(html.light) .patternDesc { color: var(--text-muted); }
+:global(html.light) .winLabel { color: var(--text-muted); }
+:global(html.light) .metaLine { color: var(--text-muted); }
+:global(html.light) .intelDesc { color: var(--text-muted); }
+:global(html.light) .counterText { color: var(--text-muted); }
+
 /* ── Mobile Responsive ── */
 @media (max-width: 768px) {
   .tabBar {
