@@ -139,8 +139,8 @@ export default function CRMPage() {
       {/* ── Focus Score bar ── */}
       {!loading && (
         <div className={styles.scoreRow}>
-          {scores.map(s => (
-            <div key={s.name} className={styles.scoreCard}>
+          {scores.map((s, i) => (
+            <div key={s.name} className={`${styles.scoreCard} stagger-${i + 1}`}>
               <div className={styles.scoreTop}>
                 <span className={styles.scoreName}>{s.name}</span>
                 <span className={styles.scoreLabel}

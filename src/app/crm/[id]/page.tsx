@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, CheckCircle, Loader2, Pencil, Plus, X } from "lucide-react";
 import styles from "./page.module.css";
+import { useToast } from "@/components/Toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Activity {
@@ -233,9 +234,44 @@ function ActivityTimeline({ activities }: { activities: Activity[] }) {
   );
 }
 
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function DetailSkeleton() {
+  return (
+    <div className={styles.container}>
+      <div className="skeleton-block" style={{ width: 160, height: 22, marginBottom: "1.25rem", borderRadius: 6 }} />
+      <div style={{ display: "flex", gap: 12, marginBottom: "1.5rem", alignItems: "center" }}>
+        <div className="skeleton-block" style={{ width: 52, height: 52, borderRadius: 12, flexShrink: 0 }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+          <div className="skeleton-block" style={{ width: 200, height: 26, borderRadius: 6 }} />
+          <div className="skeleton-block" style={{ width: 280, height: 16, borderRadius: 6 }} />
+        </div>
+      </div>
+      <div className={styles.card} style={{ marginBottom: "1rem" }}>
+        <div className="skeleton-block" style={{ width: 90, height: 13, marginBottom: 16, borderRadius: 4 }} />
+        <div style={{ display: "flex", gap: 8 }}>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="skeleton-block" style={{ flex: 1, height: 60, borderRadius: 8 }} />
+          ))}
+        </div>
+      </div>
+      <div className={styles.metricGrid} style={{ marginBottom: "1rem" }}>
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className={`${styles.metricCard} skeleton-block`} style={{ height: 70, border: "none" }} />
+        ))}
+      </div>
+      <div className={styles.card}>
+        <div className="skeleton-block" style={{ width: 120, height: 13, marginBottom: 12, borderRadius: 4 }} />
+        <div className="skeleton-block" style={{ width: "80%", height: 16, marginBottom: 8, borderRadius: 4 }} />
+        <div className="skeleton-block" style={{ width: "60%", height: 14, borderRadius: 4 }} />
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CrmDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
+  const router    = useRouter();
+  const { toast } = useToast();
 
   // 데이터 상태
   const [leadId, setLeadId]         = useState<string | null>(null);
@@ -248,7 +284,6 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
   const [editMode, setEditMode]     = useState(false);
   const [editDraft, setEditDraft]   = useState<EditDraft>({});
   const [saving, setSaving]         = useState(false);
-  const [saveMsg, setSaveMsg]       = useState<string | null>(null);
 
   // 활동 추가 상태
   const [showActForm, setShowActForm] = useState(false);
@@ -257,7 +292,6 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
     outcome: "neutral", next_step: "", duration_min: "", rep: "",
   });
   const [actSaving, setActSaving]   = useState(false);
-  const [actMsg, setActMsg]         = useState<string | null>(null);
 
   // params 해제
   useEffect(() => { params.then(({ id }) => setLeadId(id)); }, [params]);
@@ -298,11 +332,9 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
       await reload();
       setEditMode(false);
       setEditDraft({});
-      setSaveMsg("저장되었습니다.");
-      setTimeout(() => setSaveMsg(null), 2500);
+      toast("저장되었습니다.", "success");
     } catch (e) {
-      setSaveMsg(e instanceof Error ? e.message : "저장 중 오류 발생");
-      setTimeout(() => setSaveMsg(null), 3000);
+      toast(e instanceof Error ? e.message : "저장 중 오류 발생", "error");
     } finally {
       setSaving(false);
     }
@@ -311,7 +343,7 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
   // 활동 저장
   async function saveActivity() {
     if (!leadId) return;
-    if (!actDraft.title.trim()) { setActMsg("제목을 입력해 주세요."); setTimeout(() => setActMsg(null), 2000); return; }
+    if (!actDraft.title.trim()) { toast("제목을 입력해 주세요.", "error"); return; }
     setActSaving(true);
     try {
       const body: Record<string, unknown> = {
@@ -337,25 +369,16 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
       await reload();
       setShowActForm(false);
       setActDraft({ type: "call", date: todayStr(), title: "", description: "", outcome: "neutral", next_step: "", duration_min: "", rep: "" });
-      setActMsg("활동이 기록되었습니다.");
-      setTimeout(() => setActMsg(null), 2500);
+      toast("활동이 기록되었습니다.", "success");
     } catch (e) {
-      setActMsg(e instanceof Error ? e.message : "저장 중 오류 발생");
-      setTimeout(() => setActMsg(null), 3000);
+      toast(e instanceof Error ? e.message : "저장 중 오류 발생", "error");
     } finally {
       setActSaving(false);
     }
   }
 
   // ── 로딩 / 에러 ────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className={styles.loading}>
-        <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-        <span>불러오는 중...</span>
-      </div>
-    );
-  }
+  if (loading) return <DetailSkeleton />;
 
   if (error || !lead) {
     return (
@@ -486,12 +509,6 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
             </div>
           )}
         </div>
-
-        {saveMsg && (
-          <p className={styles.feedbackMsg} style={{ color: saveMsg.includes("오류") || saveMsg.includes("실패") ? "#f87171" : "#4ade80" }}>
-            {saveMsg}
-          </p>
-        )}
 
         {!editMode ? (
           /* ── 읽기 모드 ── */
@@ -750,15 +767,10 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
                 />
               </div>
             </div>
-            {actMsg && (
-              <p className={styles.feedbackMsg} style={{ color: actMsg.includes("오류") || actMsg.includes("실패") || actMsg.includes("입력") ? "#f87171" : "#4ade80" }}>
-                {actMsg}
-              </p>
-            )}
             <div className={styles.actFormFooter}>
               <button
                 className={styles.cancelBtn}
-                onClick={() => { setShowActForm(false); setActMsg(null); }}
+                onClick={() => setShowActForm(false)}
                 disabled={actSaving}
               >
                 <X size={12} /> 취소
@@ -769,12 +781,6 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
               </button>
             </div>
           </div>
-        )}
-
-        {actMsg && !showActForm && (
-          <p className={styles.feedbackMsg} style={{ color: "#4ade80", marginBottom: "0.75rem" }}>
-            {actMsg}
-          </p>
         )}
 
         <ActivityTimeline activities={activities} />

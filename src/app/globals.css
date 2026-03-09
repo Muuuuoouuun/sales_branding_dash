@@ -222,3 +222,116 @@ h6 {
     flex-wrap: nowrap;
   }
 }
+
+/* ── Toast 시스템 ────────────────────────────────────────────────────────────── */
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; transform: scale(0.96); }
+}
+
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: var(--font-main);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation:
+    toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both,
+    toastFadeOut 0.3s ease 2.2s both;
+  pointer-events: auto;
+  max-width: 320px;
+  line-height: 1.4;
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.toast-success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+.toast-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.toast-info {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+/* 라이트 모드 Toast */
+html.light .toast-success { background: rgba(34, 197, 94, 0.1);  color: #16a34a; border-color: rgba(34, 197, 94, 0.2); }
+html.light .toast-error   { background: rgba(239, 68, 68, 0.1);  color: #dc2626; border-color: rgba(239, 68, 68, 0.2); }
+html.light .toast-info    { background: rgba(99, 102, 241, 0.1); color: #6366f1; border-color: rgba(99, 102, 241, 0.2); }
+
+/* ── 스켈레톤 shimmer ────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-block {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+html.light .skeleton-block {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.04) 25%,
+    rgba(0, 0, 0, 0.08) 50%,
+    rgba(0, 0, 0, 0.04) 75%
+  );
+  background-size: 800px 100%;
+}
+
+/* ── 폼 슬라이드 애니메이션 ──────────────────────────────────────────────────── */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 카드 스태거 입장 ────────────────────────────────────────────────────────── */
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-1 { animation: cardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+.stagger-2 { animation: cardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.10s both; }
+.stagger-3 { animation: cardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+.stagger-4 { animation: cardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.20s both; }
+.stagger-5 { animation: cardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both; }
+.stagger-6 { animation: cardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.30s both; }

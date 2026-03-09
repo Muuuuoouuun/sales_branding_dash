@@ -348,7 +348,11 @@ export default function TeamPage() {
 
       {/* Rep Cards */}
       <div className={styles.repGrid}>
-        {reps.map(rep => <RepCard key={rep.name} rep={rep} />)}
+        {reps.map((rep, i) => (
+          <div key={rep.name} className={`stagger-${i + 1}`}>
+            <RepCard rep={rep} />
+          </div>
+        ))}
       </div>
 
       {/* Stage Distribution */}
