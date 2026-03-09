@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { loadCSV } from '@/lib/csvLoader';
 import { loadJSON } from '@/lib/jsonLoader';
+import { updateLeadRow } from '@/lib/fileWriter';
 
 interface LeadRow {
   id: string;
@@ -53,6 +54,37 @@ function getActionText(stage: string, prob: number): string {
   return '리드 재활성화. 신규 인사이트 콘텐츠 공유 후 니즈 발굴 미팅 요청.';
 }
 
+// ── PATCH: 리드 필드 부분 업데이트 ─────────────────────────────────────────────
+const PATCH_ALLOWED = [
+  'stage', 'probability', 'revenue_potential', 'due_date',
+  'source', 'competitor', 'budget_confirmed', 'champion', 'contact', 'owner',
+];
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id: idStr } = await params;
+  const id = Number(idStr);
+  if (isNaN(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  let body: Record<string, unknown>;
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+
+  const updates = Object.fromEntries(
+    Object.entries(body).filter(([k]) => PATCH_ALLOWED.includes(k)),
+  ) as Record<string, string | number | boolean>;
+
+  if (Object.keys(updates).length === 0)
+    return NextResponse.json({ error: '수정할 허용 필드가 없습니다.' }, { status: 400 });
+
+  const result = updateLeadRow(id, updates);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 404 });
+  return NextResponse.json({ success: true });
+}
+
+// ── GET: 리드 상세 + 활동 목록 ───────────────────────────────────────────────
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },

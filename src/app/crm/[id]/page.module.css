@@ -328,6 +328,198 @@
   gap: 0.5rem;
 }
 
+/* ── Card Title Row (편집 버튼 배치용) ── */
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.cardTitleRow .cardTitle { margin-bottom: 0; }
+
+/* ── Edit / Add 버튼 ── */
+.editBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.editBtn:hover { background: rgba(99, 102, 241, 0.18); color: #c7d2fe; }
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.addBtn:hover { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+
+/* ── 편집 액션 버튼 그룹 ── */
+.editActions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.saveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.85);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.saveBtn:hover:not(:disabled) { background: rgba(99, 102, 241, 1); }
+.saveBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.cancelBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cancelBtn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.cancelBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── 편집 그리드 ── */
+.editGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+.editItem {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.editLabel {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.editInput {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 0.82rem;
+  color: var(--foreground);
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.editInput:focus { border-color: rgba(99, 102, 241, 0.55); }
+.editSelect {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 0.82rem;
+  color: var(--foreground);
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.editSelect:focus { border-color: rgba(99, 102, 241, 0.55); }
+.editTextarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 7px 9px;
+  font-size: 0.82rem;
+  color: var(--foreground);
+  width: 100%;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+}
+.editTextarea:focus { border-color: rgba(99, 102, 241, 0.55); }
+.editCheckboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--foreground);
+  cursor: pointer;
+  padding: 6px 0;
+}
+.editCheckbox { width: 14px; height: 14px; cursor: pointer; accent-color: #6366f1; }
+
+/* ── 활동 추가 폼 ── */
+.actForm {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.actFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+.actFormItem {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.actFormFull {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.actFormFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ── 피드백 메시지 ── */
+.feedbackMsg {
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
 /* ── Light Mode Overrides ── */
 :global(html.light) .roadmapCircle { border-color: rgba(0, 0, 0, 0.12); background: #fff; }
 :global(html.light) .roadmapConnector { background: rgba(0, 0, 0, 0.08); }
@@ -336,11 +528,21 @@
 :global(html.light) .timelineDot { border-color: rgba(0, 0, 0, 0.1); }
 :global(html.light) .nextActionCard { background: rgba(99, 102, 241, 0.05); }
 :global(html.light) .activityNextStep { color: var(--primary); }
+:global(html.light) .editBtn { background: rgba(99, 102, 241, 0.08); color: #6366f1; border-color: rgba(99, 102, 241, 0.3); }
+:global(html.light) .addBtn { background: rgba(34, 197, 94, 0.08); color: #16a34a; border-color: rgba(34, 197, 94, 0.3); }
+:global(html.light) .cancelBtn { background: rgba(0, 0, 0, 0.04); color: var(--text-muted); border-color: rgba(0, 0, 0, 0.1); }
+:global(html.light) .editInput { background: #fff; border-color: rgba(0, 0, 0, 0.15); color: var(--foreground); }
+:global(html.light) .editSelect { background: #fff; border-color: rgba(0, 0, 0, 0.15); color: var(--foreground); }
+:global(html.light) .editTextarea { background: #fff; border-color: rgba(0, 0, 0, 0.15); color: var(--foreground); }
+:global(html.light) .actForm { background: rgba(0, 0, 0, 0.02); border-color: rgba(99, 102, 241, 0.2); }
+:global(html.light) .actFormFooter { border-top-color: rgba(0, 0, 0, 0.06); }
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .metricGrid { grid-template-columns: repeat(2, 1fr); }
   .infoGrid { grid-template-columns: repeat(2, 1fr); }
+  .editGrid { grid-template-columns: repeat(2, 1fr); }
+  .actFormGrid { grid-template-columns: 1fr; }
   .roadmapStep { min-width: 56px; }
   .roadmapCircle { width: 34px; height: 34px; font-size: 0.9rem; }
   .roadmapLabel { font-size: 0.65rem; }

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, CheckCircle, Loader2, Pencil, Plus, X } from "lucide-react";
 import styles from "./page.module.css";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -39,6 +39,29 @@ interface LeadDetail {
   stage_entered: string;
   dealAge: number;
   engagementScore: number;
+}
+
+interface EditDraft {
+  stage?: string;
+  probability?: number;
+  revenue_potential?: number;
+  due_date?: string;
+  source?: string;
+  competitor?: string;
+  budget_confirmed?: boolean;
+  champion?: string;
+  contact?: string;
+}
+
+interface ActDraft {
+  type: string;
+  date: string;
+  title: string;
+  description: string;
+  outcome: string;
+  next_step: string;
+  duration_min: string;
+  rep: string;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -115,6 +138,10 @@ function computeRoadmapStep(lead: LeadDetail, activities: Activity[]): number {
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -209,24 +236,118 @@ function ActivityTimeline({ activities }: { activities: Activity[] }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CrmDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const [lead, setLead]           = useState<LeadDetail | null>(null);
+
+  // 데이터 상태
+  const [leadId, setLeadId]         = useState<string | null>(null);
+  const [lead, setLead]             = useState<LeadDetail | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
 
-  useEffect(() => {
-    params.then(({ id }) => {
-      fetch(`/api/crm/leads/${id}`)
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => {
-          setLead(data.lead);
-          setActivities(data.activities ?? []);
-        })
-        .catch(() => setError("고객사 데이터를 불러올 수 없습니다."))
-        .finally(() => setLoading(false));
-    });
-  }, [params]);
+  // 딜 정보 편집 상태
+  const [editMode, setEditMode]     = useState(false);
+  const [editDraft, setEditDraft]   = useState<EditDraft>({});
+  const [saving, setSaving]         = useState(false);
+  const [saveMsg, setSaveMsg]       = useState<string | null>(null);
 
+  // 활동 추가 상태
+  const [showActForm, setShowActForm] = useState(false);
+  const [actDraft, setActDraft]       = useState<ActDraft>({
+    type: "call", date: todayStr(), title: "", description: "",
+    outcome: "neutral", next_step: "", duration_min: "", rep: "",
+  });
+  const [actSaving, setActSaving]   = useState(false);
+  const [actMsg, setActMsg]         = useState<string | null>(null);
+
+  // params 해제
+  useEffect(() => { params.then(({ id }) => setLeadId(id)); }, [params]);
+
+  // 데이터 로드
+  const reload = useCallback(async () => {
+    if (!leadId) return;
+    try {
+      const res  = await fetch(`/api/crm/leads/${leadId}`);
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      setLead(data.lead);
+      setActivities(data.activities ?? []);
+      setError(null);
+    } catch {
+      setError("고객사 데이터를 불러올 수 없습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, [leadId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  // 딜 정보 저장
+  async function saveLead() {
+    if (!lead || !leadId) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editDraft),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error ?? "저장 실패");
+      }
+      await reload();
+      setEditMode(false);
+      setEditDraft({});
+      setSaveMsg("저장되었습니다.");
+      setTimeout(() => setSaveMsg(null), 2500);
+    } catch (e) {
+      setSaveMsg(e instanceof Error ? e.message : "저장 중 오류 발생");
+      setTimeout(() => setSaveMsg(null), 3000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // 활동 저장
+  async function saveActivity() {
+    if (!leadId) return;
+    if (!actDraft.title.trim()) { setActMsg("제목을 입력해 주세요."); setTimeout(() => setActMsg(null), 2000); return; }
+    setActSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        type:        actDraft.type,
+        date:        actDraft.date,
+        title:       actDraft.title,
+        description: actDraft.description,
+        rep:         actDraft.rep || (lead?.owner ?? ""),
+        outcome:     actDraft.outcome || undefined,
+        next_step:   actDraft.next_step || undefined,
+      };
+      if (actDraft.duration_min) body.duration_min = Number(actDraft.duration_min);
+
+      const res = await fetch(`/api/crm/leads/${leadId}/activity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error ?? "저장 실패");
+      }
+      await reload();
+      setShowActForm(false);
+      setActDraft({ type: "call", date: todayStr(), title: "", description: "", outcome: "neutral", next_step: "", duration_min: "", rep: "" });
+      setActMsg("활동이 기록되었습니다.");
+      setTimeout(() => setActMsg(null), 2500);
+    } catch (e) {
+      setActMsg(e instanceof Error ? e.message : "저장 중 오류 발생");
+      setTimeout(() => setActMsg(null), 3000);
+    } finally {
+      setActSaving(false);
+    }
+  }
+
+  // ── 로딩 / 에러 ────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -328,42 +449,334 @@ export default function CrmDetailPage({ params }: { params: Promise<{ id: string
         <p className={styles.nextActionDue}>마감: {lead.due_label} ({lead.due_date})</p>
       </div>
 
-      {/* Info Grid */}
+      {/* ── 딜 상세 정보 (인라인 편집) ────────────────────────────────────── */}
       <div className={styles.card}>
-        <p className={styles.cardTitle}>딜 상세 정보</p>
-        <div className={styles.infoGrid}>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>유입 경로</span>
-            <span className={styles.infoValue}>{lead.source}</span>
-          </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>경쟁사</span>
-            <span className={styles.infoValue}>{lead.competitor}</span>
-          </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>예산 확정</span>
-            <span className={`${styles.infoValue} ${styles.infoBool}`} style={{ color: lead.budget_confirmed ? "#4ade80" : "#f87171" }}>
-              {lead.budget_confirmed ? "✓ 확정" : "✗ 미확정"}
-            </span>
-          </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>내부 챔피언</span>
-            <span className={styles.infoValue}>{lead.champion}</span>
-          </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>최근 연락</span>
-            <span className={styles.infoValue}>{formatDate(lead.last_contact)}</span>
-          </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>단계 진입일</span>
-            <span className={styles.infoValue}>{formatDate(lead.stage_entered)}</span>
-          </div>
+        <div className={styles.cardTitleRow}>
+          <p className={styles.cardTitle}>딜 상세 정보</p>
+          {!editMode ? (
+            <button
+              className={styles.editBtn}
+              onClick={() => {
+                setEditDraft({
+                  stage:             lead.stage,
+                  probability:       lead.probability,
+                  revenue_potential: lead.revenue_potential,
+                  due_date:          lead.due_date,
+                  source:            lead.source,
+                  competitor:        lead.competitor === "—" ? "" : lead.competitor,
+                  budget_confirmed:  lead.budget_confirmed,
+                  champion:          lead.champion === "—" ? "" : lead.champion,
+                  contact:           lead.contact,
+                });
+                setEditMode(true);
+              }}
+            >
+              <Pencil size={12} />
+              편집
+            </button>
+          ) : (
+            <div className={styles.editActions}>
+              <button className={styles.cancelBtn} onClick={() => { setEditMode(false); setEditDraft({}); }} disabled={saving}>
+                <X size={12} /> 취소
+              </button>
+              <button className={styles.saveBtn} onClick={saveLead} disabled={saving}>
+                {saving ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle size={12} />}
+                {saving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          )}
         </div>
+
+        {saveMsg && (
+          <p className={styles.feedbackMsg} style={{ color: saveMsg.includes("오류") || saveMsg.includes("실패") ? "#f87171" : "#4ade80" }}>
+            {saveMsg}
+          </p>
+        )}
+
+        {!editMode ? (
+          /* ── 읽기 모드 ── */
+          <div className={styles.infoGrid}>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>유입 경로</span>
+              <span className={styles.infoValue}>{lead.source}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>경쟁사</span>
+              <span className={styles.infoValue}>{lead.competitor}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>예산 확정</span>
+              <span className={`${styles.infoValue} ${styles.infoBool}`} style={{ color: lead.budget_confirmed ? "#4ade80" : "#f87171" }}>
+                {lead.budget_confirmed ? "✓ 확정" : "✗ 미확정"}
+              </span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>내부 챔피언</span>
+              <span className={styles.infoValue}>{lead.champion}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>최근 연락</span>
+              <span className={styles.infoValue}>{formatDate(lead.last_contact)}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>단계 진입일</span>
+              <span className={styles.infoValue}>{formatDate(lead.stage_entered)}</span>
+            </div>
+          </div>
+        ) : (
+          /* ── 편집 모드 ── */
+          <div className={styles.editGrid}>
+            {/* 단계 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>단계</label>
+              <select
+                className={styles.editSelect}
+                value={editDraft.stage ?? lead.stage}
+                onChange={e => setEditDraft(d => ({ ...d, stage: e.target.value }))}
+              >
+                <option value="Lead">리드</option>
+                <option value="Proposal">제안</option>
+                <option value="Negotiation">협상</option>
+                <option value="Contract">계약</option>
+              </select>
+            </div>
+            {/* 확률 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>성사 확률 (%)</label>
+              <input
+                type="number" min={0} max={100}
+                className={styles.editInput}
+                value={editDraft.probability ?? lead.probability}
+                onChange={e => setEditDraft(d => ({ ...d, probability: Number(e.target.value) }))}
+              />
+            </div>
+            {/* 예상 매출 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>예상 매출 (백만원)</label>
+              <input
+                type="number" min={0}
+                className={styles.editInput}
+                value={editDraft.revenue_potential ?? lead.revenue_potential}
+                onChange={e => setEditDraft(d => ({ ...d, revenue_potential: Number(e.target.value) }))}
+              />
+            </div>
+            {/* 마감일 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>마감일</label>
+              <input
+                type="date"
+                className={styles.editInput}
+                value={editDraft.due_date ?? lead.due_date}
+                onChange={e => setEditDraft(d => ({ ...d, due_date: e.target.value }))}
+              />
+            </div>
+            {/* 유입 경로 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>유입 경로</label>
+              <select
+                className={styles.editSelect}
+                value={editDraft.source ?? lead.source}
+                onChange={e => setEditDraft(d => ({ ...d, source: e.target.value }))}
+              >
+                <option value="Inbound">Inbound</option>
+                <option value="Outbound">Outbound</option>
+                <option value="Referral">Referral</option>
+                <option value="Event">Event</option>
+              </select>
+            </div>
+            {/* 경쟁사 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>경쟁사</label>
+              <input
+                type="text"
+                className={styles.editInput}
+                placeholder="없음"
+                value={editDraft.competitor ?? ""}
+                onChange={e => setEditDraft(d => ({ ...d, competitor: e.target.value }))}
+              />
+            </div>
+            {/* 예산 확정 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>예산 확정</label>
+              <label className={styles.editCheckboxLabel}>
+                <input
+                  type="checkbox"
+                  className={styles.editCheckbox}
+                  checked={editDraft.budget_confirmed ?? lead.budget_confirmed}
+                  onChange={e => setEditDraft(d => ({ ...d, budget_confirmed: e.target.checked }))}
+                />
+                <span>{(editDraft.budget_confirmed ?? lead.budget_confirmed) ? "✓ 확정" : "✗ 미확정"}</span>
+              </label>
+            </div>
+            {/* 챔피언 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>내부 챔피언</label>
+              <input
+                type="text"
+                className={styles.editInput}
+                placeholder="이름"
+                value={editDraft.champion ?? ""}
+                onChange={e => setEditDraft(d => ({ ...d, champion: e.target.value }))}
+              />
+            </div>
+            {/* 담당 연락처 */}
+            <div className={styles.editItem}>
+              <label className={styles.editLabel}>담당 연락처</label>
+              <input
+                type="text"
+                className={styles.editInput}
+                placeholder="이름"
+                value={editDraft.contact ?? lead.contact}
+                onChange={e => setEditDraft(d => ({ ...d, contact: e.target.value }))}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Activity Timeline */}
+      {/* ── 활동 히스토리 ────────────────────────────────────────────────── */}
       <div className={styles.card}>
-        <p className={styles.cardTitle}>활동 히스토리 ({activities.length}건)</p>
+        <div className={styles.cardTitleRow}>
+          <p className={styles.cardTitle}>활동 히스토리 ({activities.length}건)</p>
+          {!showActForm && (
+            <button className={styles.addBtn} onClick={() => {
+              setActDraft(d => ({ ...d, rep: lead.owner, date: todayStr() }));
+              setShowActForm(true);
+            }}>
+              <Plus size={12} />
+              활동 추가
+            </button>
+          )}
+        </div>
+
+        {/* 활동 추가 폼 */}
+        {showActForm && (
+          <div className={styles.actForm}>
+            <div className={styles.actFormGrid}>
+              {/* 유형 */}
+              <div className={styles.actFormItem}>
+                <label className={styles.editLabel}>유형 *</label>
+                <select
+                  className={styles.editSelect}
+                  value={actDraft.type}
+                  onChange={e => setActDraft(d => ({ ...d, type: e.target.value }))}
+                >
+                  <option value="call">📞 콜</option>
+                  <option value="email">✉️ 이메일</option>
+                  <option value="meeting">🤝 미팅</option>
+                  <option value="demo">🖥️ 데모</option>
+                  <option value="proposal">📄 견적/계약</option>
+                  <option value="note">📝 노트</option>
+                </select>
+              </div>
+              {/* 날짜 */}
+              <div className={styles.actFormItem}>
+                <label className={styles.editLabel}>날짜 *</label>
+                <input
+                  type="date"
+                  className={styles.editInput}
+                  value={actDraft.date}
+                  onChange={e => setActDraft(d => ({ ...d, date: e.target.value }))}
+                />
+              </div>
+              {/* 담당자 */}
+              <div className={styles.actFormItem}>
+                <label className={styles.editLabel}>담당자 *</label>
+                <input
+                  type="text"
+                  className={styles.editInput}
+                  placeholder={lead.owner}
+                  value={actDraft.rep}
+                  onChange={e => setActDraft(d => ({ ...d, rep: e.target.value }))}
+                />
+              </div>
+              {/* 소요시간 */}
+              <div className={styles.actFormItem}>
+                <label className={styles.editLabel}>소요시간 (분)</label>
+                <input
+                  type="number" min={0}
+                  className={styles.editInput}
+                  placeholder="60"
+                  value={actDraft.duration_min}
+                  onChange={e => setActDraft(d => ({ ...d, duration_min: e.target.value }))}
+                />
+              </div>
+            </div>
+            {/* 제목 */}
+            <div className={styles.actFormFull}>
+              <label className={styles.editLabel}>제목 *</label>
+              <input
+                type="text"
+                className={styles.editInput}
+                placeholder="예: 현대자동차 니즈 발굴 미팅"
+                value={actDraft.title}
+                onChange={e => setActDraft(d => ({ ...d, title: e.target.value }))}
+              />
+            </div>
+            {/* 설명 */}
+            <div className={styles.actFormFull}>
+              <label className={styles.editLabel}>내용</label>
+              <textarea
+                className={styles.editTextarea}
+                rows={3}
+                placeholder="미팅 내용, 논의 사항, 고객 반응 등을 기록하세요."
+                value={actDraft.description}
+                onChange={e => setActDraft(d => ({ ...d, description: e.target.value }))}
+              />
+            </div>
+            <div className={styles.actFormGrid}>
+              {/* 결과 */}
+              <div className={styles.actFormItem}>
+                <label className={styles.editLabel}>결과</label>
+                <select
+                  className={styles.editSelect}
+                  value={actDraft.outcome}
+                  onChange={e => setActDraft(d => ({ ...d, outcome: e.target.value }))}
+                >
+                  <option value="positive">✅ 긍정</option>
+                  <option value="neutral">➖ 중립</option>
+                  <option value="negative">❌ 부정</option>
+                </select>
+              </div>
+              {/* 다음 액션 */}
+              <div className={styles.actFormItem} style={{ gridColumn: "span 1" }}>
+                <label className={styles.editLabel}>다음 액션</label>
+                <input
+                  type="text"
+                  className={styles.editInput}
+                  placeholder="다음에 할 일"
+                  value={actDraft.next_step}
+                  onChange={e => setActDraft(d => ({ ...d, next_step: e.target.value }))}
+                />
+              </div>
+            </div>
+            {actMsg && (
+              <p className={styles.feedbackMsg} style={{ color: actMsg.includes("오류") || actMsg.includes("실패") || actMsg.includes("입력") ? "#f87171" : "#4ade80" }}>
+                {actMsg}
+              </p>
+            )}
+            <div className={styles.actFormFooter}>
+              <button
+                className={styles.cancelBtn}
+                onClick={() => { setShowActForm(false); setActMsg(null); }}
+                disabled={actSaving}
+              >
+                <X size={12} /> 취소
+              </button>
+              <button className={styles.saveBtn} onClick={saveActivity} disabled={actSaving}>
+                {actSaving ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle size={12} />}
+                {actSaving ? "저장 중..." : "활동 저장"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {actMsg && !showActForm && (
+          <p className={styles.feedbackMsg} style={{ color: "#4ade80", marginBottom: "0.75rem" }}>
+            {actMsg}
+          </p>
+        )}
+
         <ActivityTimeline activities={activities} />
       </div>
     </div>

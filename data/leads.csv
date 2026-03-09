@@ -1,5 +1,5 @@
 id,company,contact,region,stage,probability,revenue_potential,owner,last_contact,due_date,source,competitor,budget_confirmed,champion,stage_entered
-1,현대자동차,김민준,서울,Proposal,85,5000,김민수,2026-02-25,2026-02-28,Inbound,Oracle,true,김민준,2026-02-10
+1,현대자동차,김민준,서울,Proposal,85,5000,김민수,2026-02-25,2026-02-28,Inbound,SAP,true,김민준,2026-02-10
 2,SK하이닉스,이지원,경기,Negotiation,60,3200,이지원,2026-02-24,2026-02-28,Outbound,SAP,false,박현준,2026-02-05
 3,LG화학,박웨이,대구,Lead,15,1500,박웨이,2026-02-20,2026-03-05,Event,없음,false,—,2026-02-18
 4,삼성물산,최성훈,서울,Contract,92,8000,김민수,2026-02-27,2026-03-01,Referral,없음,true,최성훈,2026-01-15
