@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Target, Users, Brain,
-  FileText, Zap, Database, Menu, X, Sun, Moon,
+  FileText, Zap, Database, Menu, X, Sun, Moon, UserCog,
 } from "lucide-react";
 import styles from "./Sidebar.module.css";
 import clsx from "clsx";
@@ -15,6 +15,7 @@ const navItems = [
   { name: "Dashboard",     href: "/",        icon: LayoutDashboard },
   { name: "Project Stra.", href: "/project", icon: Target },
   { name: "CRM Tactics",  href: "/crm",     icon: Users },
+  { name: "팀 관리",       href: "/team",    icon: UserCog },
   { name: "Research Hub",  href: "/research", icon: Brain },
   { name: "Input Data",    href: "/data",    icon: Database },
   { name: "Reports",       href: "/report",  icon: FileText },
@@ -69,7 +70,7 @@ export default function Sidebar() {
 
         <nav className={styles.nav}>
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}

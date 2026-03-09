@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import styles from "./page.module.css";
 import SalesTip from "@/components/SalesTip";
+import Link from "next/link";
 import {
   Phone, Mail, MessageSquare, ArrowRight, Loader2,
   Kanban, TableProperties, Crosshair,
-  ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight,
+  ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight, ExternalLink,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -587,7 +588,14 @@ function LeadsTab({ leads }: { leads: Lead[] }) {
                             flexShrink: 0,
                           }}
                         />
-                        {l.company}
+                        <Link
+                          href={`/crm/${l.id}`}
+                          className={styles.companyLink}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {l.company}
+                          <ExternalLink size={10} style={{ opacity: 0.4, marginLeft: 2, flexShrink: 0 }} />
+                        </Link>
                       </span>
                     </td>
                     {/* 단계 */}

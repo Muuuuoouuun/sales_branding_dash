@@ -1,0 +1,348 @@
+/* ── Layout ── */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 3rem;
+}
+
+/* ── Back Button ── */
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  padding: 6px 0;
+  margin-bottom: 1.25rem;
+  transition: color 0.15s;
+}
+.backBtn:hover { color: var(--foreground); }
+
+/* ── Company Header ── */
+.companyHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.companyAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.companyInfo { flex: 1; min-width: 0; }
+.companyName {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.5rem;
+}
+.headerBadges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.stageBadge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid;
+}
+.ownerBadge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+.statusBadge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid;
+}
+
+/* ── Card Wrapper ── */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.cardTitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 1rem;
+}
+
+/* ── Roadmap ── */
+.roadmap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.roadmapStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 80px;
+  flex: 1;
+}
+.roadmapCircle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: var(--card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  position: relative;
+  z-index: 1;
+  transition: all 0.25s;
+}
+.roadmapLabel {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.2;
+}
+.roadmapConnector {
+  flex: 1;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  margin-top: 19px;
+  min-width: 20px;
+  transition: background 0.25s;
+}
+.roadmapConnectorDone {
+  background: rgba(34, 197, 94, 0.5);
+}
+.roadmapStepDone .roadmapCircle {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.6);
+}
+.roadmapStepDone .roadmapLabel { color: rgba(34, 197, 94, 0.8); }
+.roadmapStepCurrent .roadmapCircle {
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+}
+.roadmapStepCurrent .roadmapLabel {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+/* ── Metric Grid ── */
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+.metricCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.metricVal {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1;
+}
+.metricLabel {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ── Info Grid ── */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.infoLabel {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.infoValue {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+.infoBool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* ── Activity Timeline ── */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.timelineItem {
+  display: flex;
+  gap: 0.875rem;
+  position: relative;
+  padding-bottom: 1.25rem;
+}
+.timelineItem:last-child { padding-bottom: 0; }
+.timelineItem::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 32px;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.timelineItem:last-child::before { display: none; }
+.timelineDot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.timelineContent { flex: 1; min-width: 0; }
+.timelineHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.activityTypeBadge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.activityDate {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.activityTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 4px;
+}
+.activityDesc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+.activityNextStep {
+  font-size: 0.75rem;
+  color: #6366f1;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.activityOutcome {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ── Next Action Card ── */
+.nextActionCard {
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.nextActionLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.5rem;
+}
+.nextActionText {
+  font-size: 0.9rem;
+  color: var(--foreground);
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+}
+.nextActionDue {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ── Loading / Error ── */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  color: var(--text-muted);
+  gap: 0.5rem;
+}
+
+/* ── Light Mode Overrides ── */
+:global(html.light) .roadmapCircle { border-color: rgba(0, 0, 0, 0.12); background: #fff; }
+:global(html.light) .roadmapConnector { background: rgba(0, 0, 0, 0.08); }
+:global(html.light) .metricCard { background: rgba(0, 0, 0, 0.02); border-color: var(--card-border); }
+:global(html.light) .timelineItem::before { background: rgba(0, 0, 0, 0.08); }
+:global(html.light) .timelineDot { border-color: rgba(0, 0, 0, 0.1); }
+:global(html.light) .nextActionCard { background: rgba(99, 102, 241, 0.05); }
+:global(html.light) .activityNextStep { color: var(--primary); }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .metricGrid { grid-template-columns: repeat(2, 1fr); }
+  .infoGrid { grid-template-columns: repeat(2, 1fr); }
+  .roadmapStep { min-width: 56px; }
+  .roadmapCircle { width: 34px; height: 34px; font-size: 0.9rem; }
+  .roadmapLabel { font-size: 0.65rem; }
+  .companyName { font-size: 1.2rem; }
+}

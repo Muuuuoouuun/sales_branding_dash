@@ -747,7 +747,23 @@
   min-width: 200px;
 }
 
+/* ── 회사명 링크 ── */
+.companyLink {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: color 0.15s;
+}
+.companyLink:hover {
+  color: #a5b4fc;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ── 라이트 모드 텍스트 오버라이드 ── */
+:global(html.light) .companyLink:hover { color: var(--primary); }
 :global(html.light) .td { color: var(--foreground); }
 :global(html.light) .killAction { color: var(--text-muted); }
 :global(html.light) .emptyCol { color: rgba(0, 0, 0, 0.3); }
