@@ -53,6 +53,17 @@ interface TooltipState {
   y: number;
 }
 
+interface GeographyFeature {
+  rsmKey: string;
+  properties: {
+    name?: string;
+  };
+}
+
+interface GeographiesRenderProps {
+  geographies: GeographyFeature[];
+}
+
 interface Props {
   data: RegionData[];
   filter: FilterType;
@@ -91,8 +102,8 @@ export default function KoreaProvinceMap({ data, filter, onRegionClick }: Props)
       >
         <ZoomableGroup center={[127.7, 35.95]} zoom={1} minZoom={0.8} maxZoom={14}>
           <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
+            {({ geographies }: GeographiesRenderProps) =>
+              geographies.map((geo: GeographyFeature) => {
                 // southkorea-maps/kostat uses "name" (Korean) field
                 const geoName: string =
                   (geo.properties.name as string | undefined) ?? "";

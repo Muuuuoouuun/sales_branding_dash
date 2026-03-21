@@ -246,23 +246,28 @@ interface OkrStore {
 
 const EMPTY_STORE: OkrStore = { targets: {}, values: {} };
 
+function readStoredOkr(): OkrStore {
+  if (typeof window === "undefined") {
+    return EMPTY_STORE;
+  }
+
+  try {
+    const stored = localStorage.getItem(OKR_STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as OkrStore) : EMPTY_STORE;
+  } catch {
+    return EMPTY_STORE;
+  }
+}
+
 // KRs whose value is NOT computed from live data (can be manually overridden)
 const MANUAL_VALUE_KRS = new Set(["Negotiation 단계 전환율"]);
 
 // ── OKR Tab ───────────────────────────────────────────────────────────────────
 function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: IndividualData[] }) {
-  const [store,    setStore]    = useState<OkrStore>(EMPTY_STORE);
+  const [store,    setStore]    = useState<OkrStore>(readStoredOkr);
   const [editMode, setEditMode] = useState(false);
   const [draft,    setDraft]    = useState<OkrStore>(EMPTY_STORE);
   const [saved,    setSaved]    = useState(false);
-
-  // Load from localStorage once
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem(OKR_STORAGE_KEY);
-      if (s) setStore(JSON.parse(s));
-    } catch {}
-  }, []);
 
   // ── Computed live values ───────────────────────────────────────────────────
   const teamRevenue  = regions.reduce((s, r) => s + r.revenue, 0);

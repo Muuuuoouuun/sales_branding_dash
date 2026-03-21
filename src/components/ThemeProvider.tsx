@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 // ── Theme Types & Context ──────────────────────────────────────────────────────
 export type Theme = "dark" | "light";
@@ -17,33 +17,27 @@ export const ThemeContext = createContext<ThemeContextValue>({
 
 export const useTheme = () => useContext(ThemeContext);
 
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") {
+    return "dark";
+  }
+
+  return localStorage.getItem("theme") === "light" ? "light" : "dark";
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   // 마운트 시 localStorage → html 클래스 적용
   useEffect(() => {
-    const saved = (localStorage.getItem("theme") as Theme) ?? "dark";
-    setTheme(saved);
-    if (saved === "light") {
-      document.documentElement.classList.add("light");
-    } else {
-      document.documentElement.classList.remove("light");
-    }
-  }, []);
+    document.documentElement.classList.toggle("light", theme === "light");
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
-  const toggle = useCallback(() => {
-    setTheme((prev) => {
-      const next: Theme = prev === "dark" ? "light" : "dark";
-      if (next === "light") {
-        document.documentElement.classList.add("light");
-      } else {
-        document.documentElement.classList.remove("light");
-      }
-      localStorage.setItem("theme", next);
-      return next;
-    });
-  }, []);
+  const toggle = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, toggle }}>

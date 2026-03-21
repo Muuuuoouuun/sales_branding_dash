@@ -5,19 +5,28 @@ import Card from "@/components/Card";
 import styles from "./page.module.css";
 import { Users, DollarSign, FileText, Send, CheckCircle } from "lucide-react";
 
+type SubmissionState = "idle" | "submitting" | "success";
+
 export default function InputDataPage() {
     // State management for interactions
-    const [crmStatus, setCrmStatus] = useState("idle");
-    const [salesStatus, setSalesStatus] = useState("idle");
-    const [noteStatus, setNoteStatus] = useState("idle");
+    const [crmStatus, setCrmStatus] = useState<SubmissionState>("idle");
+    const [salesStatus, setSalesStatus] = useState<SubmissionState>("idle");
+    const [noteStatus, setNoteStatus] = useState<SubmissionState>("idle");
 
-    const handleSubmit = (type: string, setStatus: any) => {
+    const handleSubmit = (setStatus: React.Dispatch<React.SetStateAction<SubmissionState>>) => {
         setStatus("submitting");
         // Simulate API call
         setTimeout(() => {
             setStatus("success");
             setTimeout(() => setStatus("idle"), 2000);
         }, 1000);
+    };
+
+    const handleProbabilityInput = (e: React.FormEvent<HTMLInputElement>) => {
+        const output = e.currentTarget.nextElementSibling;
+        if (output instanceof HTMLOutputElement) {
+            output.value = `${e.currentTarget.value}%`;
+        }
     };
 
     return (
@@ -33,7 +42,7 @@ export default function InputDataPage() {
                     <div className={`${styles.sectionIcon} ${styles.crmIcon}`}>
                         <Users size={24} />
                     </div>
-                    <form onSubmit={(e) => { e.preventDefault(); handleSubmit('crm', setCrmStatus); }}>
+                    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(setCrmStatus); }}>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Client Name</label>
                             <input type="text" className={styles.input} placeholder="e.g. Acme Corp" required />
@@ -63,7 +72,7 @@ export default function InputDataPage() {
                     <div className={`${styles.sectionIcon} ${styles.salesIcon}`}>
                         <DollarSign size={24} />
                     </div>
-                    <form onSubmit={(e) => { e.preventDefault(); handleSubmit('sales', setSalesStatus); }}>
+                    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(setSalesStatus); }}>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Deal Value (₩)</label>
                             <input type="number" className={styles.input} placeholder="50,000,000" required />
@@ -79,7 +88,7 @@ export default function InputDataPage() {
                         </div>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Probability (%)</label>
-                            <input type="range" min="0" max="100" className={styles.range} defaultValue="50" onInput={(e: any) => e.target.nextElementSibling.value = e.target.value + '%'} />
+                            <input type="range" min="0" max="100" className={styles.range} defaultValue="50" onInput={handleProbabilityInput} />
                             <output style={{ display: 'block', textAlign: 'right', fontSize: '0.8rem', color: 'var(--accent)' }}>50%</output>
                         </div>
                         <button type="submit" className={styles.submitBtn} disabled={salesStatus === "submitting"}>
@@ -94,7 +103,7 @@ export default function InputDataPage() {
                     <div className={`${styles.sectionIcon} ${styles.noteIcon}`}>
                         <FileText size={24} />
                     </div>
-                    <form onSubmit={(e) => { e.preventDefault(); handleSubmit('note', setNoteStatus); }}>
+                    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(setNoteStatus); }}>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Title</label>
                             <input type="text" className={styles.input} placeholder="Weekly Review" required />

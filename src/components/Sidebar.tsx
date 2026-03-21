@@ -27,9 +27,6 @@ export default function Sidebar() {
   const { theme, toggle } = useTheme();
 
   // 페이지 이동 시 자동 닫기
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   // 모바일에서 열렸을 때 스크롤 잠금
   useEffect(() => {
@@ -76,6 +73,7 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={clsx(styles.navItem, isActive && styles.active)}
+                onClick={() => setOpen(false)}
               >
                 <item.icon />
                 <span>{item.name}</span>
