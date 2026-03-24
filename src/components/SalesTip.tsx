@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Lightbulb, ChevronRight } from "lucide-react";
-import { getDailyTip } from "@/lib/salesTips";
+import { getDailyTip, recordTipRead } from "@/lib/salesTips";
 import styles from "./SalesTip.module.css";
 
 interface Props {
@@ -35,7 +35,7 @@ export default function SalesTip({ offset = 0 }: Props) {
       </p>
       <button
         className={styles.nextBtn}
-        onClick={() => setDelta(d => d + 1)}
+        onClick={() => { setDelta(d => d + 1); recordTipRead(); }}
         title="다음 팁"
         aria-label="다음 팁 보기"
       >

@@ -185,6 +185,17 @@ export function getTipsByMethodology(methodology: MethodologyId): SalesTipEntry[
   return SALES_TIPS.filter((t) => t.methodology === methodology);
 }
 
+/** 팁 조회 기록 (localStorage) — GrowthWidget 스트릭 카운트용 */
+export function recordTipRead(): void {
+  if (typeof window === "undefined") return;
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `tips_today_${today}`;
+  const prev = parseInt(localStorage.getItem(key) || "0", 10);
+  localStorage.setItem(key, String(prev + 1));
+  const total = parseInt(localStorage.getItem("tips_total") || "0", 10);
+  localStorage.setItem("tips_total", String(total + 1));
+}
+
 // ── Sales Legends (Hall of Fame) ─────────────────────────────────────────────
 export interface SalesLegend {
   id: MethodologyId;

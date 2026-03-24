@@ -7,6 +7,9 @@ import KoreaProvinceMap, { RegionData } from "@/components/KoreaProvinceMap";
 import RegionDrilldown from "@/components/RegionDrilldown";
 import QuarterlyTracker from "@/components/QuarterlyTracker";
 import SalesTip from "@/components/SalesTip";
+import GrowthWidget from "@/components/GrowthWidget";
+import HabitCheckStrip from "@/components/HabitCheckStrip";
+import SkillRadarMini from "@/components/SkillRadarMini";
 import { getHeatColor } from "@/lib/heatUtils";
 import {
   TrendingUp, TrendingDown, AlertTriangle,
@@ -155,6 +158,9 @@ export default function Dashboard() {
             </span>
           </Card>
         ))}
+        <Card className={styles.statCard}>
+          <GrowthWidget />
+        </Card>
       </div>
 
       {/* ── Quarterly Tracker ── */}
@@ -162,8 +168,9 @@ export default function Dashboard() {
         <QuarterlyTracker data={regionalData} individuals={individuals} />
       )}
 
-      {/* ── Sales Tip #1 ── */}
+      {/* ── Sales Tip #1 + Habit Check ── */}
       <SalesTip offset={0} />
+      <HabitCheckStrip />
 
       {/* ── Charts Row ── */}
       <div className={styles.chartsGrid}>
@@ -281,8 +288,12 @@ export default function Dashboard() {
         />
       )}
 
-      {/* ── AI Insight ── */}
-      <Card className={styles.alertCard} title="AI Predictive Alert (Gemini Insight)">
+      {/* ── Skill Radar + AI Insight ── */}
+      <div className={styles.bottomRow}>
+        <Card>
+          <SkillRadarMini />
+        </Card>
+        <Card className={styles.alertCard} title="AI Predictive Alert (Gemini Insight)">
         <div className={styles.aiBoxContent}>
           <div className={styles.aiIconBox}>
             <Brain size={24} className={styles.aiIcon} />
@@ -319,6 +330,7 @@ export default function Dashboard() {
           </div>
         </div>
       </Card>
+      </div>
     </div >
   );
 }
