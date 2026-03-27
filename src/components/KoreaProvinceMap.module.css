@@ -16,14 +16,14 @@
 .tooltip {
   position: absolute;
   pointer-events: none;
-  background: rgba(8, 8, 20, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--card-bg);
+  border: 1px solid var(--surface-border);
   border-radius: 10px;
   padding: 11px 14px;
   z-index: 50;
   min-width: 170px;
   backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-soft);
   animation: ttIn 0.12s ease;
 }
 
@@ -35,9 +35,9 @@
 .ttName {
   font-size: 13px;
   font-weight: 700;
-  color: #fff;
+  color: var(--foreground);
   margin: 0 0 9px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid var(--surface-border);
   padding-bottom: 6px;
 }
 
@@ -46,24 +46,24 @@
   justify-content: space-between;
   gap: 12px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-soft);
   margin-bottom: 4px;
 }
 
 .ttRow span:last-child {
-  color: #fff;
+  color: var(--foreground);
 }
 
 .ttHint {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-muted);
   margin: 8px 0 0;
   text-align: center;
 }
 
 .ttNoData {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   margin: 0;
   text-align: center;
 }
@@ -82,7 +82,7 @@
 
 .legendLabel {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text-muted);
   letter-spacing: 0.05em;
 }
 
@@ -106,7 +106,7 @@
   justify-content: space-between;
   width: 150px;
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-muted);
 }
 
 /* ── Zoom hint ───────────────────────────────────────────────────────────── */
@@ -115,6 +115,6 @@
   top: 8px;
   right: 10px;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--text-muted);
   pointer-events: none;
 }

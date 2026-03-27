@@ -32,9 +32,9 @@
   text-transform: uppercase;
   padding: 4px 12px;
   border-radius: 6px;
-  background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid var(--accent);
   flex-shrink: 0;
 }
 
@@ -42,8 +42,8 @@
 .tabBar {
   display: flex;
   gap: 3px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   padding: 4px;
   border-radius: 10px;
   margin-bottom: 1.25rem;
@@ -66,8 +66,9 @@
 }
 
 .tabBtnActive {
-  background: rgba(99, 102, 241, 0.2);
-  color: #a5b4fc;
+  background: var(--primary-soft-strong);
+  color: var(--primary-foreground);
+  box-shadow: inset 0 0 0 1px var(--primary-border);
   font-weight: 700;
 }
 
@@ -125,9 +126,9 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 4px;
-  background: rgba(251, 191, 36, 0.12);
-  color: #fbbf24;
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  background: var(--warning-soft);
+  color: var(--warning-foreground);
+  border: 1px solid var(--warning-border);
 }
 
 .savedBadge {
@@ -135,9 +136,9 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 4px;
-  background: rgba(74, 222, 128, 0.12);
-  color: #4ade80;
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: var(--success-soft);
+  color: var(--success-foreground);
+  border: 1px solid var(--success-border);
   animation: fadeInOut 2.5s ease forwards;
 }
 
@@ -154,9 +155,9 @@
   gap: 5px;
   padding: 5px 14px;
   border-radius: 7px;
-  border: 1px solid rgba(99, 102, 241, 0.35);
-  background: rgba(99, 102, 241, 0.12);
-  color: #a5b4fc;
+  border: 1px solid var(--primary-border);
+  background: var(--primary-soft);
+  color: var(--primary-foreground);
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
@@ -164,7 +165,7 @@
 }
 
 .editBtn:hover {
-  background: rgba(99, 102, 241, 0.22);
+  background: var(--primary-soft-strong);
 }
 
 .saveBtn {
@@ -173,9 +174,9 @@
   gap: 5px;
   padding: 5px 14px;
   border-radius: 7px;
-  border: 1px solid rgba(74, 222, 128, 0.35);
-  background: rgba(74, 222, 128, 0.12);
-  color: #4ade80;
+  border: 1px solid var(--success-border);
+  background: var(--success-soft);
+  color: var(--success-foreground);
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
@@ -183,7 +184,7 @@
 }
 
 .saveBtn:hover {
-  background: rgba(74, 222, 128, 0.22);
+  background: color-mix(in srgb, var(--success-soft) 80%, var(--success-foreground) 20%);
 }
 
 .cancelBtn {
@@ -192,7 +193,7 @@
   gap: 5px;
   padding: 5px 14px;
   border-radius: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--surface-border);
   background: transparent;
   color: var(--text-muted);
   font-size: 0.75rem;
@@ -202,7 +203,7 @@
 }
 
 .cancelBtn:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--surface-border-strong);
   color: var(--foreground);
 }
 
@@ -214,7 +215,7 @@
   border-radius: 7px;
   border: 1px solid rgba(239, 68, 68, 0.25);
   background: transparent;
-  color: #f87171;
+  color: var(--danger-foreground);
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
@@ -222,7 +223,7 @@
 }
 
 .resetBtn:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--danger-soft);
 }
 
 .okrGrid {
@@ -232,8 +233,8 @@
 }
 
 .okrCard {
-  background: var(--card-bg, rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  background: var(--card-bg-glass);
+  border: 1px solid var(--glass-border);
   border-radius: 1rem;
   padding: 1.25rem 1.5rem;
 }
@@ -290,7 +291,7 @@
 
 .manualDot {
   font-size: 0.5rem;
-  color: #fbbf24;
+  color: var(--warning-foreground);
   line-height: 1;
 }
 
@@ -349,8 +350,8 @@
   width: 56px;
   padding: 4px 7px;
   border-radius: 6px;
-  border: 1px solid;
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--surface-border);
+  background: var(--input-bg);
   color: var(--foreground);
   font-size: 0.8rem;
   font-weight: 700;
@@ -360,7 +361,8 @@
 }
 
 .krInput:focus {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--input-focus-bg);
+  border-color: var(--primary-border);
 }
 
 /* Remove number input spin buttons */
@@ -379,7 +381,7 @@
 
 .krBarOuter {
   height: 5px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-2);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -401,7 +403,7 @@
 .methodBtn {
   padding: 6px 18px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--surface-border);
   background: transparent;
   color: var(--text-muted);
   font-size: 0.78rem;
@@ -411,7 +413,7 @@
 }
 
 .methodBtn:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--surface-border-strong);
   color: var(--foreground);
 }
 
@@ -421,8 +423,8 @@
 
 /* Guru card: full width */
 .guruCard {
-  background: var(--card-bg, rgba(255, 255, 255, 0.03));
-  border: 1px solid;
+  background: var(--card-bg-glass);
+  border: 1px solid var(--glass-border);
   border-radius: 1rem;
   padding: 1.25rem 1.5rem;
   margin-bottom: 1rem;
@@ -463,7 +465,7 @@
 .guruQuote {
   font-size: 0.82rem;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-soft);
   font-style: italic;
   border-left: 3px solid;
   padding-left: 0.875rem;
@@ -554,7 +556,7 @@
   display: flex;
   gap: 8px;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-soft);
   line-height: 1.45;
 }
 
@@ -634,7 +636,7 @@
 
 .legendBio {
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-faint);
   line-height: 1.55;
   margin: 0 0 0.75rem;
 }
@@ -652,7 +654,7 @@
 .legendQuote {
   font-size: 0.75rem;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-soft);
   line-height: 1.55;
   margin: 0;
   flex: 1;
@@ -688,7 +690,7 @@
 
 .legendSigText {
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-soft);
   line-height: 1.4;
 }
 
@@ -705,7 +707,7 @@
   display: flex;
   gap: 7px;
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-soft);
   line-height: 1.45;
 }
 
@@ -775,8 +777,8 @@
 }
 
 .aiSection {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-top: 2px solid;
   border-radius: 0 0 8px 8px;
   padding: 1rem;
@@ -790,7 +792,7 @@
 
 .aiText {
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-soft);
   line-height: 1.65;
   margin: 0;
 }

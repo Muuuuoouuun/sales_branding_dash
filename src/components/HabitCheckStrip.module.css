@@ -3,8 +3,8 @@
   align-items: center;
   gap: 1.25rem;
   padding: 0.65rem 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-left: 3px solid #6366f1;
   border-radius: 0 8px 8px 0;
   margin-bottom: 1.25rem;
@@ -22,12 +22,12 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #818cf8;
+  color: var(--primary-foreground);
 }
 
 .progressBar {
   height: 3px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-2);
   border-radius: 2px;
   overflow: hidden;
   width: 80px;

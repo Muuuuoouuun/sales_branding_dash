@@ -19,8 +19,8 @@
 
 /* ── Panel ───────────────────────────────────────────────────────────────── */
 .panel {
-  background: #0f0f1e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--card-bg);
+  border: 1px solid var(--surface-border);
   border-radius: 16px;
   width: 100%;
   max-width: 960px;
@@ -28,7 +28,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--shadow-soft);
   animation: slideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -43,7 +43,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 18px 22px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--surface-border);
   border-left: 4px solid;
   flex-shrink: 0;
 }
@@ -57,7 +57,7 @@
 .title {
   font-size: 19px;
   font-weight: 700;
-  color: #fff;
+  color: var(--foreground);
   margin: 0 0 5px;
 }
 
@@ -72,10 +72,10 @@
 }
 
 .closeBtn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 6px;
   display: flex;
@@ -86,8 +86,8 @@
 }
 
 .closeBtn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: var(--surface-hover);
+  color: var(--foreground);
 }
 
 /* ── Body ────────────────────────────────────────────────────────────────── */
@@ -102,7 +102,7 @@
 /* ── Stats sidebar ───────────────────────────────────────────────────────── */
 .stats {
   padding: 18px 14px;
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  border-right: 1px solid var(--surface-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -111,8 +111,8 @@
 
 /* Progress card */
 .progressCard {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 4px;
@@ -122,13 +122,13 @@
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-muted);
   margin-bottom: 9px;
 }
 
 .progressTrack {
   height: 7px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-2);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -144,26 +144,26 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: 8px;
   padding: 8px 11px;
 }
 
 .kpiLabel {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text-muted);
 }
 
 .kpiValue {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--foreground);
 }
 
 .noData {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-muted);
   text-align: center;
   margin: auto 0;
   line-height: 1.6;
@@ -171,19 +171,19 @@
 
 .divider {
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--surface-border);
   margin: 4px 0;
 }
 
 .mapGuide {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
   line-height: 1.8;
   margin: 0;
 }
 
 .mapGuide strong {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-soft);
 }
 
 /* ── Map area ────────────────────────────────────────────────────────────── */
@@ -198,7 +198,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   font-size: 13px;
-  background: #0f0f1e;
+  background: var(--surface-1);
 }

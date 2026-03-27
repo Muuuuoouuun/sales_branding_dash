@@ -14,8 +14,7 @@
     font-size: 2rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
-    background: linear-gradient(to right, #ffffff, #a1a1aa);
-    /* White gradient */
+    background: linear-gradient(to right, var(--foreground), var(--primary-foreground));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -50,8 +49,8 @@
 .textarea {
     width: 100%;
     padding: 0.75rem 1rem;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--input-bg);
+    border: 1px solid var(--surface-border);
     border-radius: 0.5rem;
     color: var(--foreground);
     font-family: inherit;
@@ -62,10 +61,9 @@
 .select:focus,
 .textarea:focus {
     outline: none;
-    border-color: var(--primary);
-    background: rgba(99, 102, 241, 0.05);
-    /* Very subtle primary tint */
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    border-color: var(--primary-border);
+    background: var(--input-focus-bg);
+    box-shadow: 0 0 0 2px var(--primary-soft);
 }
 
 .textarea {

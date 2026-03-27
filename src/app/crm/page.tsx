@@ -1,14 +1,36 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styles from "./page.module.css";
 import SalesTip from "@/components/SalesTip";
 import {
   Phone, Mail, MessageSquare, ArrowRight, Loader2,
   Kanban, TableProperties, Crosshair,
   ChevronUp, ChevronDown, ChevronsUpDown,
-  Brain, X, AlertTriangle,
+  Brain, X, AlertTriangle, GripVertical
 } from "lucide-react";
+
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
+  defaultDropAnimationSideEffects,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CrmTab = "killist" | "pipeline" | "leads";
@@ -89,7 +111,8 @@ export default function CRMPage() {
     open: false, leadId: null, company: "", data: null, loading: false, error: null,
   });
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
+    setLoading(true);
     fetch("/api/crm/leads")
       .then(r => r.json())
       .then(d => {
@@ -99,6 +122,34 @@ export default function CRMPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const updateLeadStage = async (leadId: number, newStage: string) => {
+    // Optimistic UI update
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
+    
+    try {
+      const res = await fetch("/api/crm/leads/update-stage", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, stage: newStage }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      // Optionally re-fetch to sync scores
+      fetch("/api/crm/leads")
+        .then(r => r.json())
+        .then(d => {
+          setScores(d.scores ?? []);
+          setActions(d.actions ?? []);
+        });
+    } catch (err) {
+      console.error(err);
+      // Revert on error? Or just show aleart
+    }
+  };
 
   const openAiScript = async (leadId: number, company: string) => {
     setAiModal({ open: true, leadId, company, data: null, loading: true, error: null });
@@ -194,7 +245,7 @@ export default function CRMPage() {
       ) : (
         <>
           {tab === "killist"  && <KillListTab actions={actions} leads={leads} onAI={openAiScript} />}
-          {tab === "pipeline" && <PipelineTab leads={leads} />}
+          {tab === "pipeline" && <PipelineTab leads={leads} onUpdateStage={updateLeadStage} />}
           {tab === "leads"    && <LeadsTab leads={leads} />}
         </>
       )}
@@ -247,8 +298,8 @@ function KillListTab({ actions, leads, onAI }: {
               </div>
               <div className={styles.dueTag} style={{
                 color: isUrgent ? "#f87171" : "var(--text-muted)",
-                borderColor: isUrgent ? "rgba(248,113,113,0.3)" : "rgba(255,255,255,0.1)",
-                background: isUrgent ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.03)",
+                borderColor: isUrgent ? "var(--danger-border)" : "var(--surface-border)",
+                background: isUrgent ? "var(--danger-soft)" : "var(--surface-1)",
               }}>
                 {isUrgent && "⚠️ "}{item.due}
               </div>
@@ -275,8 +326,81 @@ function KillListTab({ actions, leads, onAI }: {
   );
 }
 
-// ── Pipeline Kanban Tab ───────────────────────────────────────────────────────
-function PipelineTab({ leads }: { leads: Lead[] }) {
+// ── Pipeline Kanban Tab (DND ENABLED) ─────────────────────────────────────────
+
+function SortableDealCard({ lead, color }: { lead: Lead; color: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: lead.id,
+    data: {
+      type: 'deal',
+      lead,
+    },
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    borderLeftColor: color,
+  };
+
+  const ownerColor = OWNER_COLORS[lead.owner] ?? "#818cf8";
+  const isOverdue = lead.due_label.includes("초과");
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={styles.dealCard}
+      {...attributes}
+      {...listeners}
+    >
+      <div className={styles.dealTop}>
+        <span className={styles.dealCompany}>{lead.company}</span>
+        <span className={styles.dealProb} style={{
+          color: lead.probability >= 70 ? "#4ade80" : lead.probability >= 50 ? "#fbbf24" : "#f87171",
+        }}>{lead.probability}%</span>
+      </div>
+      <div className={styles.dealContact}>{lead.contact} · {lead.region}</div>
+      <div className={styles.dealProbBar}>
+        <div style={{
+          width: `${lead.probability}%`, height: "100%", borderRadius: 2,
+          background: color, opacity: 0.7,
+        }} />
+      </div>
+      <div className={styles.dealBottom}>
+        <span className={styles.dealRev}>₩{(lead.revenue_potential / 1000).toFixed(1)}B</span>
+        <span className={styles.dealOwner} style={{ color: ownerColor }}>
+          {lead.owner}
+        </span>
+        <span className={styles.dealDue} style={{ color: isOverdue ? "#f87171" : "var(--text-muted)" }}>
+          {isOverdue ? "⚠️" : ""} {lead.due_label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PipelineTab({ leads, onUpdateStage }: { leads: Lead[]; onUpdateStage: (id: number, stage: string) => void }) {
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const byStage = useMemo(() => {
     const map = new Map<string, Lead[]>();
     STAGES.forEach(s => map.set(s.id, []));
@@ -284,66 +408,105 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
     return map;
   }, [leads]);
 
-  return (
-    <div className={styles.kanban}>
-      {STAGES.map(st => {
-        const cards = byStage.get(st.id) ?? [];
-        const totalRevenue = cards.reduce((s, c) => s + c.revenue_potential, 0);
-        return (
-          <div key={st.id} className={styles.kanbanCol}>
-            {/* Column header */}
-            <div className={styles.kanbanHeader} style={{ borderTopColor: st.color }}>
-              <div className={styles.kanbanHeaderTop}>
-                <span className={styles.kanbanStage} style={{ color: st.color }}>{st.label}</span>
-                <span className={styles.kanbanCount} style={{ background: `${st.color}22`, color: st.color }}>
-                  {cards.length}
-                </span>
-              </div>
-              <span className={styles.kanbanRevenue}>₩{(totalRevenue / 1000).toFixed(1)}B</span>
-            </div>
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
+    setActiveLead(event.active.data.current?.lead);
+  };
 
-            {/* Deal cards */}
-            <div className={styles.kanbanCards}>
-              {cards.map(c => {
-                const ownerColor = OWNER_COLORS[c.owner] ?? "#818cf8";
-                const isOverdue  = c.due_label.includes("초과");
-                return (
-                  <div key={c.id} className={styles.dealCard} style={{ borderLeftColor: st.color }}>
-                    <div className={styles.dealTop}>
-                      <span className={styles.dealCompany}>{c.company}</span>
-                      <span className={styles.dealProb} style={{
-                        color: c.probability >= 70 ? "#4ade80" : c.probability >= 50 ? "#fbbf24" : "#f87171",
-                      }}>{c.probability}%</span>
-                    </div>
-                    <div className={styles.dealContact}>{c.contact} · {c.region}</div>
-                    {/* Probability bar */}
-                    <div className={styles.dealProbBar}>
-                      <div style={{
-                        width: `${c.probability}%`, height: "100%", borderRadius: 2,
-                        background: st.color, opacity: 0.7,
-                        transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)",
-                      }} />
-                    </div>
-                    <div className={styles.dealBottom}>
-                      <span className={styles.dealRev}>₩{(c.revenue_potential / 1000).toFixed(1)}B</span>
-                      <span className={styles.dealOwner} style={{ color: ownerColor }}>
-                        {c.owner}
-                      </span>
-                      <span className={styles.dealDue} style={{ color: isOverdue ? "#f87171" : "var(--text-muted)" }}>
-                        {c.due_label}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-              {cards.length === 0 && (
-                <div className={styles.emptyCol}>딜 없음</div>
-              )}
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const overId = over.id as string;
+    const activeStage = activeLead?.stage;
+    
+    // Check if dragging over a column
+    const isOverColumn = STAGES.some(s => s.id === overId);
+    if (isOverColumn && activeStage !== overId) {
+      onUpdateStage(active.id as number, overId);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+       const overId = over.id as string;
+       const isOverColumn = STAGES.some(s => s.id === overId);
+       if (isOverColumn) {
+          onUpdateStage(active.id as number, overId);
+       }
+    }
+    setActiveId(null);
+    setActiveLead(null);
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className={styles.kanban}>
+        {STAGES.map(st => {
+          const cards = byStage.get(st.id) ?? [];
+          const totalRevenue = cards.reduce((s, c) => s + c.revenue_potential, 0);
+          return (
+            <div key={st.id} className={styles.kanbanCol}>
+              <div className={styles.kanbanHeader} style={{ borderTopColor: st.color }}>
+                <div className={styles.kanbanHeaderTop}>
+                  <span className={styles.kanbanStage} style={{ color: st.color }}>{st.label}</span>
+                  <span className={styles.kanbanCount} style={{ background: `${st.color}22`, color: st.color }}>
+                    {cards.length}
+                  </span>
+                </div>
+                <span className={styles.kanbanRevenue}>₩{(totalRevenue / 1000).toFixed(1)}B</span>
+              </div>
+
+              <div id={st.id} className={styles.kanbanCards}>
+                <SortableContext 
+                  items={cards.map(c => c.id)} 
+                  strategy={verticalListSortingStrategy}
+                >
+                  {cards.map(c => (
+                    <SortableDealCard key={c.id} lead={c} color={st.color} />
+                  ))}
+                </SortableContext>
+                {cards.length === 0 && (
+                  <div className={styles.emptyCol}>딜 없음 (드롭 가능)</div>
+                )}
+              </div>
             </div>
+          );
+        })}
+      </div>
+
+      <DragOverlay dropAnimation={{
+        sideEffects: defaultDropAnimationSideEffects({
+          styles: {
+            active: {
+              opacity: '0.4',
+            },
+          },
+        }),
+      }}>
+        {activeLead ? (
+          <div className={styles.dealCard} style={{ 
+            borderLeftColor: STAGES.find(s => s.id === activeLead.stage)?.color,
+            cursor: 'grabbing',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+            transform: 'scale(1.02)'
+          }}>
+            <div className={styles.dealTop}>
+              <span className={styles.dealCompany}>{activeLead.company}</span>
+              <span className={styles.dealProb}>{activeLead.probability}%</span>
+            </div>
+            <div className={styles.dealContact}>{activeLead.contact}</div>
           </div>
-        );
-      })}
-    </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
@@ -530,7 +693,7 @@ function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () =>
         {/* Modal Header */}
         <div className={styles.modalHeader}>
           <div className={styles.modalTitleRow}>
-            <Brain size={18} style={{ color: "#a5b4fc" }} />
+            <Brain size={18} style={{ color: "var(--primary-foreground)" }} />
             <span className={styles.modalTitle}>AI 콜 스크립트</span>
             <span className={styles.modalCompany}>{company}</span>
           </div>
@@ -549,7 +712,7 @@ function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () =>
           {/* Error */}
           {error && (
             <div className={styles.modalError}>
-              <AlertTriangle size={24} style={{ color: "#f87171" }} />
+              <AlertTriangle size={24} style={{ color: "var(--danger-foreground)" }} />
               <p>{error}</p>
             </div>
           )}
@@ -572,7 +735,7 @@ function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () =>
                 </div>
                 <div className={styles.scoreItem}>
                   <span className={styles.scoreItemLabel}>예상 가치</span>
-                  <span className={styles.scoreItemValue} style={{ color: "#a5b4fc" }}>
+                  <span className={styles.scoreItemValue} style={{ color: "var(--primary-foreground)" }}>
                     ₩{data.score.expectedValue.toLocaleString()}M
                   </span>
                 </div>

@@ -369,14 +369,14 @@ function PipelineFunnel({ data }: { data: { stage: string; value: number; fullMa
               <div style={{
                 display: "flex", alignItems: "center", gap: 6, padding: "5px 0 5px 100px",
                 fontSize: "0.61rem", fontWeight: 700, letterSpacing: "0.02em",
-                color: isBottleneck ? "#ef4444" : "rgba(255,255,255,0.18)",
+                color: isBottleneck ? "var(--danger-foreground)" : "var(--text-muted)",
               }}>
                 <span>↓</span>
                 <span>{dropPct}% drop-off</span>
                 {isBottleneck && (
                   <span style={{
-                    background: "rgba(239,68,68,0.14)", border: "1px solid rgba(239,68,68,0.28)",
-                    borderRadius: 4, padding: "1px 7px", color: "#f87171",
+                    background: "var(--danger-soft)", border: "1px solid var(--danger-border)",
+                    borderRadius: 4, padding: "1px 7px", color: "var(--danger-foreground)",
                     fontSize: "0.58rem", textTransform: "uppercase" as const, letterSpacing: "0.04em",
                   }}>BOTTLENECK</span>
                 )}
@@ -389,7 +389,7 @@ function PipelineFunnel({ data }: { data: { stage: string; value: number; fullMa
               }}>
                 {STAGE_KR[d.stage] ?? d.stage}
               </div>
-              <div style={{ flex: 1, height: 28, background: "rgba(255,255,255,0.05)", borderRadius: 5, overflow: "hidden" }}>
+              <div style={{ flex: 1, height: 28, background: "var(--surface-2)", borderRadius: 5, overflow: "hidden" }}>
                 <div style={{
                   width: `${barW}%`, height: "100%", borderRadius: 5,
                   background: isBottleneck
@@ -400,7 +400,7 @@ function PipelineFunnel({ data }: { data: { stage: string; value: number; fullMa
                   transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)",
                   display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 10,
                 }}>
-                  <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--foreground)", whiteSpace: "nowrap" }}>
                     {d.value}건
                   </span>
                 </div>
@@ -411,11 +411,11 @@ function PipelineFunnel({ data }: { data: { stage: string; value: number; fullMa
       })}
       <div style={{
         marginTop: "0.625rem", padding: "0.5rem 0.75rem",
-        background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)",
+        background: "var(--danger-soft)", border: "1px solid var(--danger-border)",
         borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#f87171" }}>⚠️ Negotiation 단계 최대 병목</span>
-        <span style={{ fontSize: "0.67rem", color: "rgba(255,255,255,0.35)" }}>전환율 44% — 목표 대비 26%p 부족</span>
+        <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--danger-foreground)" }}>⚠️ Negotiation 단계 최대 병목</span>
+        <span style={{ fontSize: "0.67rem", color: "var(--text-muted)" }}>전환율 44% — 목표 대비 26%p 부족</span>
       </div>
     </div>
   );

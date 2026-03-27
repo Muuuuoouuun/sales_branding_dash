@@ -82,7 +82,7 @@
   gap: 6px;
   padding: 8px 16px;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--surface-border);
   border-radius: 8px;
   color: var(--text-muted);
   font-size: 0.82rem;
@@ -93,7 +93,7 @@
 }
 
 .dlBtn:hover {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: var(--surface-border-strong);
   color: var(--foreground);
 }
 
@@ -167,7 +167,7 @@
   gap: 7px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-soft);
   margin-bottom: 0.625rem;
 }
 
@@ -188,15 +188,15 @@
 }
 
 .anomalyCritical {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-foreground);
 }
 
 .anomalyWarning {
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  color: #fcd34d;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-border);
+  color: var(--warning-foreground);
 }
 
 .severityDot { flex-shrink: 0; margin-top: 1px; }
@@ -208,8 +208,8 @@
   align-items: center;
   text-align: center;
   padding: 4rem 2rem;
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: var(--surface-1);
+  border: 1px dashed var(--surface-border);
   border-radius: 1rem;
   margin-top: 0.5rem;
 }
@@ -248,9 +248,9 @@
   font-weight: 600;
   padding: 4px 12px;
   border-radius: 20px;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  color: #a5b4fc;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+  color: var(--primary-foreground);
 }
 
 /* ── Error State ── */
@@ -260,10 +260,10 @@
   align-items: center;
   text-align: center;
   padding: 3rem 2rem;
-  background: rgba(239, 68, 68, 0.05);
-  border: 1px solid rgba(239, 68, 68, 0.15);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
   border-radius: 1rem;
-  color: #fca5a5;
+  color: var(--danger-foreground);
   font-size: 0.875rem;
 }
 
@@ -297,7 +297,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--surface-border);
 }
 
 .sectionBody {
@@ -307,7 +307,7 @@
 .sectionLine {
   font-size: 0.875rem;
   line-height: 1.8;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-soft);
   margin: 0 0 0.2rem;
 }
 
@@ -319,7 +319,7 @@
 .rawOutput {
   font-size: 0.875rem;
   line-height: 1.75;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--text-soft);
   padding: 1.25rem;
   background: var(--card-bg, rgba(255, 255, 255, 0.03));
   border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));

@@ -4,16 +4,18 @@
   align-items: center;
   gap: 0.6rem;
   padding: 0.55rem 0.9rem 0.55rem 0.85rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-left: 3px solid; /* color set via inline style */
   border-radius: 0 8px 8px 0;
   margin-bottom: 1.25rem;
-  transition: background 0.15s;
+  box-shadow: var(--shadow-soft);
+  transition: background 0.15s, border-color 0.15s;
   animation: fadeIn 0.4s ease both;
 }
 .strip:hover {
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--surface-2);
+  border-color: var(--surface-border-strong);
 }
 
 @keyframes fadeIn {
@@ -41,7 +43,7 @@
 .text {
   flex: 1;
   font-size: 0.775rem;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-soft);
   font-style: italic;
   margin: 0;
   line-height: 1.4;
@@ -49,7 +51,7 @@
 }
 
 .source {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
   font-style: normal;
   font-size: 0.7rem;
 }
@@ -58,15 +60,16 @@
   flex-shrink: 0;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px;
   border-radius: 4px;
   display: flex;
   align-items: center;
-  transition: color 0.15s;
+  transition: color 0.15s, background 0.15s;
   line-height: 0;
 }
 .nextBtn:hover {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--foreground);
+  background: var(--surface-hover);
 }

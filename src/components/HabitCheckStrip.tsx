@@ -52,7 +52,7 @@ export default function HabitCheckStrip() {
           <button key={i} className={styles.habit} onClick={() => toggle(i)}>
             {checked[i]
               ? <CheckSquare size={13} style={{ color: "#6366f1", flexShrink: 0 }} />
-              : <Square      size={13} style={{ color: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
+              : <Square      size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
             }
             <span className={styles.habitText} style={{ opacity: checked[i] ? 0.35 : 0.65 }}>
               {h}
