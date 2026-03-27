@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { loadCSV } from '@/lib/csvLoader';
+import { listRegionalMetrics } from '@/lib/server/salesData';
 
 interface RegionRow {
   name: string;
@@ -21,7 +21,7 @@ const FALLBACK_DATA: RegionRow[] = [
 ];
 
 export async function GET() {
-  const rows = loadCSV<RegionRow>('regions.csv');
+  const { rows } = await listRegionalMetrics();
   const data = rows.length > 0 ? rows : FALLBACK_DATA;
 
   const totalRevenue  = data.reduce((s, r) => s + Number(r.revenue), 0);

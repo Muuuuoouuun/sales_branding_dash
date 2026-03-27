@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { loadCSV } from '@/lib/csvLoader';
+import { listLeads, listRegionalMetrics } from '@/lib/server/salesData';
 
 interface RegionRow {
   name: string;
@@ -7,19 +7,6 @@ interface RegionRow {
   target: number;
   deals_active: number;
   deals_closed: number;
-}
-
-interface LeadRow {
-  id: string;
-  company: string;
-  contact: string;
-  region: string;
-  stage: string;
-  probability: number;
-  revenue_potential: number;
-  owner: string;
-  last_contact: string;
-  due_date: string;
 }
 
 // 지역별 SVG 좌표 (viewBox 0 0 340 445 기준)
@@ -51,7 +38,7 @@ const FALLBACK_DATA: RegionRow[] = [
 ];
 
 export async function GET() {
-  const rows = loadCSV<RegionRow>('regions.csv');
+  const { rows } = await listRegionalMetrics();
   const source = rows.length > 0 ? rows : FALLBACK_DATA;
 
   const regional = source.map(row => {
@@ -83,13 +70,14 @@ export async function GET() {
 
   const bottleneckData = [
     { stage: 'Lead',        value: 100, fullMark: 150 },
-    { stage: 'Proposal',    value:  90, fullMark: 150 },
+    { stage: 'Meeting',     value:  85, fullMark: 150 },
+    { stage: 'Proposal',    value:  75, fullMark: 150 },
     { stage: 'Negotiation', value:  40, fullMark: 150 },
     { stage: 'Contract',    value:  35, fullMark: 150 },
   ];
 
   // ── Individual (per-owner) stats from leads.csv ──────────────────────────
-  const leads = loadCSV<LeadRow>('leads.csv');
+  const { rows: leads } = await listLeads();
   const teamTarget = regional.reduce((s, r) => s + r.target, 0);
 
   interface OwnerAcc {

@@ -1,18 +1,5 @@
 import { NextResponse } from 'next/server';
-import { loadCSV } from '@/lib/csvLoader';
-
-interface LeadRow {
-  id: string;
-  company: string;
-  contact: string;
-  region: string;
-  stage: string;
-  probability: string;
-  revenue_potential: string;
-  owner: string;
-  last_contact: string;
-  due_date: string;
-}
+import { listLeads } from '@/lib/server/salesData';
 
 const STAGE_ORDER = ['Lead', 'Proposal', 'Negotiation', 'Contract'];
 
@@ -37,7 +24,7 @@ function formatDue(dateStr: string): string {
 }
 
 export async function GET() {
-  const raw = loadCSV<LeadRow>('leads.csv');
+  const { rows: raw } = await listLeads();
 
   const leads = raw.map(l => ({
     id: Number(l.id),

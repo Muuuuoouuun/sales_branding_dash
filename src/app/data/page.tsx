@@ -34,35 +34,36 @@ interface CrmPlatform {
 }
 
 // ─── CRM Platforms config ────────────────────────────────────────────────────
-const INITIAL_PLATFORMS: CrmPlatform[] = [
+/* Legacy connector draft kept for reference.
   {
-    id: "salesforce",
-    name: "Salesforce",
+    id: "supabase",
+    name: "Supabase",
     desc: "Sales Cloud · Service Cloud",
-    color: "#00a1e0",
+    color: "#3ecf8e",
     status: "disconnected",
     fields: [
-      { key: "instanceUrl", label: "Instance URL", type: "url" },
-      { key: "clientId",    label: "Client ID" },
-      { key: "clientSecret",label: "Client Secret", type: "password" },
+      { key: "projectUrl", label: "Project URL", type: "url" },
+      { key: "anonKeyRef", label: "Anon Key Env Name" },
+      { key: "serviceRoleRef", label: "Service Role Env Name" },
     ],
   },
   {
-    id: "hubspot",
-    name: "HubSpot",
+    id: "google_sheets",
+    name: "Google Sheets",
     desc: "CRM · Marketing Hub",
-    color: "#ff7a59",
+    color: "#34a853",
     status: "disconnected",
     fields: [
-      { key: "apiKey",    label: "Private App Token", type: "password" },
-      { key: "portalId",  label: "Portal ID" },
+      { key: "spreadsheetId", label: "Spreadsheet ID" },
+      { key: "worksheet", label: "Worksheet Name" },
+      { key: "serviceAccountRef", label: "Service Account Env Name" },
     ],
   },
   {
-    id: "douzone",
+    id: "neo_crm",
     name: "더존 iCUBE",
     desc: "영업관리 · ERP 연동",
-    color: "#0057ff",
+    color: "#2563eb",
     status: "disconnected",
     fields: [
       { key: "serverUrl", label: "서버 URL", type: "url" },
@@ -82,6 +83,58 @@ const INITIAL_PLATFORMS: CrmPlatform[] = [
       { key: "mapping",   label: "필드 매핑 (JSON)" },
     ],
   },
+*/
+
+const RECOMMENDED_PLATFORMS: CrmPlatform[] = [
+  {
+    id: "supabase",
+    name: "Supabase",
+    desc: "Primary database and sync target",
+    color: "#3ecf8e",
+    status: "disconnected",
+    fields: [
+      { key: "projectUrl", label: "Project URL", type: "url" },
+      { key: "anonKeyRef", label: "Anon Key Env Name" },
+      { key: "serviceRoleRef", label: "Service Role Env Name" },
+    ],
+  },
+  {
+    id: "google_sheets",
+    name: "Google Sheets",
+    desc: "Spreadsheet import or scheduled sync",
+    color: "#34a853",
+    status: "disconnected",
+    fields: [
+      { key: "spreadsheetId", label: "Spreadsheet ID" },
+      { key: "worksheet", label: "Worksheet Name" },
+      { key: "serviceAccountRef", label: "Service Account Env Name" },
+    ],
+  },
+  {
+    id: "neo_crm",
+    name: "Neo CRM",
+    desc: "China HQ CRM via Open API adapter",
+    color: "#2563eb",
+    status: "disconnected",
+    fields: [
+      { key: "baseUrl", label: "Base URL", type: "url" },
+      { key: "clientId", label: "Client ID" },
+      { key: "clientSecret", label: "Client Secret", type: "password" },
+      { key: "fieldMapping", label: "Field Mapping (JSON)" },
+    ],
+  },
+  {
+    id: "rest",
+    name: "REST API",
+    desc: "Fallback connector for middleware or ETL",
+    color: "#8b5cf6",
+    status: "disconnected",
+    fields: [
+      { key: "endpoint", label: "Endpoint URL", type: "url" },
+      { key: "token", label: "Bearer Token", type: "password" },
+      { key: "mapping", label: "Field Mapping (JSON)" },
+    ],
+  },
 ];
 
 const newRow = (): RegionRow => ({
@@ -92,7 +145,7 @@ const newRow = (): RegionRow => ({
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function DataPage() {
   const [activeTab, setActiveTab]         = useState<Tab>("crm");
-  const [platforms, setPlatforms]         = useState<CrmPlatform[]>(INITIAL_PLATFORMS);
+  const [platforms, setPlatforms]         = useState<CrmPlatform[]>(RECOMMENDED_PLATFORMS);
   const [expandedId, setExpandedId]       = useState<string | null>(null);
   const [crmFields, setCrmFields]         = useState<Record<string, Record<string, string>>>({});
   const [syncStatus, setSyncStatus]       = useState<string>("");
@@ -127,6 +180,26 @@ export default function DataPage() {
       })
       .catch(() => setRows([newRow()]))
       .finally(() => setLoadingRows(false));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/integrations/status")
+      .then(r => r.json())
+      .then(({ providers }) => {
+        const readyIds = new Set<string>(
+          (providers as Array<{ id: string; ready: boolean }>)
+            .filter((provider) => provider.ready)
+            .map((provider) => provider.id)
+        );
+
+        setPlatforms(prev =>
+          prev.map(platform => ({
+            ...platform,
+            status: readyIds.has(platform.id) ? "connected" : "disconnected",
+          }))
+        );
+      })
+      .catch(() => undefined);
   }, []);
 
   // ── Manual input helpers ─────────────────────────────────────────────────

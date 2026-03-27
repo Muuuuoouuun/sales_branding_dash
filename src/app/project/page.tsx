@@ -25,11 +25,14 @@ interface KeyResult {
   target: number;
   unit: string;
   status: KrStatus;
+  customKrId?: string;
 }
 interface Objective {
   objective: string;
   description: string;
   keyResults: KeyResult[];
+  isCustom?: boolean;
+  customId?: string;
 }
 
 // ── Methodology Static Data ───────────────────────────────────────────────────
@@ -239,12 +242,16 @@ export default function ProjectPage() {
 }
 
 // ── OKR Types & Storage ───────────────────────────────────────────────────────
+export interface CustomKr { id: string; label: string; target: number; value: number; unit: string; }
+export interface CustomObjective { id: string; objective: string; description: string; keyResults: CustomKr[]; }
+
 interface OkrStore {
   targets: Record<string, number>;  // kr label → custom target
   values:  Record<string, number>;  // kr label → manual value override
+  customOkrs: CustomObjective[];
 }
 
-const EMPTY_STORE: OkrStore = { targets: {}, values: {} };
+const EMPTY_STORE: OkrStore = { targets: {}, values: {}, customOkrs: [] };
 
 // KRs whose value is NOT computed from live data (can be manually overridden)
 const MANUAL_VALUE_KRS = new Set(["Negotiation 단계 전환율"]);
@@ -296,7 +303,7 @@ function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: 
     { label: "개인 100% 달성자 비율",                                computedValue: indivRate,       defaultTarget: 70,           unit: "%" },
   ];
 
-  const okrs: Objective[] = [
+  const okrs: any[] = [
     {
       objective: "O1. 분기 매출 목표 초과 달성",
       description: `팀 목표 ₩${teamTarget.toLocaleString()}M · 현재 ₩${teamRevenue.toLocaleString()}M (${teamProgress}%)`,
@@ -315,10 +322,19 @@ function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: 
         return { label: k.label, value: v, target: t, unit: k.unit, status: getStatus(v, t) };
       }),
     },
-  ];
+    ...(active.customOkrs || []).map(co => ({
+      isCustom: true,
+      customId: co.id,
+      objective: co.objective,
+      description: co.description,
+      keyResults: co.keyResults.map(kr => ({
+        customKrId: kr.id, label: kr.label, value: kr.value, target: kr.target, unit: kr.unit, status: getStatus(kr.value, kr.target)
+      }))
+    }))
+  ] as (Objective & { isCustom?: boolean; customId?: string; keyResults: (KeyResult & { customKrId?: string })[] })[];
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const startEdit = () => { setDraft({ ...store }); setEditMode(true); setSaved(false); };
+  const startEdit = () => { setDraft({ ...store, customOkrs: store.customOkrs || [] }); setEditMode(true); setSaved(false); };
   const cancelEdit = () => setEditMode(false);
 
   const handleSave = () => {
@@ -344,7 +360,46 @@ function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: 
     setDraft(d => ({ ...d, values: { ...d.values, [label]: val } }));
   }, []);
 
-  const hasOverrides = Object.keys(store.targets).length > 0 || Object.keys(store.values).length > 0;
+  const handleAddCustomOkr = () => {
+    setDraft(d => ({
+      ...d,
+      customOkrs: [...(d.customOkrs || []), {
+        id: `obj-${Date.now()}`, objective: "새로운 전략 목표", description: "설명 입력",
+        keyResults: [{ id: `kr-${Date.now()}`, label: "신규 측정 지표", target: 100, value: 0, unit: "건" }]
+      }]
+    }));
+  };
+
+  const updateCustomOkr = (objId: string, field: string, val: string) => {
+    setDraft(d => ({
+      ...d,
+      customOkrs: d.customOkrs.map(o => o.id === objId ? { ...o, [field]: val } : o)
+    }));
+  };
+
+  const addCustomKr = (objId: string) => {
+    setDraft(d => ({
+      ...d,
+      customOkrs: d.customOkrs.map(o => o.id === objId ? {
+        ...o, keyResults: [...o.keyResults, { id: `kr-${Date.now()}`, label: "신규 지표", target: 100, value: 0, unit: "건" }]
+      } : o)
+    }));
+  };
+
+  const updateCustomKr = (objId: string, krId: string, field: string, val: string | number) => {
+    setDraft(d => ({
+      ...d,
+      customOkrs: d.customOkrs.map(o => o.id === objId ? {
+        ...o, keyResults: o.keyResults.map(kr => kr.id === krId ? { ...kr, [field]: val } : kr)
+      } : o)
+    }));
+  };
+
+  const removeCustomOkr = (objId: string) => {
+    setDraft(d => ({ ...d, customOkrs: d.customOkrs.filter(o => o.id !== objId) }));
+  };
+
+  const hasOverrides = Object.keys(store.targets).length > 0 || Object.keys(store.values).length > 0 || (store.customOkrs?.length || 0) > 0;
 
   return (
     <div>
@@ -388,16 +443,28 @@ function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: 
       <div className={styles.okrGrid}>
         {okrs.map((okr, i) => (
           <OkrCard
-            key={i}
+            key={okr.customId || i}
             okr={okr}
             index={i}
             editMode={editMode}
-            rawKrs={RAW_KRS.slice(i === 0 ? 0 : 3, i === 0 ? 3 : 6)}
+            rawKrs={okr.isCustom ? [] : RAW_KRS.slice(i === 0 ? 0 : 3, i === 0 ? 3 : 6)}
             store={store}
             onTargetChange={setDraftTarget}
             onValueChange={setDraftValue}
+            onUpdateCustomOkr={updateCustomOkr}
+            onUpdateCustomKr={updateCustomKr}
+            onAddCustomKr={addCustomKr}
+            onRemoveOkr={removeCustomOkr}
           />
         ))}
+        {editMode && (
+          <button 
+            onClick={handleAddCustomOkr}
+            style={{ padding: "1.5rem", borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.2)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
+          >
+            + 새로운 O(목표) 및 KR(핵심 결과) 추가하기
+          </button>
+        )}
       </div>
     </div>
   );
@@ -405,40 +472,64 @@ function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: 
 
 // ── OKR Card ──────────────────────────────────────────────────────────────────
 function OkrCard({
-  okr, index, editMode, rawKrs, store, onTargetChange, onValueChange,
+  okr, index, editMode, rawKrs, store, 
+  onTargetChange, onValueChange,
+  onUpdateCustomOkr, onUpdateCustomKr, onAddCustomKr, onRemoveOkr
 }: {
-  okr: Objective;
+  okr: any;
   index: number;
   editMode: boolean;
   rawKrs: { label: string; computedValue: number; defaultTarget: number; unit: string }[];
   store: OkrStore;
   onTargetChange: (label: string, val: number) => void;
   onValueChange:  (label: string, val: number) => void;
+  onUpdateCustomOkr: (oId: string, f: string, v: string) => void;
+  onUpdateCustomKr: (oId: string, krId: string, f: string, v: string|number) => void;
+  onAddCustomKr: (oId: string) => void;
+  onRemoveOkr: (oId: string) => void;
 }) {
-  const OBJ_COLORS = ["#6366f1", "#f59e0b"];
-  const color = OBJ_COLORS[index] ?? "#818cf8";
+  const OBJ_COLORS = ["#6366f1", "#f59e0b", "#4ade80", "#ec4899", "#8b5cf6"];
+  const color = OBJ_COLORS[index % OBJ_COLORS.length] ?? "#818cf8";
 
   return (
-    <div className={styles.okrCard}>
-      <div className={styles.okrHeader} style={{ borderLeftColor: color }}>
-        <h3 className={styles.okrTitle} style={{ color }}>{okr.objective}</h3>
-        <p className={styles.okrDesc}>{okr.description}</p>
+    <div className={styles.okrCard} style={okr.isCustom && editMode ? { borderColor: `${color}66` } : undefined}>
+      <div className={styles.okrHeader} style={{ borderLeftColor: color, position: "relative" }}>
+        {okr.isCustom && editMode && (
+          <button onClick={() => onRemoveOkr(okr.customId!)} style={{ position: "absolute", right: 0, top: 0, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>
+            <X size={14} />
+          </button>
+        )}
+        {okr.isCustom && editMode ? (
+          <>
+            <input className={styles.krInput} style={{ fontSize: "1.1rem", fontWeight: 700, color, marginBottom: "0.25rem", width: "100%", background: "rgba(0,0,0,0.2)" }} value={okr.objective} onChange={e => onUpdateCustomOkr(okr.customId!, "objective", e.target.value)} />
+            <input className={styles.krInput} style={{ fontSize: "0.85rem", width: "100%", background: "rgba(0,0,0,0.2)" }} value={okr.description} onChange={e => onUpdateCustomOkr(okr.customId!, "description", e.target.value)} />
+          </>
+        ) : (
+          <>
+            <h3 className={styles.okrTitle} style={{ color }}>{okr.objective}</h3>
+            <p className={styles.okrDesc}>{okr.description}</p>
+          </>
+        )}
       </div>
       <div className={styles.krList}>
-        {okr.keyResults.map((kr, j) => {
-          const s        = STATUS_CONFIG[kr.status];
+        {okr.keyResults.map((kr: any, j: number) => {
+          const s        = STATUS_CONFIG[kr.status as KrStatus] || STATUS_CONFIG["ontrack"];
           const pct      = Math.min((kr.value / Math.max(kr.target, 1)) * 100, 100);
           const rawKr    = rawKrs[j];
-          const isManual = MANUAL_VALUE_KRS.has(kr.label);
+          const isManual = okr.isCustom || MANUAL_VALUE_KRS.has(kr.label);
           const hasTargetOverride = store.targets[kr.label] !== undefined;
           const hasValueOverride  = store.values[kr.label]  !== undefined;
 
           return (
-            <div key={j} className={styles.krItem}>
+            <div key={kr.customKrId || j} className={styles.krItem}>
               <div className={styles.krTop}>
                 <div className={styles.krLabelWrap}>
-                  <span className={styles.krLabel}>{kr.label}</span>
-                  {(hasTargetOverride || hasValueOverride) && !editMode && (
+                  {okr.isCustom && editMode ? (
+                    <input className={styles.krInput} style={{ width: "120px" }} value={kr.label} onChange={e => onUpdateCustomKr(okr.customId!, kr.customKrId!, "label", e.target.value)} />
+                  ) : (
+                    <span className={styles.krLabel}>{kr.label}</span>
+                  )}
+                  {!okr.isCustom && (hasTargetOverride || hasValueOverride) && !editMode && (
                     <span className={styles.manualDot} title="수동 설정된 값">●</span>
                   )}
                 </div>
@@ -452,11 +543,13 @@ function OkrCard({
                           <input
                             type="number"
                             className={styles.krInput}
-                            defaultValue={rawKr?.computedValue ?? kr.value}
-                            onChange={e => onValueChange(kr.label, Number(e.target.value))}
+                            value={kr.value}
+                            onChange={e => okr.isCustom ? onUpdateCustomKr(okr.customId!, kr.customKrId!, "value", Number(e.target.value)) : onValueChange(kr.label, Number(e.target.value))}
                             style={{ borderColor: `${color}44` }}
                           />
-                          <span className={styles.krInputUnit}>{kr.unit}</span>
+                          {okr.isCustom && editMode ? (
+                            <input className={styles.krInput} style={{ width: "40px" }} value={kr.unit} onChange={e => onUpdateCustomKr(okr.customId!, kr.customKrId!, "unit", e.target.value)} />
+                          ) : <span className={styles.krInputUnit}>{kr.unit}</span>}
                         </label>
                       )}
                       {/* Target override (all KRs) */}
@@ -465,11 +558,11 @@ function OkrCard({
                         <input
                           type="number"
                           className={styles.krInput}
-                          defaultValue={rawKr?.defaultTarget ?? kr.target}
-                          onChange={e => onTargetChange(kr.label, Number(e.target.value))}
+                          value={kr.target}
+                          onChange={e => okr.isCustom ? onUpdateCustomKr(okr.customId!, kr.customKrId!, "target", Number(e.target.value)) : onTargetChange(kr.label, Number(e.target.value))}
                           style={{ borderColor: `${color}44` }}
                         />
-                        <span className={styles.krInputUnit}>{kr.unit}</span>
+                        {!okr.isCustom && <span className={styles.krInputUnit}>{kr.unit}</span>}
                       </label>
                     </div>
                   ) : (
@@ -500,6 +593,11 @@ function OkrCard({
             </div>
           );
         })}
+        {okr.isCustom && editMode && (
+          <button onClick={() => onAddCustomKr(okr.customId!)} style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: color, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+            + KR 추가
+          </button>
+        )}
       </div>
     </div>
   );
@@ -731,7 +829,7 @@ function AiTab({
         <div>
           <h3 className={styles.aiTitle}>AI 전략 진단</h3>
           <p className={styles.aiSubtitle}>
-            적용 방법론: <span style={{ color: m.color, fontWeight: 700 }}>{methodology}</span> · Gemini 2.0 Flash
+            적용 방법론: <span style={{ color: m.color, fontWeight: 700 }}>{methodology}</span> · Gemini 3.1 Pro
           </p>
         </div>
         <button
@@ -749,7 +847,7 @@ function AiTab({
       {!aiInsight && !aiLoading && (
         <div className={styles.aiPlaceholder}>
           <Brain size={44} style={{ color: "rgba(255,255,255,0.12)", marginBottom: "0.875rem" }} />
-          <p>「전략 생성」을 클릭하면 Gemini가</p>
+          <p>「전략 생성」을 클릭하면 Gemini 3.1 Pro가</p>
           <p><strong style={{ color: m.color }}>{methodology}</strong> 방법론 관점에서 실시간 분석을 제공합니다.</p>
         </div>
       )}
@@ -757,7 +855,7 @@ function AiTab({
       {aiLoading && (
         <div className={styles.aiPlaceholder}>
           <Loader2 size={36} className={styles.spinner} style={{ marginBottom: "0.875rem" }} />
-          <p>Gemini가 분기 데이터를 분석 중입니다...</p>
+          <p>Gemini 3.1 Pro가 분기 데이터를 분석 중입니다...</p>
         </div>
       )}
 

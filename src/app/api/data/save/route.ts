@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { saveRegionalMetrics } from '@/lib/server/salesData';
 
 interface RegionRow {
   name: string;
@@ -8,14 +7,6 @@ interface RegionRow {
   target: number;
   deals_active: number;
   deals_closed: number;
-}
-
-function rowsToCSV(rows: RegionRow[]): string {
-  const header = 'name,revenue,target,deals_active,deals_closed';
-  const lines = rows.map(r =>
-    `${r.name},${r.revenue},${r.target},${r.deals_active},${r.deals_closed}`
-  );
-  return [header, ...lines].join('\n');
 }
 
 export async function POST(req: NextRequest) {
@@ -36,21 +27,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const csvContent = rowsToCSV(rows);
-    const filePath = path.join(process.cwd(), 'data', 'regions.csv');
-
-    // 백업
-    const backupPath = path.join(process.cwd(), 'data', `regions.backup.${Date.now()}.csv`);
-    if (fs.existsSync(filePath)) {
-      fs.copyFileSync(filePath, backupPath);
-    }
-
-    fs.writeFileSync(filePath, csvContent, 'utf-8');
+    const result = await saveRegionalMetrics(rows);
 
     return NextResponse.json({
       success: true,
-      message: `${rows.length}개 지역 데이터가 저장되었습니다.`,
-      savedAt: new Date().toISOString(),
+      message: `${rows.length}개 지역 데이터가 ${result.backend === 'supabase' ? 'Supabase' : 'CSV'}에 저장되었습니다.`,
+      savedAt: result.savedAt,
+      backend: result.backend,
     });
   } catch (err) {
     console.error('[/api/data/save]', err);
