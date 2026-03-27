@@ -7,6 +7,7 @@ import {
   Phone, Mail, MessageSquare, ArrowRight, Loader2,
   Kanban, TableProperties, Crosshair,
   ChevronUp, ChevronDown, ChevronsUpDown,
+  Brain, X, AlertTriangle,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -61,6 +62,22 @@ const OWNER_COLORS: Record<string, string> = {
   "박웨이": "#f59e0b",
 };
 
+// ── AI Modal Types ─────────────────────────────────────────────────────────────
+interface ScoreResult {
+  lead: { id: number; company: string; contact: string; stage: string; probability: number; owner: string };
+  score: { urgencyScore: number; riskLevel: string; expectedValue: number; daysSinceContact: number; daysUntilDue: number; dueLabel: string };
+  callScript: string;
+}
+
+interface AiModalState {
+  open: boolean;
+  leadId: number | null;
+  company: string;
+  data: ScoreResult | null;
+  loading: boolean;
+  error: string | null;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function CRMPage() {
   const [tab, setTab]           = useState<CrmTab>("killist");
@@ -68,6 +85,9 @@ export default function CRMPage() {
   const [actions, setActions]   = useState<ActionItem[]>([]);
   const [leads, setLeads]       = useState<Lead[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [aiModal, setAiModal]   = useState<AiModalState>({
+    open: false, leadId: null, company: "", data: null, loading: false, error: null,
+  });
 
   useEffect(() => {
     fetch("/api/crm/leads")
@@ -79,6 +99,24 @@ export default function CRMPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const openAiScript = async (leadId: number, company: string) => {
+    setAiModal({ open: true, leadId, company, data: null, loading: true, error: null });
+    try {
+      const res  = await fetch("/api/ai/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "failed");
+      setAiModal(prev => ({ ...prev, loading: false, data: json }));
+    } catch {
+      setAiModal(prev => ({ ...prev, loading: false, error: "분석 실패. API 키를 확인하세요." }));
+    }
+  };
+
+  const closeAiModal = () => setAiModal(prev => ({ ...prev, open: false }));
 
   const TABS: { id: CrmTab; label: string; icon: React.ReactNode }[] = [
     { id: "killist",  label: "Kill-List",     icon: <Crosshair size={14} /> },
@@ -155,17 +193,26 @@ export default function CRMPage() {
         </div>
       ) : (
         <>
-          {tab === "killist"  && <KillListTab actions={actions} />}
+          {tab === "killist"  && <KillListTab actions={actions} leads={leads} onAI={openAiScript} />}
           {tab === "pipeline" && <PipelineTab leads={leads} />}
           {tab === "leads"    && <LeadsTab leads={leads} />}
         </>
+      )}
+
+      {/* ── AI Script Modal ── */}
+      {aiModal.open && (
+        <AIScriptModal modal={aiModal} onClose={closeAiModal} />
       )}
     </div>
   );
 }
 
 // ── Kill-List Tab ─────────────────────────────────────────────────────────────
-function KillListTab({ actions }: { actions: ActionItem[] }) {
+function KillListTab({ actions, leads, onAI }: {
+  actions: ActionItem[];
+  leads: Lead[];
+  onAI: (leadId: number, company: string) => void;
+}) {
   const STAGE_COLOR: Record<string, string> = {
     Lead: "#64748b", Proposal: "#6366f1", Negotiation: "#f59e0b", Contract: "#22c55e",
   };
@@ -209,6 +256,15 @@ function KillListTab({ actions }: { actions: ActionItem[] }) {
                 <button className={styles.iconBtn}><Phone size={15} /></button>
                 <button className={styles.iconBtn}><Mail size={15} /></button>
                 <button className={styles.iconBtn}><MessageSquare size={15} /></button>
+                <button
+                  className={styles.aiScriptBtn}
+                  onClick={() => {
+                    const lead = leads.find(l => l.company === item.target);
+                    if (lead) onAI(lead.id, lead.company);
+                  }}
+                >
+                  <Brain size={13} /> AI 스크립트
+                </button>
                 <button className={styles.execBtn}>실행 <ArrowRight size={13} /></button>
               </div>
             </div>
@@ -428,6 +484,140 @@ function LeadsTab({ leads }: { leads: Lead[] }) {
         </table>
         <div className={styles.tableFooter}>
           총 {sorted.length}건 · 예상 매출 ₩{sorted.reduce((s, l) => s + l.revenue_potential, 0).toLocaleString()}M
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AI Script Modal ───────────────────────────────────────────────────────────
+const RISK_COLOR: Record<string, string> = {
+  low: "#4ade80", medium: "#fbbf24", high: "#f97316", critical: "#ef4444",
+};
+
+const SECTION_META_CRM: Record<string, { color: string }> = {
+  "상황 분석":       { color: "#6366f1" },
+  "콜 오프닝 (첫 30초)": { color: "#22c55e" },
+  "핵심 확인 질문 3가지": { color: "#f59e0b" },
+  "예상 반론 & 대응": { color: "#f87171" },
+  "이번 통화 목표 (Next Step)": { color: "#a78bfa" },
+};
+
+function parseScript(text: string) {
+  const lines = text.split("\n");
+  const sections: { key: string; color: string; lines: string[] }[] = [];
+  let current: (typeof sections)[number] | null = null;
+  for (const line of lines) {
+    const heading = line.replace(/^##\s*/, "").trim();
+    if (SECTION_META_CRM[heading]) {
+      if (current) sections.push(current);
+      current = { key: heading, color: SECTION_META_CRM[heading].color, lines: [] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  if (current) sections.push(current);
+  return sections;
+}
+
+function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () => void }) {
+  const { data, loading, error, company } = modal;
+  const sections = data ? parseScript(data.callScript) : [];
+
+  return (
+    <div className={styles.modalOverlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={styles.modalBox}>
+        {/* Modal Header */}
+        <div className={styles.modalHeader}>
+          <div className={styles.modalTitleRow}>
+            <Brain size={18} style={{ color: "#a5b4fc" }} />
+            <span className={styles.modalTitle}>AI 콜 스크립트</span>
+            <span className={styles.modalCompany}>{company}</span>
+          </div>
+          <button className={styles.modalClose} onClick={onClose}><X size={18} /></button>
+        </div>
+
+        <div className={styles.modalBody}>
+          {/* Loading */}
+          {loading && (
+            <div className={styles.modalLoading}>
+              <Loader2 size={32} className={styles.spinner} />
+              <p>AI가 리드를 분석하고 콜 스크립트를 작성 중입니다…</p>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className={styles.modalError}>
+              <AlertTriangle size={24} style={{ color: "#f87171" }} />
+              <p>{error}</p>
+            </div>
+          )}
+
+          {/* Score Summary */}
+          {data && (
+            <>
+              <div className={styles.scoreStrip}>
+                <div className={styles.scoreItem}>
+                  <span className={styles.scoreItemLabel}>긴급도</span>
+                  <span className={styles.scoreItemValue} style={{ color: RISK_COLOR[data.score.riskLevel] }}>
+                    {data.score.urgencyScore}<span style={{ fontSize: "0.65rem", opacity: 0.7 }}>/100</span>
+                  </span>
+                </div>
+                <div className={styles.scoreItem}>
+                  <span className={styles.scoreItemLabel}>위험도</span>
+                  <span className={styles.scoreItemValue} style={{ color: RISK_COLOR[data.score.riskLevel], textTransform: "uppercase", fontSize: "0.85rem" }}>
+                    {data.score.riskLevel}
+                  </span>
+                </div>
+                <div className={styles.scoreItem}>
+                  <span className={styles.scoreItemLabel}>예상 가치</span>
+                  <span className={styles.scoreItemValue} style={{ color: "#a5b4fc" }}>
+                    ₩{data.score.expectedValue.toLocaleString()}M
+                  </span>
+                </div>
+                <div className={styles.scoreItem}>
+                  <span className={styles.scoreItemLabel}>마지막 연락</span>
+                  <span className={styles.scoreItemValue} style={{ color: data.score.daysSinceContact > 7 ? "#f87171" : "var(--text-muted)", fontSize: "0.85rem" }}>
+                    {data.score.daysSinceContact}일 전
+                  </span>
+                </div>
+                <div className={styles.scoreItem}>
+                  <span className={styles.scoreItemLabel}>마감</span>
+                  <span className={styles.scoreItemValue} style={{ color: data.score.daysUntilDue <= 0 ? "#ef4444" : data.score.daysUntilDue <= 3 ? "#f97316" : "var(--text-muted)", fontSize: "0.78rem" }}>
+                    {data.score.dueLabel}
+                  </span>
+                </div>
+              </div>
+
+              {/* Script Sections */}
+              <div className={styles.scriptSections}>
+                {sections.length > 0
+                  ? sections.map(sec => (
+                      <div key={sec.key} className={styles.scriptSection} style={{ "--sec-c": sec.color } as React.CSSProperties}>
+                        <div className={styles.scriptSectionHead} style={{ color: sec.color }}>{sec.key}</div>
+                        <div className={styles.scriptSectionBody}>
+                          {sec.lines.join("\n").trim().split("\n").map((line, i) => {
+                            if (!line.trim()) return null;
+                            const parts = line.split(/(\*\*[^*]+\*\*)/g);
+                            return (
+                              <p key={i} className={styles.scriptLine}>
+                                {parts.map((p, pi) =>
+                                  p.startsWith("**") && p.endsWith("**")
+                                    ? <strong key={pi}>{p.slice(2, -2)}</strong>
+                                    : <React.Fragment key={pi}>{p}</React.Fragment>
+                                )}
+                              </p>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  : <pre className={styles.rawScript}>{data.callScript}</pre>
+                }
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

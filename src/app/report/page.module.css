@@ -1,89 +1,344 @@
+/* ── Report Page ────────────────────────────────────────────────────────────── */
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    color: var(--foreground);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .subtitle {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
 }
 
-.reportList {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
-.reportItem {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    transition: all 0.2s;
+.generateBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
 }
 
-.reportItem:hover {
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.05);
+.generateBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.reportInfo {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+.generateBtnLarge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-top: 1.25rem;
 }
 
-.iconBox {
-    width: 48px;
-    height: 48px;
-    border-radius: 0.5rem;
-    background: rgba(99, 102, 241, 0.1);
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.generateBtnLarge:hover { opacity: 0.9; }
+
+.dlBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
 }
 
-.reportText {
-    display: flex;
-    flex-direction: column;
+.dlBtn:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: var(--foreground);
 }
 
-.reportTitle {
-    font-weight: 600;
-    color: var(--foreground);
-    margin-bottom: 0.25rem;
+.dlBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.spin { animation: spin 1s linear infinite; }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
-.reportDate {
-    font-size: 0.875rem;
-    color: var(--text-muted);
+/* ── Analytics Summary Cards ── */
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.875rem;
+  margin-bottom: 1rem;
 }
 
-.downloadBtn {
-    padding: 0.5rem 1rem;
-    background: transparent;
-    border: 1px solid var(--card-border);
-    color: var(--foreground);
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+@media (max-width: 900px) {
+  .analyticsGrid { grid-template-columns: repeat(2, 1fr); }
 }
 
-.downloadBtn:hover {
-    background: var(--primary);
-    border-color: var(--primary);
+.summaryCard {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 0.875rem;
+  padding: 1rem 1.125rem;
+}
+
+.summaryTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
+
+.summaryLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summaryValue {
+  font-size: 1.875rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+
+.summarySub {
+  font-size: 0.67rem;
+  color: var(--text-muted);
+}
+
+/* ── Anomaly Strip ── */
+.anomalyStrip {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  border-radius: 0.875rem;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.anomalyHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 0.625rem;
+}
+
+.anomalyList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.anomalyItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.anomalyCritical {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.anomalyWarning {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.severityDot { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Idle State ── */
+.idleBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  margin-top: 0.5rem;
+}
+
+.idleIcon {
+  color: var(--primary, #6366f1);
+  opacity: 0.65;
+  margin-bottom: 1rem;
+}
+
+.idleTitle {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.625rem;
+}
+
+.idleDesc {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.75;
+  max-width: 520px;
+  margin: 0;
+}
+
+.idleFeatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.idleFeatureChip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+}
+
+/* ── Error State ── */
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3rem 2rem;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 1rem;
+  color: #fca5a5;
+  font-size: 0.875rem;
+}
+
+/* ── Report Output ── */
+.reportOutput {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.reportSection {
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-left: 3px solid var(--sec-color, #6366f1);
+  border-radius: 0.875rem;
+  overflow: hidden;
+  animation: fadeSlide 0.3s ease-out;
+}
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.875rem 1.125rem 0.625rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sectionBody {
+  padding: 0.875rem 1.25rem 1rem;
+}
+
+.sectionLine {
+  font-size: 0.875rem;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0 0 0.2rem;
+}
+
+.sectionLine strong {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.rawOutput {
+  font-size: 0.875rem;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 1.25rem;
+  background: var(--card-bg, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  border-radius: 0.875rem;
+  white-space: pre-wrap;
+}
+
+/* Blinking cursor during streaming */
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: currentColor;
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  animation: blink 0.75s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
 }

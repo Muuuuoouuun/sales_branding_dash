@@ -10,6 +10,11 @@ import SalesTip from "@/components/SalesTip";
 import GrowthWidget from "@/components/GrowthWidget";
 import HabitCheckStrip from "@/components/HabitCheckStrip";
 import SkillRadarMini from "@/components/SkillRadarMini";
+import TargetGapRing from "@/components/TargetGapRing";
+import HotDealsWidget from "@/components/HotDealsWidget";
+import RevenuePacingChart from "@/components/RevenuePacingChart";
+import DealAgingChart from "@/components/DealAgingChart";
+import DailyGuruTip from "@/components/DailyGuruTip";
 import { getHeatColor } from "@/lib/heatUtils";
 import {
   TrendingUp, TrendingDown, AlertTriangle,
@@ -98,11 +103,7 @@ export default function Dashboard() {
   const handleGenerateInsight = async () => {
     setInsightLoading(true);
     try {
-      const res = await fetch("/api/ai/insight", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ regionalData, bottleneckData }),
-      });
+      const res  = await fetch("/api/ai/insight", { method: "POST" });
       const data = await res.json();
       setAiInsight(data.insight);
     } catch {
@@ -140,6 +141,9 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* ── Daily Guru Tip Banner ── */}
+      <DailyGuruTip />
+
       {/* ── Stats Row ── */}
       <div className={styles.statsGrid}>
         {stats.map((stat, idx) => (
@@ -168,46 +172,90 @@ export default function Dashboard() {
         <QuarterlyTracker data={regionalData} individuals={individuals} />
       )}
 
-      {/* ── Sales Tip #1 + Habit Check ── */}
-      <SalesTip offset={0} />
-      <HabitCheckStrip />
+      <div className={styles.dashboardSplit}>
+        {/* ── Left Column (Action & Personal) ── */}
+        <div className={styles.leftCol}>
+          <TargetGapRing />
+          <HotDealsWidget />
+          <SalesTip offset={0} />
+          <HabitCheckStrip />
+          
+          <Card className={styles.alertCard} title="AI Predictive Alert (Gemini Insight)">
+            <div className={styles.aiBoxContent}>
+              <div className={styles.aiIconBox}>
+                <Brain size={24} className={styles.aiIcon} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className={styles.aiTitleRow}>
+                  <h4 className={styles.aiTitle}>Strategic AI Insight</h4>
+                  <button
+                    onClick={handleGenerateInsight}
+                    disabled={insightLoading}
+                    className={styles.generateBtn}
+                  >
+                    {insightLoading
+                      ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                      : "전략 생성"}
+                  </button>
+                </div>
 
-      {/* ── Charts Row ── */}
-      <div className={styles.chartsGrid}>
-        <Card title="매출 vs 목표" action={<button className={styles.viewReportBtn}>리포트 보기</button>}>
-          <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={regionalData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                <XAxis dataKey="name" stroke="#666" tick={{ fontSize: 11 }} />
-                <YAxis stroke="#666" tick={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#18181b", borderColor: "#333" }}
-                  itemStyle={{ color: "#fff" }}
-                  formatter={(v: number | undefined) => v != null ? `₩${v.toLocaleString()}M` : ''}
-                />
-                <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} name="매출" />
-                <Bar dataKey="target"  fill="#27272a" radius={[4, 4, 0, 0]} name="목표" />
-              </BarChart>
-            </ResponsiveContainer>
+                {aiInsight ? (
+                  <div className={styles.aiResult}>
+                    <p className={styles.aiText} style={{ whiteSpace: "pre-line" }}>{aiInsight}</p>
+                  </div>
+                ) : (
+                  <p className={styles.aiText}>
+                    활동 로그 기반으로{" "}
+                    <strong className={styles.highlightText}>Team Alpha</strong>는
+                    이번 주 Proposal 볼륨이 20% 증가하지 않으면 Q1 목표를 15% 미달할 것으로 예측됩니다.
+                    <br />
+                    <span className={styles.aiHint}>(「전략 생성」 클릭 시 Gemini 실시간 분석)</span>
+                  </p>
+                )}
+
+                <p className={styles.actionLink}>→ 추천 스크립트 &amp; 실행 플랜 보기</p>
+              </div>
+            </div>
+          </Card>
+          
+          <SkillRadarMini />
+        </div>
+
+        {/* ── Right Column (Macro & Deep Dive) ── */}
+        <div className={styles.rightCol}>
+          {/* Charts Row */}
+          <div className={styles.chartsGrid}>
+            <Card title="매출 vs 목표" action={<button className={styles.viewReportBtn}>리포트 보기</button>}>
+              <div className={styles.chartContainer}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={regionalData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <XAxis dataKey="name" stroke="#666" tick={{ fontSize: 11 }} />
+                    <YAxis stroke="#666" tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#18181b", borderColor: "#333" }}
+                      itemStyle={{ color: "#fff" }}
+                      formatter={(v: number | undefined) => v != null ? `₩${v.toLocaleString()}M` : ''}
+                    />
+                    <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} name="매출" />
+                    <Bar dataKey="target"  fill="#27272a" radius={[4, 4, 0, 0]} name="목표" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <p className={styles.insightText}>
+                <strong>Insight:</strong> 부산·대구가 목표 대비 큰 편차 발생. 대구는 즉각적 개입이 필요합니다.
+              </p>
+            </Card>
+
+            <Card title="딜 파이프라인 전환율">
+              <PipelineFunnel data={bottleneckData} />
+              <p className={styles.bottleneckAction} style={{ marginTop: "0.75rem" }}>
+                <strong>Action:</strong> 할인 승인 프로세스 단축 + Negotiation 진입 전 MEDDIC 검증 강화
+              </p>
+            </Card>
           </div>
-          <p className={styles.insightText}>
-            <strong>Insight:</strong> 부산·대구가 목표 대비 큰 편차 발생. 대구는 즉각적 개입이 필요합니다.
-          </p>
-        </Card>
 
-        <Card title="딜 파이프라인 전환율">
-          <PipelineFunnel data={bottleneckData} />
-          <p className={styles.bottleneckAction} style={{ marginTop: "0.75rem" }}>
-            <strong>Action:</strong> 할인 승인 프로세스 단축 + Negotiation 진입 전 MEDDIC 검증 강화
-          </p>
-        </Card>
-      </div>
-
-      {/* ── Sales Tip #2 ── */}
-      <SalesTip offset={7} />
-
-      {/* ── Heatmap Section ── */}
+          {/* Heatmap Section */}
       <Card
         title="지역별 성과 히트맵"
         className={styles.heatmapCard}
@@ -288,48 +336,13 @@ export default function Dashboard() {
         />
       )}
 
-      {/* ── Skill Radar + AI Insight ── */}
-      <div className={styles.bottomRow}>
-        <Card>
-          <SkillRadarMini />
-        </Card>
-        <Card className={styles.alertCard} title="AI Predictive Alert (Gemini Insight)">
-        <div className={styles.aiBoxContent}>
-          <div className={styles.aiIconBox}>
-            <Brain size={24} className={styles.aiIcon} />
+          {/* ── Advanced Analytics (Bottom) ── */}
+          <div className={styles.chartsGrid}>
+            <RevenuePacingChart />
+            <DealAgingChart />
           </div>
-          <div style={{ flex: 1 }}>
-            <div className={styles.aiTitleRow}>
-              <h4 className={styles.aiTitle}>Strategic AI Insight</h4>
-              <button
-                onClick={handleGenerateInsight}
-                disabled={insightLoading}
-                className={styles.generateBtn}
-              >
-                {insightLoading
-                  ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                  : "전략 생성"}
-              </button>
-            </div>
 
-            {aiInsight ? (
-              <div className={styles.aiResult}>
-                <p className={styles.aiText} style={{ whiteSpace: "pre-line" }}>{aiInsight}</p>
-              </div>
-            ) : (
-              <p className={styles.aiText}>
-                활동 로그 기반으로{" "}
-                <strong className={styles.highlightText}>Team Alpha</strong>는
-                이번 주 Proposal 볼륨이 20% 증가하지 않으면 Q1 목표를 15% 미달할 것으로 예측됩니다.
-                <br />
-                <span className={styles.aiHint}>(「전략 생성」 클릭 시 Gemini 실시간 분석)</span>
-              </p>
-            )}
-
-            <p className={styles.actionLink}>→ 추천 스크립트 &amp; 실행 플랜 보기</p>
-          </div>
         </div>
-      </Card>
       </div>
     </div >
   );
@@ -339,7 +352,7 @@ export default function Dashboard() {
 function PipelineFunnel({ data }: { data: { stage: string; value: number; fullMark: number }[] }) {
   const max = data[0]?.value ?? 1;
   const STAGE_KR: Record<string, string> = {
-    Lead: "리드", Proposal: "제안", Negotiation: "협상", Contract: "계약",
+    Lead: "리드", Meeting: "미팅", Proposal: "제안", Negotiation: "협상", Contract: "계약",
   };
 
   return (
