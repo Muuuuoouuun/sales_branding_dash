@@ -1,0 +1,282 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.summaryCard {
+  margin-bottom: 0;
+}
+
+.summaryValue {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.summaryHint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+  gap: 1rem;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 0.9rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+}
+
+.column {
+  min-height: 520px;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-1);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.columnHover {
+  border-color: var(--primary-border);
+  background: var(--card-hover-bg-glass);
+}
+
+.columnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.columnTitle {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.columnMeta,
+.actionCopy,
+.actionFoot,
+.watchMeta,
+.scoreMeta,
+.dealMeta {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.columnValue {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--primary-foreground);
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.emptyState {
+  border: 1px dashed var(--surface-border);
+  border-radius: 14px;
+  padding: 1rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.dealCard {
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  padding: 0.9rem;
+  background: var(--card-bg-glass);
+  cursor: grab;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.dealCard:hover {
+  transform: translateY(-1px);
+  border-color: var(--primary-border);
+}
+
+.dealCardDragging {
+  opacity: 0.5;
+}
+
+.dealTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.dealCompany {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.dealMeta {
+  margin-top: 0.15rem;
+}
+
+.dragIcon,
+.railIcon,
+.alertIcon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.dealValue {
+  margin-top: 0.4rem;
+  color: var(--primary-foreground);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.dealBody {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.probBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-foreground);
+  font-weight: 800;
+}
+
+.dealAction {
+  margin-top: 0.5rem;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.sideRail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.scoreList,
+.actionList,
+.watchList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scoreRow,
+.watchRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.scoreRow:last-child,
+.watchRow:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.scoreName,
+.actionOwner,
+.actionTarget,
+.watchName {
+  font-weight: 800;
+}
+
+.scoreValue,
+.watchValue {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--primary-foreground);
+}
+
+.actionRow {
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  padding: 0.85rem;
+  background: var(--surface-1);
+}
+
+.actionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.actionProb {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--warning-foreground);
+}
+
+.actionTarget {
+  margin-top: 0.35rem;
+}
+
+.actionCopy {
+  margin-top: 0.2rem;
+}
+
+.actionFoot {
+  margin-top: 0.35rem;
+}
+
+.watchName {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+@media (max-width: 1180px) {
+  .board {
+    grid-template-columns: 1fr;
+  }
+
+  .columns {
+    grid-template-columns: repeat(4, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 920px) {
+  .summaryRow {
+    grid-template-columns: 1fr;
+  }
+
+  .columns {
+    grid-template-columns: repeat(4, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .columns {
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+  }
+}

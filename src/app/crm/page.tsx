@@ -1,47 +1,68 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import styles from "./page.module.css";
-import SalesTip from "@/components/SalesTip";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Phone, Mail, MessageSquare, ArrowRight, Loader2,
-  Kanban, TableProperties, Crosshair,
-  ChevronUp, ChevronDown, ChevronsUpDown,
-  Brain, X, AlertTriangle, GripVertical
+  AlertTriangle,
+  ArrowRight,
+  Brain,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  Clock3,
+  Crosshair,
+  Kanban,
+  Loader2,
+  RefreshCw,
+  Search,
+  TableProperties,
+  UserRound,
+  X,
 } from "lucide-react";
-
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
   KeyboardSensor,
   PointerSensor,
+  closestCorners,
+  defaultDropAnimationSideEffects,
+  useDroppable,
   useSensor,
   useSensors,
-  DragStartEvent,
-  DragOverEvent,
-  DragEndEvent,
-  defaultDropAnimationSideEffects,
+  type DragEndEvent,
+  type DragStartEvent,
+  type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
   useSortable,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import Card from "@/components/Card";
+import styles from "./page.module.css";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 type CrmTab = "killist" | "pipeline" | "leads";
+type StageName = "Lead" | "Proposal" | "Negotiation" | "Contract";
 type SortDir = "asc" | "desc" | null;
+type SortKey =
+  | "company"
+  | "contact"
+  | "region"
+  | "stage"
+  | "owner"
+  | "probability"
+  | "revenue_potential"
+  | "due_date"
+  | "last_contact";
 
 interface Lead {
   id: number;
   company: string;
   contact: string;
   region: string;
-  stage: string;
+  stage: StageName;
   probability: number;
   revenue_potential: number;
   owner: string;
@@ -49,6 +70,8 @@ interface Lead {
   due_date: string;
   due_label: string;
   action: string;
+  notes?: string | null;
+  urgencyScore?: number;
 }
 
 interface FocusScore {
@@ -67,27 +90,41 @@ interface ActionItem {
   action: string;
   due: string;
   region: string;
-  stage: string;
+  stage: StageName;
 }
 
-// ── Stage config ──────────────────────────────────────────────────────────────
-const STAGES = [
-  { id: "Lead",        label: "리드",  color: "#64748b", bg: "rgba(100,116,139,0.12)" },
-  { id: "Proposal",    label: "제안",  color: "#6366f1", bg: "rgba(99,102,241,0.12)"  },
-  { id: "Negotiation", label: "협상",  color: "#f59e0b", bg: "rgba(245,158,11,0.12)"  },
-  { id: "Contract",    label: "계약",  color: "#22c55e", bg: "rgba(34,197,94,0.12)"   },
-];
+interface CrmSummary {
+  openDeals: number;
+  wonDeals: number;
+  overdueDeals: number;
+  urgentDeals: number;
+  weightedPipeline: number;
+  totalPotential: number;
+  averageProbability: number;
+  nextDueLabel: string;
+  stageCounts: Record<StageName, number>;
+  stageValues: Record<StageName, number>;
+}
 
-const OWNER_COLORS: Record<string, string> = {
-  "김민수": "#6366f1",
-  "이지원": "#22c55e",
-  "박웨이": "#f59e0b",
-};
+interface CrmPayload {
+  backend: "supabase" | "csv";
+  generatedAt: string;
+  summary: CrmSummary;
+  scores: FocusScore[];
+  actions: ActionItem[];
+  leads: Lead[];
+}
 
-// ── AI Modal Types ─────────────────────────────────────────────────────────────
 interface ScoreResult {
   lead: { id: number; company: string; contact: string; stage: string; probability: number; owner: string };
-  score: { urgencyScore: number; riskLevel: string; expectedValue: number; daysSinceContact: number; daysUntilDue: number; dueLabel: string };
+  score: {
+    urgencyScore: number;
+    riskLevel: string;
+    expectedValue: number;
+    daysSinceContact: number;
+    daysUntilDue: number;
+    dueLabel: string;
+  };
   callScript: string;
 }
 
@@ -100,688 +137,779 @@ interface AiModalState {
   error: string | null;
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+const STAGE_META: Record<StageName, { label: string; color: string; soft: string }> = {
+  Lead: { label: "Lead", color: "#64748b", soft: "rgba(100, 116, 139, 0.12)" },
+  Proposal: { label: "Proposal", color: "#6366f1", soft: "rgba(99, 102, 241, 0.12)" },
+  Negotiation: { label: "Negotiation", color: "#f59e0b", soft: "rgba(245, 158, 11, 0.12)" },
+  Contract: { label: "Contract", color: "#22c55e", soft: "rgba(34, 197, 94, 0.12)" },
+};
+
+const STAGE_ORDER: StageName[] = ["Lead", "Proposal", "Negotiation", "Contract"];
+const STAGE_INDEX: Record<StageName, number> = { Lead: 0, Proposal: 1, Negotiation: 2, Contract: 3 };
+const OWNER_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#06b6d4", "#8b5cf6", "#ef4444"];
+
+const EMPTY_SUMMARY: CrmSummary = {
+  openDeals: 0,
+  wonDeals: 0,
+  overdueDeals: 0,
+  urgentDeals: 0,
+  weightedPipeline: 0,
+  totalPotential: 0,
+  averageProbability: 0,
+  nextDueLabel: "No open due date",
+  stageCounts: { Lead: 0, Proposal: 0, Negotiation: 0, Contract: 0 },
+  stageValues: { Lead: 0, Proposal: 0, Negotiation: 0, Contract: 0 },
+};
+
+const EMPTY_PAYLOAD: CrmPayload = {
+  backend: "csv",
+  generatedAt: "",
+  summary: EMPTY_SUMMARY,
+  scores: [],
+  actions: [],
+  leads: [],
+};
+
+function formatMoney(value: number): string {
+  if (value >= 1000) {
+    return `KRW ${(value / 1000).toFixed(1)}B`;
+  }
+
+  return `KRW ${Math.round(value).toLocaleString()}M`;
+}
+
+function formatDateTime(value: string): string {
+  if (!value) return "Unknown";
+
+  return new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function normalizePayload(payload: Partial<CrmPayload> | null | undefined): CrmPayload {
+  const summary = payload?.summary ?? EMPTY_SUMMARY;
+
+  return {
+    backend: payload?.backend ?? "csv",
+    generatedAt: payload?.generatedAt ?? "",
+    summary: {
+      ...EMPTY_SUMMARY,
+      ...summary,
+      stageCounts: { ...EMPTY_SUMMARY.stageCounts, ...(summary.stageCounts ?? {}) },
+      stageValues: { ...EMPTY_SUMMARY.stageValues, ...(summary.stageValues ?? {}) },
+    },
+    scores: payload?.scores ?? [],
+    actions: payload?.actions ?? [],
+    leads: payload?.leads ?? [],
+  };
+}
+
+function getSeoulMidnight(dateValue: string): number | null {
+  const normalized = dateValue.trim();
+  if (!normalized) return null;
+
+  const parsed = new Date(`${normalized}T00:00:00+09:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+}
+
+function buildFallbackSummary(leads: Lead[]): CrmSummary {
+  const summary = { ...EMPTY_SUMMARY };
+
+  for (const lead of leads) {
+    summary.totalPotential += lead.revenue_potential;
+    summary.averageProbability += lead.probability;
+    summary.stageCounts[lead.stage] += 1;
+    summary.stageValues[lead.stage] += lead.revenue_potential;
+
+    if (lead.stage === "Contract") {
+      summary.wonDeals += 1;
+      continue;
+    }
+
+    summary.openDeals += 1;
+    summary.weightedPipeline += Math.round((lead.revenue_potential * lead.probability) / 100);
+    if (lead.due_label.startsWith("Overdue")) summary.overdueDeals += 1;
+    if (lead.due_label.startsWith("Overdue") || lead.due_label === "Due today" || lead.due_label === "Due tomorrow" || lead.probability < 45) {
+      summary.urgentDeals += 1;
+    }
+  }
+
+  summary.averageProbability = leads.length ? Math.round(summary.averageProbability / leads.length) : 0;
+  const nextDueLead = [...leads]
+    .filter((lead) => lead.stage !== "Contract")
+    .sort((left, right) => (getSeoulMidnight(left.due_date) ?? Number.POSITIVE_INFINITY) - (getSeoulMidnight(right.due_date) ?? Number.POSITIVE_INFINITY))[0];
+  summary.nextDueLabel = nextDueLead?.due_label ?? "No open due date";
+
+  return summary;
+}
+
+function getOwnerColors(scores: FocusScore[]): Record<string, string> {
+  return Object.fromEntries(scores.map((score, index) => [score.name, OWNER_COLORS[index % OWNER_COLORS.length]]));
+}
+
+function getLeadTone(value: number): string {
+  if (value >= 80) return "#22c55e";
+  if (value >= 60) return "#f59e0b";
+  return "#ef4444";
+}
+
+function getRiskLevel(lead: Lead): "good" | "watch" | "critical" {
+  if (lead.due_label.startsWith("Overdue") || lead.probability < 40) return "critical";
+  if (lead.due_label === "Due today" || lead.due_label === "Due tomorrow" || lead.probability < 60) return "watch";
+  return "good";
+}
+
+function riskTone(risk: "good" | "watch" | "critical"): string {
+  if (risk === "good") return "#22c55e";
+  if (risk === "watch") return "#f59e0b";
+  return "#ef4444";
+}
+
+function parseScriptSections(text: string): { title: string; lines: string[] }[] {
+  const sections: { title: string; lines: string[] }[] = [];
+  let current: { title: string; lines: string[] } | null = null;
+
+  for (const line of text.split("\n")) {
+    const heading = line.replace(/^##\s*/, "").trim();
+    if (line.startsWith("## ") && heading) {
+      if (current) sections.push(current);
+      current = { title: heading, lines: [] };
+      continue;
+    }
+
+    if (current) current.lines.push(line);
+  }
+
+  if (current) sections.push(current);
+  return sections.length ? sections : [{ title: "Call script", lines: text.split("\n") }];
+}
+
+function getSortValue(lead: Lead, key: SortKey): string | number {
+  switch (key) {
+    case "company": return lead.company;
+    case "contact": return lead.contact;
+    case "region": return lead.region;
+    case "stage": return STAGE_INDEX[lead.stage];
+    case "owner": return lead.owner;
+    case "probability": return lead.probability;
+    case "revenue_potential": return lead.revenue_potential;
+    case "due_date": return lead.due_date || "9999-12-31";
+    case "last_contact": return lead.last_contact || "9999-12-31";
+    default: return lead.company;
+  }
+}
+
+function getNextStage(stage: StageName): StageName | null {
+  const index = STAGE_ORDER.indexOf(stage);
+  return index >= 0 && index < STAGE_ORDER.length - 1 ? STAGE_ORDER[index + 1] : null;
+}
+
+function resolveDropStage(overId: UniqueIdentifier | undefined, leads: Lead[]): StageName | null {
+  if (!overId) return null;
+  if (typeof overId === "string" && (STAGE_ORDER as readonly string[]).includes(overId)) return overId as StageName;
+
+  const targetId = Number(overId);
+  if (Number.isFinite(targetId)) return leads.find((lead) => lead.id === targetId)?.stage ?? null;
+  return null;
+}
+
 export default function CRMPage() {
-  const [tab, setTab]           = useState<CrmTab>("killist");
-  const [scores, setScores]     = useState<FocusScore[]>([]);
-  const [actions, setActions]   = useState<ActionItem[]>([]);
-  const [leads, setLeads]       = useState<Lead[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [aiModal, setAiModal]   = useState<AiModalState>({
-    open: false, leadId: null, company: "", data: null, loading: false, error: null,
+  const [tab, setTab] = useState<CrmTab>("killist");
+  const [payload, setPayload] = useState<CrmPayload>(EMPTY_PAYLOAD);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("All");
+  const [stageFilter, setStageFilter] = useState("All");
+  const [sortKey, setSortKey] = useState<SortKey>("probability");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [routeFilterApplied, setRouteFilterApplied] = useState(false);
+  const [aiModal, setAiModal] = useState<AiModalState>({
+    open: false,
+    leadId: null,
+    company: "",
+    data: null,
+    loading: false,
+    error: null,
   });
 
-  const fetchData = useCallback(() => {
-    setLoading(true);
-    fetch("/api/crm/leads")
-      .then(r => r.json())
-      .then(d => {
-        setScores(d.scores ?? []);
-        setActions(d.actions ?? []);
-        setLeads(d.leads ?? []);
-      })
-      .finally(() => setLoading(false));
+  const loadPayload = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/crm/leads");
+      if (!response.ok) throw new Error(`CRM feed failed with ${response.status}`);
+
+      const json = normalizePayload((await response.json()) as Partial<CrmPayload>);
+      const enriched = { ...json, summary: json.summary ?? buildFallbackSummary(json.leads) };
+      setPayload(enriched);
+      setSelectedLeadId((current) => current ?? enriched.leads[0]?.id ?? null);
+    } catch (fetchError) {
+      console.error("Failed to fetch CRM data:", fetchError);
+      setError("CRM feed could not be loaded. Check the lead source and sync status.");
+      setPayload(EMPTY_PAYLOAD);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    void loadPayload();
+  }, [loadPayload]);
 
-  const updateLeadStage = async (leadId: number, newStage: string) => {
-    // Optimistic UI update
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
-    
+  useEffect(() => {
+    if (routeFilterApplied || payload.leads.length === 0) {
+      return;
+    }
+
+    const params = typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
+    const company = params?.get("company");
+    const region = params?.get("region");
+    const initialQuery = company ?? region ?? "";
+
+    if (!initialQuery) {
+      setRouteFilterApplied(true);
+      return;
+    }
+
+    setQuery(initialQuery);
+
+    const matchedLead = payload.leads.find((lead) => {
+      if (company) {
+        return lead.company.toLowerCase() === company.toLowerCase();
+      }
+
+      if (region) {
+        return lead.region.toLowerCase() === region.toLowerCase();
+      }
+
+      return false;
+    });
+
+    if (matchedLead) {
+      setSelectedLeadId(matchedLead.id);
+      setTab("killist");
+    }
+
+    setRouteFilterApplied(true);
+  }, [payload.leads, routeFilterApplied]);
+
+  const updateLeadStage = useCallback(async (leadId: number, newStage: StageName) => {
+    setPayload((current) => ({
+      ...current,
+      leads: current.leads.map((lead) => (lead.id === leadId ? { ...lead, stage: newStage } : lead)),
+    }));
+
     try {
-      const res = await fetch("/api/crm/leads/update-stage", {
+      const response = await fetch("/api/crm/leads/update-stage", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leadId, stage: newStage }),
       });
-      if (!res.ok) throw new Error("Update failed");
-      // Optionally re-fetch to sync scores
-      fetch("/api/crm/leads")
-        .then(r => r.json())
-        .then(d => {
-          setScores(d.scores ?? []);
-          setActions(d.actions ?? []);
-        });
-    } catch (err) {
-      console.error(err);
-      // Revert on error? Or just show aleart
-    }
-  };
 
-  const openAiScript = async (leadId: number, company: string) => {
+      if (!response.ok) throw new Error("Lead stage update failed");
+      await loadPayload(true);
+    } catch (updateError) {
+      console.error(updateError);
+      setError("Stage update failed. The board has been refreshed from the live feed.");
+      await loadPayload(true);
+    }
+  }, [loadPayload]);
+
+  const openAiScript = useCallback(async (leadId: number, company: string) => {
     setAiModal({ open: true, leadId, company, data: null, loading: true, error: null });
+
     try {
-      const res  = await fetch("/api/ai/score", {
+      const response = await fetch("/api/ai/score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leadId }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "failed");
-      setAiModal(prev => ({ ...prev, loading: false, data: json }));
-    } catch {
-      setAiModal(prev => ({ ...prev, loading: false, error: "분석 실패. API 키를 확인하세요." }));
+
+      const json = (await response.json()) as ScoreResult & { error?: string };
+      if (!response.ok) throw new Error(json.error ?? "AI score failed");
+      setAiModal((current) => ({ ...current, loading: false, data: json }));
+    } catch (scriptError) {
+      console.error("Failed to generate AI score:", scriptError);
+      setAiModal((current) => ({
+        ...current,
+        loading: false,
+        error: "AI script could not be generated. Check the scoring API and Gemini key.",
+      }));
     }
-  };
+  }, []);
 
-  const closeAiModal = () => setAiModal(prev => ({ ...prev, open: false }));
+  const closeAiScript = useCallback(() => {
+    setAiModal((current) => ({ ...current, open: false }));
+  }, []);
 
-  const TABS: { id: CrmTab; label: string; icon: React.ReactNode }[] = [
-    { id: "killist",  label: "Kill-List",     icon: <Crosshair size={14} /> },
-    { id: "pipeline", label: "Pipeline",      icon: <Kanban size={14} /> },
-    { id: "leads",    label: "Leads 테이블",   icon: <TableProperties size={14} /> },
-  ];
+  const ownerColors = useMemo(() => getOwnerColors(payload.scores), [payload.scores]);
+  const summary = payload.summary ?? EMPTY_SUMMARY;
+
+  const filteredLeads = useMemo(() => {
+    const queryText = query.trim().toLowerCase();
+    const filtered = payload.leads.filter((lead) => {
+      const matchesQuery =
+        !queryText ||
+        [lead.company, lead.contact, lead.region, lead.owner, lead.action, lead.stage].join(" ").toLowerCase().includes(queryText);
+
+      return (
+        matchesQuery &&
+        (ownerFilter === "All" || lead.owner === ownerFilter) &&
+        (stageFilter === "All" || lead.stage === stageFilter)
+      );
+    });
+
+    if (!sortDir) return filtered;
+
+    return [...filtered].sort((left, right) => {
+      const leftValue = getSortValue(left, sortKey);
+      const rightValue = getSortValue(right, sortKey);
+      let comparison = 0;
+
+      if (typeof leftValue === "number" && typeof rightValue === "number") {
+        comparison = leftValue - rightValue;
+      } else {
+        comparison = String(leftValue).localeCompare(String(rightValue), "en");
+      }
+
+      if (sortKey === "stage") {
+        comparison = STAGE_INDEX[left.stage] - STAGE_INDEX[right.stage];
+      }
+
+      return sortDir === "asc" ? comparison : -comparison;
+    });
+  }, [ownerFilter, payload.leads, query, sortDir, sortKey, stageFilter]);
+
+  const selectedLead = useMemo(() => {
+    return (
+      filteredLeads.find((lead) => lead.id === selectedLeadId) ??
+      payload.leads.find((lead) => lead.id === selectedLeadId) ??
+      filteredLeads[0] ??
+      payload.leads[0] ??
+      null
+    );
+  }, [filteredLeads, payload.leads, selectedLeadId]);
+
+  useEffect(() => {
+    if (!selectedLeadId && filteredLeads[0]) {
+      setSelectedLeadId(filteredLeads[0].id);
+    }
+  }, [filteredLeads, selectedLeadId]);
+
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loadingBox}>
+          <Loader2 size={42} className={styles.spinner} />
+        </div>
+      </div>
+    );
+  }
+
+  const ownerOptions = ["All", ...Array.from(new Set(payload.leads.map((lead) => lead.owner)))];
 
   return (
     <div className={styles.container}>
-      {/* ── Header ── */}
-      <header className={styles.pageHeader}>
+      <header className={styles.hero}>
         <div>
+          <div className={styles.eyebrow}>BD operations cockpit</div>
           <h1 className={styles.title}>CRM Tactics</h1>
-          <p className={styles.subtitle}>Focus Scores · Pipeline · Kill-List</p>
+          <p className={styles.subtitle}>High-signal action queues, stage control, and lead context from the live CRM feed.</p>
+        </div>
+        <div className={styles.heroMeta}>
+          <span className={styles.heroBadge}>{payload.backend === "supabase" ? "Live DB" : "CSV fallback"}</span>
+          <span className={styles.heroBadge}>Updated {formatDateTime(payload.generatedAt)}</span>
+          <button className={styles.refreshBtn} onClick={() => void loadPayload(true)} type="button">
+            <RefreshCw size={14} /> Refresh
+          </button>
         </div>
       </header>
 
-      {/* ── Focus Score bar ── */}
-      {!loading && (
-        <div className={styles.scoreRow}>
-          {scores.map(s => (
-            <div key={s.name} className={styles.scoreCard}>
-              <div className={styles.scoreTop}>
-                <span className={styles.scoreName}>{s.name}</span>
-                <span className={styles.scoreLabel}
-                  style={{ color: s.score >= 80 ? "#4ade80" : s.score >= 55 ? "#fbbf24" : "#f87171" }}>
-                  {s.label}
-                </span>
-              </div>
-              <div className={styles.scoreNum} style={{
-                color: s.score >= 80 ? "#4ade80" : s.score >= 55 ? "#fbbf24" : "#f87171"
-              }}>
-                {s.score}
-              </div>
-              <div className={styles.scoreBar}>
-                <div className={styles.scoreBarFill} style={{
-                  width: `${s.score}%`,
-                  background: s.score >= 80
-                    ? "linear-gradient(90deg,#16a34a,#4ade80)"
-                    : s.score >= 55
-                      ? "linear-gradient(90deg,#d97706,#fbbf24)"
-                      : "linear-gradient(90deg,#b91c1c,#ef4444)",
-                }} />
-              </div>
-              <div className={styles.scoreMeta}>
-                <span>계약 ₩{(s.won / 1000).toFixed(0)}B</span>
-                <span>파이프 ₩{(s.pipeline / 1000).toFixed(0)}B</span>
-                <span>{s.deals}건</span>
-              </div>
-            </div>
-          ))}
+      {error ? (
+        <div className={styles.errorBanner}>
+          <AlertTriangle size={15} />
+          <span>{error}</span>
         </div>
-      )}
+      ) : null}
 
-      {/* ── Tab Bar ── */}
-      <div className={styles.tabBar}>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            className={`${styles.tabBtn} ${tab === t.id ? styles.tabBtnActive : ""}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.icon} {t.label}
-          </button>
-        ))}
+      <div className={styles.metricGrid}>
+        <MetricCard label="Open deals" value={String(summary.openDeals)} sub="Active opportunities in motion" />
+        <MetricCard label="Overdue" value={String(summary.overdueDeals)} sub="Deals past due date" tone={summary.overdueDeals > 0 ? "critical" : "good"} />
+        <MetricCard label="Weighted pipeline" value={formatMoney(summary.weightedPipeline)} sub={`Avg probability ${summary.averageProbability}%`} />
+        <MetricCard label="Next due" value={summary.nextDueLabel} sub={`${summary.urgentDeals} urgent deals`} tone={summary.urgentDeals > 0 ? "watch" : "good"} />
       </div>
 
-      <SalesTip offset={21} />
-
-      {/* ── Content ── */}
-      {loading ? (
-        <div className={styles.loadingBox}>
-          <Loader2 size={32} className={styles.spinner} />
-        </div>
-      ) : (
-        <>
-          {tab === "killist"  && <KillListTab actions={actions} leads={leads} onAI={openAiScript} />}
-          {tab === "pipeline" && <PipelineTab leads={leads} onUpdateStage={updateLeadStage} />}
-          {tab === "leads"    && <LeadsTab leads={leads} />}
-        </>
-      )}
-
-      {/* ── AI Script Modal ── */}
-      {aiModal.open && (
-        <AIScriptModal modal={aiModal} onClose={closeAiModal} />
-      )}
-    </div>
-  );
-}
-
-// ── Kill-List Tab ─────────────────────────────────────────────────────────────
-function KillListTab({ actions, leads, onAI }: {
-  actions: ActionItem[];
-  leads: Lead[];
-  onAI: (leadId: number, company: string) => void;
-}) {
-  const STAGE_COLOR: Record<string, string> = {
-    Lead: "#64748b", Proposal: "#6366f1", Negotiation: "#f59e0b", Contract: "#22c55e",
-  };
-  return (
-    <div className={styles.killList}>
-      {actions.map((item, idx) => {
-        const stageColor = STAGE_COLOR[item.stage] ?? "#818cf8";
-        const ownerColor = OWNER_COLORS[item.salesRep] ?? "#818cf8";
-        const probNum    = parseInt(item.prob);
-        const isUrgent   = item.due.includes("초과") || item.due === "오늘";
-        return (
-          <div key={idx} className={styles.killCard}>
-            <div className={styles.killLeft}>
-              <div className={styles.killMeta}>
-                <span className={styles.ownerBadge} style={{ background: `${ownerColor}22`, color: ownerColor, borderColor: `${ownerColor}44` }}>
-                  {item.salesRep}
-                </span>
-                <span className={styles.stageBadge} style={{ background: `${stageColor}18`, color: stageColor }}>
-                  {item.stage}
-                </span>
-                <span className={styles.region}>{item.region}</span>
-              </div>
-              <div className={styles.killCompany}>{item.target}</div>
-              <p className={styles.killAction}>{item.action}</p>
-            </div>
-            <div className={styles.killRight}>
-              <div className={styles.probBlock}>
-                <span className={styles.probNum} style={{ color: probNum >= 70 ? "#4ade80" : probNum >= 50 ? "#fbbf24" : "#f87171" }}>
-                  {item.prob}
-                </span>
-                <span className={styles.probLabel}>확률</span>
-              </div>
-              <div className={styles.dueTag} style={{
-                color: isUrgent ? "#f87171" : "var(--text-muted)",
-                borderColor: isUrgent ? "var(--danger-border)" : "var(--surface-border)",
-                background: isUrgent ? "var(--danger-soft)" : "var(--surface-1)",
-              }}>
-                {isUrgent && "⚠️ "}{item.due}
-              </div>
-              <div className={styles.killBtns}>
-                <button className={styles.iconBtn}><Phone size={15} /></button>
-                <button className={styles.iconBtn}><Mail size={15} /></button>
-                <button className={styles.iconBtn}><MessageSquare size={15} /></button>
-                <button
-                  className={styles.aiScriptBtn}
-                  onClick={() => {
-                    const lead = leads.find(l => l.company === item.target);
-                    if (lead) onAI(lead.id, lead.company);
-                  }}
-                >
-                  <Brain size={13} /> AI 스크립트
-                </button>
-                <button className={styles.execBtn}>실행 <ArrowRight size={13} /></button>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Pipeline Kanban Tab (DND ENABLED) ─────────────────────────────────────────
-
-function SortableDealCard({ lead, color }: { lead: Lead; color: string }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: lead.id,
-    data: {
-      type: 'deal',
-      lead,
-    },
-  });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    borderLeftColor: color,
-  };
-
-  const ownerColor = OWNER_COLORS[lead.owner] ?? "#818cf8";
-  const isOverdue = lead.due_label.includes("초과");
-
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className={styles.dealCard}
-      {...attributes}
-      {...listeners}
-    >
-      <div className={styles.dealTop}>
-        <span className={styles.dealCompany}>{lead.company}</span>
-        <span className={styles.dealProb} style={{
-          color: lead.probability >= 70 ? "#4ade80" : lead.probability >= 50 ? "#fbbf24" : "#f87171",
-        }}>{lead.probability}%</span>
-      </div>
-      <div className={styles.dealContact}>{lead.contact} · {lead.region}</div>
-      <div className={styles.dealProbBar}>
-        <div style={{
-          width: `${lead.probability}%`, height: "100%", borderRadius: 2,
-          background: color, opacity: 0.7,
-        }} />
-      </div>
-      <div className={styles.dealBottom}>
-        <span className={styles.dealRev}>₩{(lead.revenue_potential / 1000).toFixed(1)}B</span>
-        <span className={styles.dealOwner} style={{ color: ownerColor }}>
-          {lead.owner}
-        </span>
-        <span className={styles.dealDue} style={{ color: isOverdue ? "#f87171" : "var(--text-muted)" }}>
-          {isOverdue ? "⚠️" : ""} {lead.due_label}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function PipelineTab({ leads, onUpdateStage }: { leads: Lead[]; onUpdateStage: (id: number, stage: string) => void }) {
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [activeLead, setActiveLead] = useState<Lead | null>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const byStage = useMemo(() => {
-    const map = new Map<string, Lead[]>();
-    STAGES.forEach(s => map.set(s.id, []));
-    leads.forEach(l => map.get(l.stage)?.push(l));
-    return map;
-  }, [leads]);
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as number);
-    setActiveLead(event.active.data.current?.lead);
-  };
-
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const overId = over.id as string;
-    const activeStage = activeLead?.stage;
-    
-    // Check if dragging over a column
-    const isOverColumn = STAGES.some(s => s.id === overId);
-    if (isOverColumn && activeStage !== overId) {
-      onUpdateStage(active.id as number, overId);
-    }
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-       const overId = over.id as string;
-       const isOverColumn = STAGES.some(s => s.id === overId);
-       if (isOverColumn) {
-          onUpdateStage(active.id as number, overId);
-       }
-    }
-    setActiveId(null);
-    setActiveLead(null);
-  };
-
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      <div className={styles.kanban}>
-        {STAGES.map(st => {
-          const cards = byStage.get(st.id) ?? [];
-          const totalRevenue = cards.reduce((s, c) => s + c.revenue_potential, 0);
+      <div className={styles.scoreStrip}>
+        {payload.scores.map((score) => {
+          const tone = score.score >= 80 ? "good" : score.score >= 55 ? "watch" : "critical";
+          const color = tone === "good" ? "#22c55e" : tone === "watch" ? "#f59e0b" : "#ef4444";
           return (
-            <div key={st.id} className={styles.kanbanCol}>
-              <div className={styles.kanbanHeader} style={{ borderTopColor: st.color }}>
-                <div className={styles.kanbanHeaderTop}>
-                  <span className={styles.kanbanStage} style={{ color: st.color }}>{st.label}</span>
-                  <span className={styles.kanbanCount} style={{ background: `${st.color}22`, color: st.color }}>
-                    {cards.length}
-                  </span>
-                </div>
-                <span className={styles.kanbanRevenue}>₩{(totalRevenue / 1000).toFixed(1)}B</span>
+            <div key={score.name} className={styles.scoreCard}>
+              <div className={styles.scoreCardTop}>
+                <span className={styles.scoreName}>{score.name}</span>
+                <span className={styles.scoreLabel} style={{ color }}>{score.label}</span>
               </div>
-
-              <div id={st.id} className={styles.kanbanCards}>
-                <SortableContext 
-                  items={cards.map(c => c.id)} 
-                  strategy={verticalListSortingStrategy}
-                >
-                  {cards.map(c => (
-                    <SortableDealCard key={c.id} lead={c} color={st.color} />
-                  ))}
-                </SortableContext>
-                {cards.length === 0 && (
-                  <div className={styles.emptyCol}>딜 없음 (드롭 가능)</div>
-                )}
+              <div className={styles.scoreValue} style={{ color }}>{score.score}</div>
+              <div className={styles.scoreBar}><div className={styles.scoreBarFill} style={{ width: `${score.score}%`, background: color }} /></div>
+              <div className={styles.scoreMeta}>
+                <span>Won {formatMoney(score.won)}</span>
+                <span>Pipe {formatMoney(score.pipeline)}</span>
+                <span>{score.deals} deals</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      <DragOverlay dropAnimation={{
-        sideEffects: defaultDropAnimationSideEffects({
-          styles: {
-            active: {
-              opacity: '0.4',
-            },
-          },
-        }),
-      }}>
-        {activeLead ? (
-          <div className={styles.dealCard} style={{ 
-            borderLeftColor: STAGES.find(s => s.id === activeLead.stage)?.color,
-            cursor: 'grabbing',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-            transform: 'scale(1.02)'
-          }}>
-            <div className={styles.dealTop}>
-              <span className={styles.dealCompany}>{activeLead.company}</span>
-              <span className={styles.dealProb}>{activeLead.probability}%</span>
-            </div>
-            <div className={styles.dealContact}>{activeLead.contact}</div>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
-  );
-}
+      <div className={styles.tabBar}>
+        {[
+          { id: "killist", label: "Kill list", icon: <Crosshair size={14} /> },
+          { id: "pipeline", label: "Pipeline", icon: <Kanban size={14} /> },
+          { id: "leads", label: "Leads", icon: <TableProperties size={14} /> },
+        ].map((item) => (
+          <button key={item.id} className={`${styles.tabBtn} ${tab === item.id ? styles.tabBtnActive : ""}`} onClick={() => setTab(item.id as CrmTab)} type="button">
+            {item.icon}<span>{item.label}</span>
+          </button>
+        ))}
+      </div>
 
-// ── Leads Table Tab ───────────────────────────────────────────────────────────
-type SortKey = keyof Lead;
-
-function LeadsTab({ leads }: { leads: Lead[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("probability");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [filterOwner, setFilterOwner] = useState("전체");
-  const [filterStage, setFilterStage] = useState("전체");
-
-  const owners = useMemo(() => ["전체", ...Array.from(new Set(leads.map(l => l.owner)))], [leads]);
-  const stageLabels = useMemo(() => ["전체", ...STAGES.map(s => s.id)], []);
-
-  const sorted = useMemo(() => {
-    let rows = leads.filter(l =>
-      (filterOwner === "전체" || l.owner === filterOwner) &&
-      (filterStage === "전체" || l.stage === filterStage),
-    );
-    if (sortDir) {
-      rows = [...rows].sort((a, b) => {
-        const av = a[sortKey], bv = b[sortKey];
-        const cmp = typeof av === "number" && typeof bv === "number"
-          ? av - bv
-          : String(av).localeCompare(String(bv), "ko");
-        return sortDir === "asc" ? cmp : -cmp;
-      });
-    }
-    return rows;
-  }, [leads, sortKey, sortDir, filterOwner, filterStage]);
-
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(d => d === "asc" ? "desc" : d === "desc" ? null : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
-  };
-
-  const SortIcon = ({ k }: { k: SortKey }) => {
-    if (sortKey !== k || !sortDir) return <ChevronsUpDown size={11} style={{ opacity: 0.3 }} />;
-    return sortDir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />;
-  };
-
-  const STAGE_COLOR: Record<string, string> = { Lead: "#64748b", Proposal: "#6366f1", Negotiation: "#f59e0b", Contract: "#22c55e" };
-  const STAGE_KR: Record<string, string> = { Lead: "리드", Proposal: "제안", Negotiation: "협상", Contract: "계약" };
-
-  return (
-    <div>
-      {/* Filters */}
-      <div className={styles.filters}>
-        <div className={styles.filterGroup}>
-          <span className={styles.filterLabel}>담당자</span>
-          {owners.map(o => (
-            <button
-              key={o}
-              className={`${styles.filterChip} ${filterOwner === o ? styles.filterChipActive : ""}`}
-              style={filterOwner === o && o !== "전체" ? { color: OWNER_COLORS[o], borderColor: `${OWNER_COLORS[o]}55`, background: `${OWNER_COLORS[o]}11` } : {}}
-              onClick={() => setFilterOwner(o)}
-            >{o}</button>
-          ))}
+      <div className={styles.toolRow}>
+        <div className={styles.searchBox}>
+          <Search size={14} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company, owner, region, stage, or action" className={styles.searchInput} />
         </div>
-        <div className={styles.filterGroup}>
-          <span className={styles.filterLabel}>단계</span>
-          {stageLabels.map(s => {
-            const sc = STAGE_COLOR[s];
-            return (
-              <button
-                key={s}
-                className={`${styles.filterChip} ${filterStage === s ? styles.filterChipActive : ""}`}
-                style={filterStage === s && s !== "전체" ? { color: sc, borderColor: `${sc}55`, background: `${sc}11` } : {}}
-                onClick={() => setFilterStage(s)}
-              >{s === "전체" ? "전체" : STAGE_KR[s]}</button>
-            );
-          })}
+        <div className={styles.filterWrap}>
+          <FilterChipGroup label="Owner" values={ownerOptions} activeValue={ownerFilter} onChange={setOwnerFilter} colorMap={ownerColors} />
+          <FilterChipGroup label="Stage" values={["All", ...STAGE_ORDER]} activeValue={stageFilter} onChange={(value) => setStageFilter(value as "All" | StageName)} colorMap={Object.fromEntries(Object.entries(STAGE_META).map(([key, value]) => [key, value.color]))} />
         </div>
       </div>
 
-      {/* Table */}
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              {([
-                ["company",           "회사명"],
-                ["contact",           "담당자"],
-                ["region",            "지역"],
-                ["stage",             "단계"],
-                ["owner",             "영업담당"],
-                ["probability",       "확률"],
-                ["revenue_potential", "예상매출(M)"],
-                ["due_label",         "마감"],
-              ] as [SortKey, string][]).map(([key, label]) => (
-                <th key={key} className={styles.th} onClick={() => handleSort(key)}>
-                  <span className={styles.thInner}>{label} <SortIcon k={key} /></span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map(l => {
-              const sc  = STAGE_COLOR[l.stage] ?? "#818cf8";
-              const oc  = OWNER_COLORS[l.owner] ?? "#818cf8";
-              const isOverdue = l.due_label.includes("초과");
-              return (
-                <tr key={l.id} className={styles.tr}>
-                  <td className={styles.td} style={{ fontWeight: 600, color: "var(--foreground)" }}>{l.company}</td>
-                  <td className={styles.td}>{l.contact}</td>
-                  <td className={styles.td}>{l.region}</td>
-                  <td className={styles.td}>
-                    <span className={styles.stageTag} style={{ color: sc, background: `${sc}18`, borderColor: `${sc}33` }}>
-                      {STAGE_KR[l.stage] ?? l.stage}
-                    </span>
-                  </td>
-                  <td className={styles.td}>
-                    <span style={{ color: oc, fontWeight: 600 }}>{l.owner}</span>
-                  </td>
-                  <td className={styles.td}>
-                    <div className={styles.probCell}>
-                      <span style={{ color: l.probability >= 70 ? "#4ade80" : l.probability >= 50 ? "#fbbf24" : "#f87171", fontWeight: 700, width: 32, display: "inline-block", textAlign: "right" }}>
-                        {l.probability}%
-                      </span>
-                      <div className={styles.miniBar}>
-                        <div style={{ width: `${l.probability}%`, height: "100%", borderRadius: 2, background: sc }} />
+      {tab === "killist" ? (
+        <div className={styles.tabLayout}>
+          <div className={styles.mainColumn}>
+            <Card className={styles.panel} title="Priority queue">
+              <div className={styles.panelHeaderMeta}>
+                <span>{payload.actions.length} live actions</span>
+                <span>{summary.overdueDeals} overdue</span>
+                <span>{summary.nextDueLabel}</span>
+              </div>
+              <div className={styles.actionList}>
+                {payload.actions.map((action, index) => {
+                  const lead = payload.leads.find((item) => item.company === action.target && item.owner === action.salesRep) ?? null;
+                  const ownerColor = ownerColors[action.salesRep] ?? OWNER_COLORS[index % OWNER_COLORS.length];
+                  const stageMeta = STAGE_META[action.stage];
+                  const risk = lead ? getRiskLevel(lead) : "watch";
+                  const nextStage = lead ? getNextStage(lead.stage) : null;
+
+                  return (
+                    <button key={`${action.salesRep}-${action.target}-${action.due}`} type="button" className={`${styles.actionCard} ${selectedLead?.company === action.target ? styles.actionCardActive : ""}`} onClick={() => lead && setSelectedLeadId(lead.id)}>
+                      <div className={styles.actionCardLeft}>
+                        <div className={styles.badgeRow}>
+                          <span className={styles.ownerBadge} style={{ color: ownerColor, borderColor: `${ownerColor}44`, background: `${ownerColor}12` }}>{action.salesRep}</span>
+                          <span className={styles.stageBadge} style={{ color: stageMeta.color, borderColor: `${stageMeta.color}44`, background: stageMeta.soft }}>{stageMeta.label}</span>
+                          <span className={styles.riskBadge} style={{ color: riskTone(risk), borderColor: `${riskTone(risk)}33` }}>{risk.toUpperCase()}</span>
+                          <span className={styles.regionTag}>{action.region}</span>
+                        </div>
+                        <div className={styles.actionTitleRow}>
+                          <div>
+                            <div className={styles.actionTitle}>{action.target}</div>
+                            <div className={styles.actionMeta}>{action.action}</div>
+                          </div>
+                          <div className={styles.actionScore}>
+                            <span className={styles.actionScoreValue} style={{ color: getLeadTone(Number.parseInt(action.prob, 10) || 0) }}>{action.prob}</span>
+                            <span className={styles.actionScoreLabel}>confidence</span>
+                          </div>
+                        </div>
+                        <div className={styles.actionFooter}>
+                          <div className={styles.actionBadges}>
+                            <span className={styles.actionPill}><Clock3 size={12} />{action.due}</span>
+                            {lead ? <span className={styles.actionPill}><UserRound size={12} />{lead.contact}</span> : null}
+                          </div>
+                          <div className={styles.actionButtons}>
+                            <button className={styles.secondaryBtn} type="button" onClick={(event) => { event.stopPropagation(); if (lead) void openAiScript(lead.id, lead.company); }} disabled={!lead}><Brain size={13} /> AI script</button>
+                            <button className={styles.primaryBtn} type="button" onClick={(event) => { event.stopPropagation(); if (lead) setSelectedLeadId(lead.id); }} disabled={!lead}>Open brief <ArrowRight size={13} /></button>
+                            <button className={styles.iconBtn} type="button" title={nextStage ? `Advance to ${nextStage}` : "Closed"} onClick={(event) => { event.stopPropagation(); if (lead && nextStage) void updateLeadStage(lead.id, nextStage); }} disabled={!lead || !nextStage}><CheckCircle2 size={13} /></button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className={styles.td} style={{ fontWeight: 600 }}>₩{l.revenue_potential.toLocaleString()}</td>
-                  <td className={styles.td} style={{ color: isOverdue ? "#f87171" : "var(--text-muted)", fontWeight: isOverdue ? 700 : 400 }}>
-                    {isOverdue && "⚠️ "}{l.due_label}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <div className={styles.tableFooter}>
-          총 {sorted.length}건 · 예상 매출 ₩{sorted.reduce((s, l) => s + l.revenue_potential, 0).toLocaleString()}M
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+          <div className={styles.railColumn}>
+            <Card className={styles.panel} title="Deal brief">
+              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} /> : <p className={styles.emptyState}>Select a lead to see the operating context.</p>}
+            </Card>
+          </div>
         </div>
+      ) : null}
+
+      {tab === "pipeline" ? <PipelineBoard leads={filteredLeads} summary={summary} ownerColors={ownerColors} selectedLeadId={selectedLeadId} onOpenLead={(leadId) => setSelectedLeadId(leadId)} onUpdateStage={updateLeadStage} /> : null}
+
+      {tab === "leads" ? (
+        <div className={styles.tabLayout}>
+          <div className={styles.mainColumn}>
+            <Card className={styles.panel} title="Lead table">
+              <div className={styles.panelHeaderMeta}>
+                <span>{filteredLeads.length} leads shown</span>
+                <span>{formatMoney(filteredLeads.reduce((sum, lead) => sum + lead.revenue_potential, 0))}</span>
+                <span>{summary.openDeals} open / {summary.wonDeals} won</span>
+              </div>
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      {([["company", "Company"], ["contact", "Contact"], ["region", "Region"], ["stage", "Stage"], ["owner", "Owner"], ["probability", "Confidence"], ["revenue_potential", "Potential"], ["due_date", "Due"]] as [SortKey, string][]).map(([key, label]) => (
+                        <th key={key} className={styles.th} onClick={() => { if (sortKey === key) setSortDir((current) => (current === "asc" ? "desc" : current === "desc" ? null : "asc")); else { setSortKey(key); setSortDir("desc"); } }}>
+                          <span className={styles.thInner}>{label}<SortIcon activeKey={sortKey} activeDir={sortDir} thisKey={key} /></span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLeads.map((lead) => {
+                      const stageMeta = STAGE_META[lead.stage];
+                      const ownerColor = ownerColors[lead.owner] ?? "#818cf8";
+                      return (
+                        <tr key={lead.id} className={`${styles.tr} ${selectedLead?.id === lead.id ? styles.trActive : ""}`} onClick={() => setSelectedLeadId(lead.id)}>
+                          <td className={styles.td}>{lead.company}</td>
+                          <td className={styles.td}>{lead.contact}</td>
+                          <td className={styles.td}>{lead.region}</td>
+                          <td className={styles.td}><span className={styles.stageTag} style={{ color: stageMeta.color, background: stageMeta.soft, borderColor: `${stageMeta.color}44` }}>{stageMeta.label}</span></td>
+                          <td className={styles.td}><span style={{ color: ownerColor, fontWeight: 700 }}>{lead.owner}</span></td>
+                          <td className={styles.td}><div className={styles.probCell}><span style={{ color: getLeadTone(lead.probability), fontWeight: 700, width: 42, display: "inline-block", textAlign: "right" }}>{lead.probability}%</span><div className={styles.miniBar}><div style={{ width: `${lead.probability}%`, height: "100%", borderRadius: 999, background: stageMeta.color }} /></div></div></td>
+                          <td className={styles.td}>{formatMoney(lead.revenue_potential)}</td>
+                          <td className={styles.td}><div className={styles.dateStack}><span className={styles.dueText}>{lead.due_label}</span><span className={styles.contactText}>Last: {formatDateTime(lead.last_contact)}</span></div></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+          <div className={styles.railColumn}>
+            <Card className={styles.panel} title="Lead detail">
+              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} /> : <p className={styles.emptyState}>Select a row to inspect the deal context.</p>}
+            </Card>
+          </div>
+        </div>
+      ) : null}
+
+      {aiModal.open ? <AIScriptModal modal={aiModal} onClose={closeAiScript} /> : null}
+    </div>
+  );
+}
+
+function MetricCard({ label, value, sub, tone = "neutral" }: { label: string; value: string; sub: string; tone?: "neutral" | "good" | "watch" | "critical"; }) {
+  const color = tone === "good" ? "#22c55e" : tone === "watch" ? "#f59e0b" : tone === "critical" ? "#ef4444" : "#94a3b8";
+  return (
+    <div className={styles.metricCard}>
+      <div className={styles.metricLabel}>{label}</div>
+      <div className={styles.metricValue} style={{ color }}>{value}</div>
+      <div className={styles.metricSub}>{sub}</div>
+    </div>
+  );
+}
+
+function FilterChipGroup({ label, values, activeValue, onChange, colorMap }: { label: string; values: string[]; activeValue: string; onChange: (value: string) => void; colorMap?: Record<string, string>; }) {
+  return (
+    <div className={styles.filterGroup}>
+      <span className={styles.filterLabel}>{label}</span>
+      {values.map((value) => {
+        const activeColor = colorMap?.[value];
+        const isActive = activeValue === value;
+        return (
+          <button key={value} className={`${styles.filterChip} ${isActive ? styles.filterChipActive : ""}`} style={isActive && activeColor ? { color: activeColor, borderColor: `${activeColor}55`, background: `${activeColor}12` } : undefined} onClick={() => onChange(value)} type="button">
+            {value}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SortIcon({ activeKey, activeDir, thisKey }: { activeKey: SortKey; activeDir: SortDir; thisKey: SortKey; }) {
+  if (activeKey !== thisKey || !activeDir) return <ChevronsUpDown size={11} className={styles.sortIcon} />;
+  return activeDir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />;
+}
+
+function LeadDetailPanel({ lead, ownerColor, onAi, onAdvance }: { lead: Lead; ownerColor: string; onAi: (lead: Lead) => void; onAdvance: (lead: Lead) => void; }) {
+  const risk = getRiskLevel(lead);
+  const nextStage = getNextStage(lead.stage);
+
+  return (
+    <div className={styles.detailCard}>
+      <div className={styles.detailHeader}>
+        <div>
+          <div className={styles.detailName}>{lead.company}</div>
+          <div className={styles.detailMeta}><span style={{ color: ownerColor, fontWeight: 700 }}>{lead.owner}</span><span>•</span><span>{lead.region}</span></div>
+        </div>
+        <div className={styles.detailScoreWrap}><span className={styles.detailScore}>{lead.probability}%</span><span className={styles.detailRisk} style={{ color: riskTone(risk) }}>{risk.toUpperCase()}</span></div>
+      </div>
+
+      <div className={styles.detailList}>
+        <div className={styles.detailRow}><span>Stage</span><strong>{lead.stage}</strong></div>
+        <div className={styles.detailRow}><span>Contact</span><strong>{lead.contact}</strong></div>
+        <div className={styles.detailRow}><span>Potential</span><strong>{formatMoney(lead.revenue_potential)}</strong></div>
+        <div className={styles.detailRow}><span>Due</span><strong>{lead.due_label}</strong></div>
+        <div className={styles.detailRow}><span>Last contact</span><strong>{formatDateTime(lead.last_contact)}</strong></div>
+      </div>
+
+      <div className={styles.detailAction}>{lead.action}</div>
+      <div className={styles.detailButtons}>
+        <button className={styles.secondaryBtn} type="button" onClick={() => onAi(lead)}><Brain size={13} /> AI script</button>
+        <button className={styles.primaryBtn} type="button" onClick={() => onAdvance(lead)} disabled={!nextStage}>{nextStage ? `Advance to ${nextStage}` : "Closed"}<ArrowRight size={13} /></button>
+      </div>
+      {lead.notes ? <div className={styles.noteItem}>{lead.notes}</div> : null}
+    </div>
+  );
+}
+
+function PipelineBoard({ leads, summary, ownerColors, selectedLeadId, onOpenLead, onUpdateStage }: { leads: Lead[]; summary: CrmSummary; ownerColors: Record<string, string>; selectedLeadId: number | null; onOpenLead: (leadId: number) => void; onUpdateStage: (leadId: number, stage: StageName) => void; }) {
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const byStage = useMemo(() => {
+    const map = new Map<StageName, Lead[]>();
+    STAGE_ORDER.forEach((stage) => map.set(stage, []));
+    leads.forEach((lead) => map.get(lead.stage)?.push(lead));
+    return map;
+  }, [leads]);
+
+  const byId = useMemo(() => new Map(leads.map((lead) => [lead.id, lead])), [leads]);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const sourceLead = byId.get(Number(event.active.id));
+    const targetStage = resolveDropStage(event.over?.id, leads);
+    if (sourceLead && targetStage && targetStage !== sourceLead.stage) {
+      void onUpdateStage(sourceLead.id, targetStage);
+    }
+    setActiveLead(null);
+  }, [byId, leads, onUpdateStage]);
+
+  return (
+    <div className={styles.pipelineWrap}>
+      <Card className={styles.panel} title="Pipeline board">
+        <div className={styles.panelHeaderMeta}><span>{summary.openDeals} open deals</span><span>{summary.urgentDeals} urgent</span><span>{summary.nextDueLabel}</span></div>
+        <div className={styles.pipelineIntro}>
+          <div className={styles.pipelineIntroText}>Drag cards only when the next action is clear.</div>
+          <div className={styles.pipelineIntroStats}>{STAGE_ORDER.map((stage) => <span key={stage} className={styles.pipelineStat}><strong>{summary.stageCounts[stage]}</strong><span>{stage}</span></span>)}</div>
+        </div>
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={(event: DragStartEvent) => setActiveLead(byId.get(Number(event.active.id)) ?? null)}
+          onDragEnd={handleDragEnd}
+        >
+          <div className={styles.kanban}>
+            {STAGE_ORDER.map((stage) => (
+              <PipelineColumn
+                key={stage}
+                stage={stage}
+                leads={byStage.get(stage) ?? []}
+                ownerColors={ownerColors}
+                onOpenLead={onOpenLead}
+                selectedLeadId={selectedLeadId}
+              />
+            ))}
+          </div>
+          <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.45" } } }) }}>
+            {activeLead ? <PipelineCard lead={activeLead} ownerColor={ownerColors[activeLead.owner] ?? "#818cf8"} dragging /> : null}
+          </DragOverlay>
+        </DndContext>
+      </Card>
+    </div>
+  );
+}
+
+function PipelineColumn({ stage, leads, ownerColors, onOpenLead, selectedLeadId }: { stage: StageName; leads: Lead[]; ownerColors: Record<string, string>; onOpenLead: (leadId: number) => void; selectedLeadId: number | null; }) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage });
+  const stageMeta = STAGE_META[stage];
+  const totalRevenue = leads.reduce((sum, lead) => sum + lead.revenue_potential, 0);
+  const averageProbability = leads.length ? Math.round(leads.reduce((sum, lead) => sum + lead.probability, 0) / leads.length) : 0;
+
+  return (
+    <div ref={setNodeRef} className={`${styles.kanbanCol} ${isOver ? styles.kanbanColHover : ""}`}>
+      <div className={styles.kanbanHeader} style={{ borderTopColor: stageMeta.color }}>
+        <div className={styles.kanbanHeaderTop}><span className={styles.kanbanStage} style={{ color: stageMeta.color }}>{stageMeta.label}</span><span className={styles.kanbanCount} style={{ background: `${stageMeta.color}22`, color: stageMeta.color }}>{leads.length}</span></div>
+        <div className={styles.kanbanHeaderMeta}><span>{formatMoney(totalRevenue)}</span><span>{averageProbability}% avg</span></div>
+      </div>
+      <div className={styles.kanbanCards}>
+        <SortableContext items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
+          {leads.map((lead) => <PipelineCard key={lead.id} lead={lead} ownerColor={ownerColors[lead.owner] ?? "#818cf8"} selected={selectedLeadId === lead.id} onOpenLead={onOpenLead} />)}
+        </SortableContext>
+        {leads.length === 0 ? <div className={styles.emptyCol}>No deals in this stage.</div> : null}
       </div>
     </div>
   );
 }
 
-// ── AI Script Modal ───────────────────────────────────────────────────────────
-const RISK_COLOR: Record<string, string> = {
-  low: "#4ade80", medium: "#fbbf24", high: "#f97316", critical: "#ef4444",
-};
-
-const SECTION_META_CRM: Record<string, { color: string }> = {
-  "상황 분석":       { color: "#6366f1" },
-  "콜 오프닝 (첫 30초)": { color: "#22c55e" },
-  "핵심 확인 질문 3가지": { color: "#f59e0b" },
-  "예상 반론 & 대응": { color: "#f87171" },
-  "이번 통화 목표 (Next Step)": { color: "#a78bfa" },
-};
-
-function parseScript(text: string) {
-  const lines = text.split("\n");
-  const sections: { key: string; color: string; lines: string[] }[] = [];
-  let current: (typeof sections)[number] | null = null;
-  for (const line of lines) {
-    const heading = line.replace(/^##\s*/, "").trim();
-    if (SECTION_META_CRM[heading]) {
-      if (current) sections.push(current);
-      current = { key: heading, color: SECTION_META_CRM[heading].color, lines: [] };
-    } else if (current) {
-      current.lines.push(line);
-    }
-  }
-  if (current) sections.push(current);
-  return sections;
-}
-
-function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () => void }) {
-  const { data, loading, error, company } = modal;
-  const sections = data ? parseScript(data.callScript) : [];
+function PipelineCard({ lead, ownerColor, selected = false, dragging = false, onOpenLead }: { lead: Lead; ownerColor: string; selected?: boolean; dragging?: boolean; onOpenLead?: (leadId: number) => void; }) {
+  const stageMeta = STAGE_META[lead.stage];
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id, data: { lead } });
+  const dragState = dragging || isDragging;
 
   return (
-    <div className={styles.modalOverlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={styles.modalBox}>
-        {/* Modal Header */}
+    <div ref={setNodeRef} className={`${styles.dealCard} ${selected ? styles.dealCardSelected : ""} ${dragState ? styles.dealCardDragging : ""}`} style={{ transform: CSS.Transform.toString(transform), transition, borderLeftColor: stageMeta.color }} {...attributes} {...listeners}>
+      <button className={styles.dealCardButton} type="button" onClick={() => onOpenLead?.(lead.id)}>
+        <div className={styles.dealTop}><span className={styles.dealCompany}>{lead.company}</span><span className={styles.dealProb} style={{ color: getLeadTone(lead.probability) }}>{lead.probability}%</span></div>
+        <div className={styles.dealContact}>{lead.contact} • {lead.region}</div>
+        <div className={styles.dealProbBar}><div style={{ width: `${lead.probability}%`, height: "100%", borderRadius: 999, background: stageMeta.color }} /></div>
+        <div className={styles.dealBottom}><span className={styles.dealRev}>{formatMoney(lead.revenue_potential)}</span><span className={styles.dealOwner} style={{ color: ownerColor }}>{lead.owner}</span><span className={styles.dealDue}>{lead.due_label}</span></div>
+      </button>
+    </div>
+  );
+}
+
+function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () => void; }) {
+  const sections = modal.data?.callScript ? parseScriptSections(modal.data.callScript) : [];
+
+  return (
+    <div className={styles.modalBackdrop} onClick={onClose}>
+      <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <div className={styles.modalTitleRow}>
-            <Brain size={18} style={{ color: "var(--primary-foreground)" }} />
-            <span className={styles.modalTitle}>AI 콜 스크립트</span>
-            <span className={styles.modalCompany}>{company}</span>
+          <div>
+            <div className={styles.modalEyebrow}>AI call brief</div>
+            <h3 className={styles.modalTitle}>{modal.company}</h3>
           </div>
-          <button className={styles.modalClose} onClick={onClose}><X size={18} /></button>
+          <button className={styles.iconBtn} type="button" onClick={onClose}><X size={14} /></button>
         </div>
 
-        <div className={styles.modalBody}>
-          {/* Loading */}
-          {loading && (
-            <div className={styles.modalLoading}>
-              <Loader2 size={32} className={styles.spinner} />
-              <p>AI가 리드를 분석하고 콜 스크립트를 작성 중입니다…</p>
+        {modal.loading ? (
+          <div className={styles.modalLoading}>
+            <Loader2 size={28} className={styles.spinner} />
+            <span>Generating a sharper script from the live score...</span>
+          </div>
+        ) : modal.error ? (
+          <div className={styles.errorBanner}><AlertTriangle size={15} /><span>{modal.error}</span></div>
+        ) : modal.data ? (
+          <>
+            <div className={styles.aiScoreGrid}>
+              <div className={styles.aiScoreItem}><span>Urgency</span><strong>{modal.data.score.urgencyScore}/100</strong></div>
+              <div className={styles.aiScoreItem}><span>Risk</span><strong>{modal.data.score.riskLevel}</strong></div>
+              <div className={styles.aiScoreItem}><span>Expected value</span><strong>{formatMoney(modal.data.score.expectedValue)}</strong></div>
+              <div className={styles.aiScoreItem}><span>Due</span><strong>{modal.data.score.dueLabel}</strong></div>
             </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className={styles.modalError}>
-              <AlertTriangle size={24} style={{ color: "var(--danger-foreground)" }} />
-              <p>{error}</p>
+            <div className={styles.scriptSections}>
+              {sections.map((section) => (
+                <div key={section.title} className={styles.scriptSection}>
+                  <div className={styles.scriptSectionTitle}>{section.title}</div>
+                  <div className={styles.scriptSectionBody}>
+                    {section.lines.filter((line) => line.trim().length > 0).map((line) => <p key={line}>{line}</p>)}
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-
-          {/* Score Summary */}
-          {data && (
-            <>
-              <div className={styles.scoreStrip}>
-                <div className={styles.scoreItem}>
-                  <span className={styles.scoreItemLabel}>긴급도</span>
-                  <span className={styles.scoreItemValue} style={{ color: RISK_COLOR[data.score.riskLevel] }}>
-                    {data.score.urgencyScore}<span style={{ fontSize: "0.65rem", opacity: 0.7 }}>/100</span>
-                  </span>
-                </div>
-                <div className={styles.scoreItem}>
-                  <span className={styles.scoreItemLabel}>위험도</span>
-                  <span className={styles.scoreItemValue} style={{ color: RISK_COLOR[data.score.riskLevel], textTransform: "uppercase", fontSize: "0.85rem" }}>
-                    {data.score.riskLevel}
-                  </span>
-                </div>
-                <div className={styles.scoreItem}>
-                  <span className={styles.scoreItemLabel}>예상 가치</span>
-                  <span className={styles.scoreItemValue} style={{ color: "var(--primary-foreground)" }}>
-                    ₩{data.score.expectedValue.toLocaleString()}M
-                  </span>
-                </div>
-                <div className={styles.scoreItem}>
-                  <span className={styles.scoreItemLabel}>마지막 연락</span>
-                  <span className={styles.scoreItemValue} style={{ color: data.score.daysSinceContact > 7 ? "#f87171" : "var(--text-muted)", fontSize: "0.85rem" }}>
-                    {data.score.daysSinceContact}일 전
-                  </span>
-                </div>
-                <div className={styles.scoreItem}>
-                  <span className={styles.scoreItemLabel}>마감</span>
-                  <span className={styles.scoreItemValue} style={{ color: data.score.daysUntilDue <= 0 ? "#ef4444" : data.score.daysUntilDue <= 3 ? "#f97316" : "var(--text-muted)", fontSize: "0.78rem" }}>
-                    {data.score.dueLabel}
-                  </span>
-                </div>
-              </div>
-
-              {/* Script Sections */}
-              <div className={styles.scriptSections}>
-                {sections.length > 0
-                  ? sections.map(sec => (
-                      <div key={sec.key} className={styles.scriptSection} style={{ "--sec-c": sec.color } as React.CSSProperties}>
-                        <div className={styles.scriptSectionHead} style={{ color: sec.color }}>{sec.key}</div>
-                        <div className={styles.scriptSectionBody}>
-                          {sec.lines.join("\n").trim().split("\n").map((line, i) => {
-                            if (!line.trim()) return null;
-                            const parts = line.split(/(\*\*[^*]+\*\*)/g);
-                            return (
-                              <p key={i} className={styles.scriptLine}>
-                                {parts.map((p, pi) =>
-                                  p.startsWith("**") && p.endsWith("**")
-                                    ? <strong key={pi}>{p.slice(2, -2)}</strong>
-                                    : <React.Fragment key={pi}>{p}</React.Fragment>
-                                )}
-                              </p>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))
-                  : <pre className={styles.rawScript}>{data.callScript}</pre>
-                }
-              </div>
-            </>
-          )}
-        </div>
+          </>
+        ) : null}
       </div>
     </div>
   );

@@ -1,429 +1,537 @@
 "use client";
 
-import React, { useState } from "react";
-import styles from "./page.module.css";
-import SalesTip from "@/components/SalesTip";
+import React, { useMemo, useState } from "react";
 import {
-  Search, BookOpen, Star, AlertTriangle,
-  Target, Zap, Users, Brain, Award, TrendingUp,
+  Award,
+  BadgeInfo,
+  Brain,
+  BookOpen,
+  ChevronRight,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  Star,
+  Target,
 } from "lucide-react";
-import { SALES_LEGENDS, SalesLegend } from "@/lib/salesTips";
+import styles from "./page.module.css";
+import { SALES_LEGENDS, type SalesLegend } from "@/lib/salesTips";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-type ResearchTab = "methodology" | "patterns" | "intel";
+type ResearchTab = "library" | "patterns" | "intel";
+type MethodologyId = SalesLegend["id"];
 
-// ── Methodology Details ───────────────────────────────────────────────────────
-const METHODOLOGY_DETAILS: Record<string, {
+type MethodologyDetail = {
   tagline: string;
   bestFor: string;
-  coreQuestions: string[];
-  stages: string[];
-  whenToUse: string;
-}> = {
+  useWhen: string;
+  playbook: string[];
+  questions: string[];
+};
+
+type PatternCard = {
+  id: string;
+  tag: string;
+  methodology: MethodologyId;
+  title: string;
+  summary: string;
+  signal: string;
+  impact: string;
+  usedBy: string;
+  winRate: number;
+  region: string;
+};
+
+type IntelCard = {
+  id: string;
+  urgency: "high" | "medium" | "low";
+  region: string;
+  title: string;
+  summary: string;
+  countermove: string;
+  date: string;
+};
+
+const TABS: Array<{ id: ResearchTab; label: string; icon: React.ReactNode }> = [
+  { id: "library", label: "Library", icon: <BookOpen size={14} /> },
+  { id: "patterns", label: "Patterns", icon: <Star size={14} /> },
+  { id: "intel", label: "Intel", icon: <ShieldAlert size={14} /> },
+];
+
+const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
   Challenger: {
-    tagline: "고객의 생각을 도전하고 재구성하라",
-    bestFor: "복잡한 B2B 솔루션, 변화를 유도해야 하는 상황",
-    coreQuestions: [
-      "고객이 아직 모르는 비즈니스 위협은 무엇인가?",
-      "현재 접근법의 숨겨진 비용은?",
-      "경쟁사와 진정한 차별점은?",
+    tagline: "Challenge the status quo with a point of view the buyer can act on.",
+    bestFor: "Complex BD motions where the customer needs reframing, not another feature tour.",
+    useWhen: "Use when the deal is stuck in polite discovery and the team needs a sharper commercial angle.",
+    playbook: [
+      "Open with a commercial insight, not product history.",
+      "Use constructive tension to make the hidden cost visible.",
+      "Lead the customer to a new way of thinking before proposing a solution.",
     ],
-    stages: ["Warm Up", "Reframe", "Rational Drowning", "Emotional Impact", "New Way", "Your Solution"],
-    whenToUse: "고객이 현상 유지를 선호하거나 기존 벤더에 만족할 때",
+    questions: [
+      "What is the hidden cost of doing nothing?",
+      "Which assumption is the buyer treating as fixed?",
+      "What would change if the team accepted a different frame?",
+    ],
   },
   SPIN: {
-    tagline: "올바른 질문으로 고객 스스로 필요를 발견하게 하라",
-    bestFor: "복잡한 니즈 발굴, 장기 관계 구축",
-    coreQuestions: [
-      "S: 현재 프로세스/상황은 어떻습니까?",
-      "P: 어떤 어려움이나 불만이 있습니까?",
-      "I: 그 문제가 팀/비용에 미치는 영향은?",
-      "N: 이상적인 해결책이 있다면 어떤 모습입니까?",
+    tagline: "Let the buyer surface pain through disciplined questions.",
+    bestFor: "Discovery-heavy pursuits where the team needs to convert vague interest into urgency.",
+    useWhen: "Use when the account has a problem but the downside is not fully quantified.",
+    playbook: [
+      "Start with the current situation and keep the questions grounded.",
+      "Move from problem to implication before introducing any payoff.",
+      "Use need-payoff questions to let the buyer articulate the value.",
     ],
-    stages: ["Situation", "Problem", "Implication", "Need-Payoff"],
-    whenToUse: "고객의 문제가 명확하지 않거나 잠재 니즈를 탐색할 때",
+    questions: [
+      "What is the current process and where does it break down?",
+      "What is the business impact if the issue continues?",
+      "What changes if this is solved this quarter?",
+    ],
   },
   MEDDIC: {
-    tagline: "데이터와 프로세스로 딜의 건전성을 검증하라",
-    bestFor: "엔터프라이즈 세일즈, 복잡한 의사결정 구조",
-    coreQuestions: [
-      "Metrics: 고객의 성공 지표(ROI)는 무엇인가?",
-      "Economic Buyer: 최종 결정권자는 누구인가?",
-      "Decision Criteria: 구매 기준 1위는?",
-      "Champion: 내부 지지자가 있는가?",
+    tagline: "Qualify the deal the way an operator would qualify a forecast.",
+    bestFor: "Late-stage or enterprise motions that require evidence, sponsor coverage, and process clarity.",
+    useWhen: "Use when the team needs to de-risk a large opportunity or verify forecast quality.",
+    playbook: [
+      "Verify the economic buyer early.",
+      "Write the decision criteria before the team assumes them.",
+      "Track the paper process so the forecast does not stall late.",
     ],
-    stages: ["Metrics", "Economic Buyer", "Decision Criteria", "Decision Process", "Identify Pain", "Champion"],
-    whenToUse: "대형 딜 자격 심사, 파이프라인 건전성 점검",
+    questions: [
+      "Who owns the budget and approval path?",
+      "What criteria will decide the final choice?",
+      "What proof is needed to move the deal forward?",
+    ],
   },
   Sandler: {
-    tagline: "팔려고 하지 말고, 적합성을 검증하라",
-    bestFor: "공격적인 영업 문화 개선, 고객 주도 프로세스",
-    coreQuestions: [
-      "Pain: 고객의 진짜 아픔은 무엇인가?",
-      "Budget: 예산이 실질적으로 있는가?",
-      "Decision: 누가 Yes를 말할 수 있는가?",
+    tagline: "Make mutual commitment explicit so the team can move fast without guessing.",
+    bestFor: "High-friction opportunities that need stronger control of the sales process.",
+    useWhen: "Use when the buyer is polite, the timeline is fuzzy, or the next step keeps slipping.",
+    playbook: [
+      "Set an upfront contract before the meeting ends.",
+      "Treat pain and budget as separate questions.",
+      "Use a clean no to reach a cleaner yes.",
     ],
-    stages: ["Bonding & Rapport", "Up-Front Contract", "Pain", "Budget", "Decision", "Fulfillment", "Post-Sell"],
-    whenToUse: "자격 미달 리드가 많거나 영업 사이클이 너무 길 때",
+    questions: [
+      "What is the real pain behind the request?",
+      "What happens if the team does nothing?",
+      "Who is actually committed to the next step?",
+    ],
+  },
+  General: {
+    tagline: "Reusable operating rules that keep the field team aligned.",
+    bestFor: "Cross-functional BD and ops work where the team needs a common baseline.",
+    useWhen: "Use when the process matters as much as the pitch.",
+    playbook: [
+      "Keep the message simple enough for the field team to repeat.",
+      "Use numbers that support the next action, not vanity metrics.",
+      "Turn good patterns into shared operating rules.",
+    ],
+    questions: [
+      "What is the one metric that changes the next move?",
+      "What pattern is repeatable across accounts?",
+      "What needs to be documented so the team can reuse it?",
+    ],
   },
 };
 
-// ── Success Pattern Data ──────────────────────────────────────────────────────
-const GOLDEN_PATTERNS = [
+const GOLDEN_PATTERNS: PatternCard[] = [
   {
-    id: 1,
-    tag: "협상",
-    tagColor: "#f59e0b",
-    tagBg: "rgba(245,158,11,0.12)",
-    title: '"Reciprocity Loop" 클로징 스크립트',
-    desc: "소규모 양보를 먼저 제안해 심리적 부채를 만들고, 클로징 단계에서 본 조건을 협상하는 기법. 대형 딜 전환율 23% 향상.",
-    usedBy: "Top 10% performers",
-    winRate: 78,
+    id: "reframe-before-demo",
+    tag: "Reframe",
     methodology: "Challenger",
-    region: "서울/수도권",
+    title: "Open with a commercial insight before the first demo",
+    summary: "Teams that lead with a point of view turn passive discovery into active urgency.",
+    signal: "The strongest reps in the book are the ones changing the buyer's frame early.",
+    impact: "Reported lift in meeting-to-next-step conversion.",
+    usedBy: "Top field reps",
+    winRate: 78,
+    region: "Seoul / Gyeonggi",
   },
   {
-    id: 2,
-    tag: "오프닝",
-    tagColor: "#8b5cf6",
-    tagBg: "rgba(139,92,246,0.12)",
-    title: "30초 침묵 오프너",
-    desc: "자료 배포 후 30초 침묵으로 C-Level 집중도 확보. Executive 대상 미팅 성공률 35% 향상.",
-    usedBy: "김민수",
-    winRate: 85,
-    methodology: "Sandler",
-    region: "전국",
-  },
-  {
-    id: 3,
-    tag: "니즈 발굴",
-    tagColor: "#22c55e",
-    tagBg: "rgba(34,197,94,0.12)",
-    title: "Implication Question 시퀀스",
-    desc: "문제의 파급효과(Implication)를 연속 3개 질문으로 확장. Proposal 전환율을 기존 대비 41% 개선.",
-    usedBy: "SPIN 고급 적용",
-    winRate: 71,
+    id: "spin-implication-loop",
+    tag: "Implication",
     methodology: "SPIN",
-    region: "부산/경남",
+    title: "Use implication questions to surface the cost of delay",
+    summary: "Once the buyer feels the downside, the conversation shifts from curiosity to urgency.",
+    signal: "Three sequential implication questions consistently sharpened the need.",
+    impact: "Shortened proposal drift in discovery-led deals.",
+    usedBy: "Enterprise sellers",
+    winRate: 85,
+    region: "EMEA",
   },
   {
-    id: 4,
-    tag: "자격심사",
-    tagColor: "#6366f1",
-    tagBg: "rgba(99,102,241,0.12)",
-    title: "MEDDIC 5분 체크리스트",
-    desc: "미팅 직후 6항목 점수화(각 1-5점). 20점 미만은 자격 미달로 분류해 영업 사이클 52% 단축.",
-    usedBy: "Jack Napoli 원칙 적용",
-    winRate: 90,
+    id: "meddic-process-lock",
+    tag: "Process",
     methodology: "MEDDIC",
-    region: "전국",
+    title: "Lock the decision process before the team assumes the path",
+    summary: "Late-stage deals close faster when the approval path is written down early.",
+    signal: "Paper process and economic buyer clarity were the biggest differentiators.",
+    impact: "Reduced late-stage slippage in forecast reviews.",
+    usedBy: "Ops-led sellers",
+    winRate: 90,
+    region: "Global",
+  },
+  {
+    id: "sandler-contract",
+    tag: "Commitment",
+    methodology: "Sandler",
+    title: "Set an upfront contract on every meeting",
+    summary: "The team moves faster when the next step, pain, and timing are explicit.",
+    signal: "The cleanest deals had the strongest mutual commitment upfront.",
+    impact: "Improved show rate and reduced vague follow-up loops.",
+    usedBy: "SDR + AE pods",
+    winRate: 71,
+    region: "APAC",
   },
 ];
 
-// ── Intel Data ────────────────────────────────────────────────────────────────
-const INTEL_CARDS = [
+const INTEL_CARDS: IntelCard[] = [
   {
-    id: 1,
-    urgency: "high" as const,
-    region: "부산/경남",
-    title: "경쟁사 A — 가격 덤핑 포착",
-    desc: "Q1에 부산 권역에서 15-20% 가격 인하 공세. 대응 전략: 'Lifetime Support' 비용 포함 TCO 비교 제안.",
-    counter: "TCO 비교표 활용 → 5년 총 소유 비용으로 전환",
-    date: "2026-02-28",
+    id: "intel-1",
+    urgency: "high",
+    region: "Gyeonggi North",
+    title: "Pricing pressure is showing up earlier in the cycle",
+    summary: "Several accounts are pushing for comparative pricing before the team has clarified outcome scope.",
+    countermove: "Anchor the business cost first, then disclose price structure.",
+    date: "2026-03-28",
   },
   {
-    id: 2,
-    urgency: "medium" as const,
-    region: "서울",
-    title: "경쟁사 B — 신규 파트너십",
-    desc: "대형 SI사와 전략적 제휴 체결. 서울 대기업 채널 강화 예상. 접근 전용 채널 조기 선점 필요.",
-    counter: "기존 관계사 레퍼런스 강화, Decision Maker 직접 접촉 우선",
-    date: "2026-02-20",
+    id: "intel-2",
+    urgency: "medium",
+    region: "Seoul Enterprise",
+    title: "Decision makers are asking for a shorter approval trail",
+    summary: "Multiple late-stage accounts want a cleaner paper process and fewer handoffs.",
+    countermove: "Map the approval chain before the proposal goes out.",
+    date: "2026-03-24",
   },
   {
-    id: 3,
-    urgency: "low" as const,
-    region: "수도권",
-    title: "시장 트렌드 — AI 기반 솔루션 수요 급증",
-    desc: "AI/자동화 기능 탑재 솔루션 RFP 요청 30% 증가. 기술 역량 포지셔닝 강화 기회.",
-    counter: "AI 기능 데모 시나리오 준비, 파일럿 프로그램 제안",
-    date: "2026-03-01",
+    id: "intel-3",
+    urgency: "low",
+    region: "Busan / Ulsan",
+    title: "AI-led positioning is resonating in new conversations",
+    summary: "Accounts that see an operations use case are reacting better than accounts that see a demo pitch.",
+    countermove: "Lead with workflow and adoption, not feature breadth.",
+    date: "2026-03-20",
   },
 ];
 
-// ────────────────────────────────────────────────────────────────────────────
+function matchesQuery(value: string, query: string): boolean {
+  return value.toLowerCase().includes(query.toLowerCase());
+}
+
 export default function ResearchPage() {
-  const [activeTab, setActiveTab] = useState<ResearchTab>("methodology");
+  const [activeTab, setActiveTab] = useState<ResearchTab>("library");
   const [query, setQuery] = useState("");
-  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<MethodologyId | "All">("All");
+  const focusMethod = selectedMethod === "All" ? "Challenger" : selectedMethod;
 
-  const TABS: { id: ResearchTab; label: string; icon: React.ReactNode }[] = [
-    { id: "methodology", label: "방법론 라이브러리", icon: <BookOpen size={14} /> },
-    { id: "patterns",    label: "성공 패턴",         icon: <Star size={14} /> },
-    { id: "intel",       label: "경쟁 인텔",          icon: <AlertTriangle size={14} /> },
-  ];
+  const filteredLegends = useMemo(() => {
+    return SALES_LEGENDS.filter((legend) => {
+      if (!query) {
+        return true;
+      }
+
+      return (
+        matchesQuery(legend.id, query) ||
+        matchesQuery(legend.name, query) ||
+        matchesQuery(legend.title, query) ||
+        matchesQuery(legend.bio, query)
+      );
+    });
+  }, [query]);
+
+  const filteredPatterns = useMemo(() => {
+    return GOLDEN_PATTERNS.filter((pattern) => {
+      const searchHit =
+        !query ||
+        matchesQuery(pattern.tag, query) ||
+        matchesQuery(pattern.title, query) ||
+        matchesQuery(pattern.summary, query) ||
+        matchesQuery(pattern.methodology, query) ||
+        matchesQuery(pattern.region, query);
+
+      const methodologyHit = selectedMethod === "All" ? true : pattern.methodology === selectedMethod;
+
+      return searchHit && methodologyHit;
+    });
+  }, [query, selectedMethod]);
+
+  const filteredIntel = useMemo(() => {
+    return INTEL_CARDS.filter((card) => {
+      if (!query) {
+        return true;
+      }
+
+      return (
+        matchesQuery(card.region, query) ||
+        matchesQuery(card.title, query) ||
+        matchesQuery(card.summary, query) ||
+        matchesQuery(card.countermove, query) ||
+        matchesQuery(card.date, query)
+      );
+    });
+  }, [query]);
+
+  const activeSummary = useMemo(() => {
+    const legendCount = filteredLegends.length;
+    const patternCount = filteredPatterns.length;
+    const intelCount = filteredIntel.length;
+    return [
+      { label: "Library", value: `${legendCount} methods` },
+      { label: "Patterns", value: `${patternCount} plays` },
+      { label: "Intel", value: `${intelCount} signals` },
+    ];
+  }, [filteredIntel.length, filteredLegends.length, filteredPatterns.length]);
 
   return (
     <div className={styles.container}>
-      <SalesTip />
-      <div className={styles.pageHeader}>
-        <h1 className={styles.title}>Research Hub</h1>
-        <p className={styles.subtitle}>방법론 라이브러리 · 성공 패턴 · 경쟁 인텔</p>
-      </div>
+      <header className={styles.header}>
+        <div>
+          <p className={styles.kicker}>Research Hub</p>
+          <h1 className={styles.title}>BD enablement library, winning patterns, and field intel</h1>
+          <p className={styles.subtitle}>
+            A working reference for the team, built to turn field observations into repeatable operating rules.
+          </p>
+        </div>
+        <div className={styles.summaryRow}>
+          {activeSummary.map((item) => (
+            <div key={item.label} className={styles.summaryCard}>
+              <span className={styles.summaryLabel}>{item.label}</span>
+              <span className={styles.summaryValue}>{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </header>
 
-      {/* Search */}
-      <div className={styles.searchBar}>
-        <Search size={15} className={styles.searchIcon} />
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          type="text"
-          placeholder="방법론, 패턴, 스크립트 검색..."
-          className={styles.searchInput}
-        />
-      </div>
+      <section className={styles.toolbar}>
+        <label className={styles.searchBox}>
+          <Search size={14} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search methods, patterns, or intel..."
+            aria-label="Search research content"
+          />
+        </label>
 
-      {/* Tabs */}
-      <div className={styles.tabBar}>
-        {TABS.map(t => (
+        <div className={styles.methodChips} role="tablist" aria-label="Focus methodology">
+          {(["All", ...SALES_LEGENDS.map((legend) => legend.id)] as Array<"All" | MethodologyId>).map((method) => (
+            <button
+              key={method}
+              type="button"
+              className={`${styles.methodChip} ${selectedMethod === method ? styles.methodChipActive : ""}`}
+              onClick={() => setSelectedMethod(method)}
+            >
+              {method}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <nav className={styles.tabBar} aria-label="Research tabs">
+        {TABS.map((tab) => (
           <button
-            key={t.id}
-            className={`${styles.tabBtn} ${activeTab === t.id ? styles.tabBtnActive : ""}`}
-            onClick={() => setActiveTab(t.id)}
+            key={tab.id}
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabBtnActive : ""}`}
+            onClick={() => setActiveTab(tab.id)}
           >
-            {t.icon} {t.label}
+            {tab.icon}
+            {tab.label}
           </button>
         ))}
-      </div>
+      </nav>
 
-      {activeTab === "methodology" && (
-        <MethodologyTab query={query} selected={selectedMethod} setSelected={setSelectedMethod} />
-      )}
-      {activeTab === "patterns" && <PatternsTab query={query} />}
-      {activeTab === "intel" && <IntelTab />}
-    </div>
-  );
-}
+      {activeTab === "library" && (
+        <div className={styles.libraryLayout}>
+          <section className={styles.libraryGrid}>
+            {filteredLegends.length === 0 ? (
+              <EmptyState
+                title="No methods matched"
+                description="Try a shorter search term or switch focus to a different playbook."
+              />
+            ) : (
+              filteredLegends.map((legend) => {
+                const detail = METHODOLOGY_DETAILS[legend.id];
+                const isActive = selectedMethod === legend.id;
 
-// ── Methodology Tab ───────────────────────────────────────────────────────────
-function MethodologyTab({
-  query,
-  selected,
-  setSelected,
-}: {
-  query: string;
-  selected: string | null;
-  setSelected: (s: string | null) => void;
-}) {
-  const legends = SALES_LEGENDS.filter(
-    l =>
-      !query ||
-      l.name.toLowerCase().includes(query.toLowerCase()) ||
-      l.id.toLowerCase().includes(query.toLowerCase())
-  );
+                return (
+                  <article
+                    key={legend.id}
+                    className={`${styles.methodCard} ${isActive ? styles.methodCardActive : ""}`}
+                    style={{ borderColor: isActive ? legend.color : undefined }}
+                  >
+                    <button
+                      type="button"
+                      className={styles.methodHeader}
+                      onClick={() => setSelectedMethod(legend.id)}
+                    >
+                      <div className={styles.methodIdentity}>
+                        <span className={styles.methodEmoji} style={{ background: legend.colorBg }}>
+                          {legend.emoji}
+                        </span>
+                        <div>
+                          <div className={styles.methodNameRow}>
+                            <span className={styles.methodName}>{legend.title}</span>
+                            <ChevronRight size={14} className={styles.methodArrow} />
+                          </div>
+                          <div className={styles.methodOwner}>{legend.name}</div>
+                        </div>
+                      </div>
+                      <span className={styles.methodId} style={{ color: legend.color }}>
+                        {legend.id}
+                      </span>
+                    </button>
 
-  return (
-    <div className={styles.methodGrid}>
-      {legends.map(leg => (
-        <MethodCard
-          key={leg.id}
-          legend={leg}
-          details={METHODOLOGY_DETAILS[leg.id]}
-          expanded={selected === leg.id}
-          onToggle={() => setSelected(selected === leg.id ? null : leg.id)}
-        />
-      ))}
-    </div>
-  );
-}
+                    <p className={styles.methodTagline}>{detail.tagline}</p>
+                    <p className={styles.methodBio}>{legend.bio}</p>
 
-function MethodCard({
-  legend,
-  details,
-  expanded,
-  onToggle,
-}: {
-  legend: SalesLegend;
-  details: (typeof METHODOLOGY_DETAILS)[string];
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div
-      className={`${styles.methodCard} ${expanded ? styles.methodCardExpanded : ""}`}
-      style={{ borderColor: expanded ? legend.color : undefined }}
-    >
-      <div className={styles.methodTop} onClick={onToggle}>
-        <div className={styles.methodLeft}>
-          <span className={styles.methodEmoji}>{legend.emoji}</span>
-          <div>
-            <div className={styles.methodId} style={{ color: legend.color }}>
-              {legend.id}
-            </div>
-            <div className={styles.methodName}>{legend.name}</div>
-          </div>
-        </div>
-        <span
-          className={styles.methodChevron}
-          style={{ transform: expanded ? "rotate(180deg)" : "none" }}
-        >
-          ▾
-        </span>
-      </div>
+                    <div className={styles.methodPills}>
+                      <span className={styles.metaPill}>{detail.bestFor}</span>
+                      <span className={styles.metaPill}>Use when: {detail.useWhen}</span>
+                    </div>
 
-      <p className={styles.methodTagline}>{details.tagline}</p>
+                    {isActive ? (
+                      <div className={styles.methodDetail}>
+                        <div>
+                          <div className={styles.sectionLabel}>
+                            <Target size={12} /> Core questions
+                          </div>
+                          <ul className={styles.list}>
+                            {detail.questions.map((question) => (
+                              <li key={question}>{question}</li>
+                            ))}
+                          </ul>
+                        </div>
 
-      <div className={styles.methodStages}>
-        {details.stages.map((s, i) => (
-          <span
-            key={i}
-            className={styles.stageChip}
-            style={{ borderColor: legend.color + "44", color: legend.color }}
-          >
-            {s}
-          </span>
-        ))}
-      </div>
+                        <div>
+                          <div className={styles.sectionLabel}>
+                            <Sparkles size={12} /> Playbook
+                          </div>
+                          <ul className={styles.list}>
+                            {detail.playbook.map((step) => (
+                              <li key={step}>{step}</li>
+                            ))}
+                          </ul>
+                        </div>
 
-      {expanded && (
-        <div className={styles.methodDetail}>
-          <div className={styles.detailSection}>
-            <div className={styles.detailLabel}>
-              <Target size={12} /> 핵심 질문
-            </div>
-            <ul className={styles.detailList}>
-              {details.coreQuestions.map((q, i) => (
-                <li key={i}>{q}</li>
-              ))}
-            </ul>
-          </div>
+                        <div className={styles.quoteBlock}>
+                          <div className={styles.sectionLabel}>
+                            <BadgeInfo size={12} /> Signature move
+                          </div>
+                          <p>{legend.signatureMove}</p>
+                          <blockquote>{legend.quotes[0]}</blockquote>
+                        </div>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })
+            )}
+          </section>
 
-          <div className={styles.detailRow}>
-            <div className={styles.detailSection}>
-              <div className={styles.detailLabel}>
-                <Users size={12} /> 적합 상황
+          <aside className={styles.sideRail}>
+            <div className={styles.sideCard}>
+              <div className={styles.sideHeader}>
+                <Brain size={15} />
+                <span>Current focus</span>
               </div>
-              <p className={styles.detailText}>{details.whenToUse}</p>
+              <h2>{focusMethod}</h2>
+              <p>{METHODOLOGY_DETAILS[focusMethod].useWhen}</p>
             </div>
-            <div className={styles.detailSection}>
-              <div className={styles.detailLabel}>
-                <Zap size={12} /> 시그니처 무브
-              </div>
-              <p className={styles.detailText}>{legend.signatureMove}</p>
-            </div>
-          </div>
 
-          <div className={styles.detailSection}>
-            <div className={styles.detailLabel}>
-              <Brain size={12} /> 핵심 인용구
+            <div className={styles.sideCard}>
+              <div className={styles.sideHeader}>
+                <Award size={15} />
+                <span>Field rule</span>
+              </div>
+              <p>{METHODOLOGY_DETAILS[focusMethod].tagline}</p>
             </div>
-            <blockquote className={styles.detailQuote}>
-              &ldquo;{legend.quotes[0]}&rdquo;
-            </blockquote>
-          </div>
+          </aside>
         </div>
       )}
+
+      {activeTab === "patterns" && (
+        <section className={styles.patternGrid}>
+          {filteredPatterns.length === 0 ? (
+            <EmptyState title="No patterns matched" description="Try a different method or keyword to surface a stronger play." />
+          ) : (
+            filteredPatterns.map((pattern) => (
+              <article key={pattern.id} className={styles.patternCard}>
+                <div className={styles.patternTop}>
+                  <span className={styles.patternTag}>{pattern.tag}</span>
+                  <span className={styles.patternMethod}>{pattern.methodology}</span>
+                </div>
+                <h3 className={styles.patternTitle}>{pattern.title}</h3>
+                <p className={styles.patternDesc}>{pattern.summary}</p>
+                <p className={styles.patternSignal}>{pattern.signal}</p>
+                <div className={styles.patternFooter}>
+                  <div>
+                    <span className={styles.patternMetric}>{pattern.winRate}%</span>
+                    <span className={styles.patternMetricLabel}>win rate</span>
+                  </div>
+                  <div className={styles.patternMeta}>
+                    <span>{pattern.usedBy}</span>
+                    <span>{pattern.region}</span>
+                    <span>{pattern.impact}</span>
+                  </div>
+                </div>
+              </article>
+            ))
+          )}
+        </section>
+      )}
+
+      {activeTab === "intel" && (
+        <section className={styles.intelLayout}>
+          <div className={styles.intelLead}>
+            <div className={styles.sideHeader}>
+              <ShieldAlert size={15} />
+              <span>Market watchlist</span>
+            </div>
+            <h2>Signals that should shape the next BD move</h2>
+            <p>
+              These notes are meant to keep the field team focused on current pressure points, not to create a separate research theater.
+            </p>
+          </div>
+
+          <div className={styles.intelList}>
+            {filteredIntel.length === 0 ? (
+              <EmptyState title="No intel matched" description="Try another keyword to surface the current watchlist." />
+            ) : (
+              filteredIntel.map((card) => (
+                <article key={card.id} className={`${styles.intelCard} ${styles[`intel${card.urgency}`]}`}>
+                  <div className={styles.intelTop}>
+                    <div className={styles.intelBadgeWrap}>
+                      <span className={styles.intelBadge}>{card.urgency.toUpperCase()}</span>
+                      <span className={styles.intelRegion}>{card.region}</span>
+                    </div>
+                    <span className={styles.intelDate}>{card.date}</span>
+                  </div>
+                  <h3 className={styles.intelTitle}>{card.title}</h3>
+                  <p className={styles.intelDesc}>{card.summary}</p>
+                  <div className={styles.counterBox}>
+                    <span className={styles.counterLabel}>Next move</span>
+                    <span className={styles.counterText}>{card.countermove}</span>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
 
-// ── Patterns Tab ──────────────────────────────────────────────────────────────
-function PatternsTab({ query }: { query: string }) {
-  const filtered = GOLDEN_PATTERNS.filter(
-    p =>
-      !query ||
-      p.title.toLowerCase().includes(query.toLowerCase()) ||
-      p.desc.toLowerCase().includes(query.toLowerCase()) ||
-      p.methodology.toLowerCase().includes(query.toLowerCase())
-  );
-
+function EmptyState({ title, description }: { title: string; description: string }) {
   return (
-    <div className={styles.patternGrid}>
-      {filtered.map(p => (
-        <div key={p.id} className={styles.patternCard}>
-          <div className={styles.patternTop}>
-            <span
-              className={styles.patternTag}
-              style={{ color: p.tagColor, background: p.tagBg }}
-            >
-              {p.tag}
-            </span>
-            <span className={styles.patternMethod}>{p.methodology}</span>
-          </div>
-          <h3 className={styles.patternTitle}>{p.title}</h3>
-          <p className={styles.patternDesc}>{p.desc}</p>
-          <div className={styles.patternMeta}>
-            <div className={styles.winRateBlock}>
-              <span
-                className={styles.winNum}
-                style={{
-                  color:
-                    p.winRate >= 80 ? "#4ade80" : p.winRate >= 70 ? "#f59e0b" : "#94a3b8",
-                }}
-              >
-                {p.winRate}%
-              </span>
-              <span className={styles.winLabel}>Win Rate</span>
-            </div>
-            <div className={styles.patternMetaRight}>
-              <div className={styles.metaLine}>
-                <Award size={11} /> {p.usedBy}
-              </div>
-              <div className={styles.metaLine}>
-                <TrendingUp size={11} /> {p.region}
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Intel Tab ─────────────────────────────────────────────────────────────────
-function IntelTab() {
-  const urgencyColors: Record<string, string> = {
-    high: "#ef4444",
-    medium: "#f59e0b",
-    low: "#6366f1",
-  };
-  const urgencyLabels: Record<string, string> = {
-    high: "🔴 HIGH",
-    medium: "🟡 MED",
-    low: "🔵 LOW",
-  };
-
-  return (
-    <div className={styles.intelList}>
-      {INTEL_CARDS.map(card => (
-        <div
-          key={card.id}
-          className={styles.intelCard}
-          style={{ borderLeftColor: urgencyColors[card.urgency] }}
-        >
-          <div className={styles.intelTop}>
-            <div>
-              <span
-                className={styles.urgencyBadge}
-                style={{
-                  color: urgencyColors[card.urgency],
-                  borderColor: urgencyColors[card.urgency] + "44",
-                }}
-              >
-                {urgencyLabels[card.urgency]}
-              </span>
-              <span className={styles.intelRegion}>{card.region}</span>
-            </div>
-            <span className={styles.intelDate}>{card.date}</span>
-          </div>
-          <h3 className={styles.intelTitle}>{card.title}</h3>
-          <p className={styles.intelDesc}>{card.desc}</p>
-          <div className={styles.counterBox}>
-            <span className={styles.counterLabel}>💡 대응 전략</span>
-            <span className={styles.counterText}>{card.counter}</span>
-          </div>
-        </div>
-      ))}
+    <div className={styles.emptyState}>
+      <Sparkles size={16} />
+      <div>
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
     </div>
   );
 }

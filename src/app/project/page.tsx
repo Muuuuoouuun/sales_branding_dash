@@ -1,881 +1,688 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import styles from "./page.module.css";
-import SalesTip from "@/components/SalesTip";
+import React, { useEffect, useState } from "react";
 import {
-  Target, Brain, Loader2,
-  CheckCircle2, AlertTriangle, XCircle, Lightbulb, Zap,
-  Pencil, Save, RotateCcw, X, Tally4
+  AlertTriangle,
+  Brain,
+  Loader2,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Users,
+  Waypoints,
 } from "lucide-react";
+import Card from "@/components/Card";
 import PipelineKanban from "@/components/PipelineKanban";
+import type { DashboardPayload, IndividualData, RegionData } from "@/types/dashboard";
+import styles from "./page.module.css";
 
-const OKR_STORAGE_KEY = "salesmaster-okr-v1";
-import type { IndividualData, RegionData } from "@/types/dashboard";
-import { SALES_LEGENDS, getLegendOfDay, type SalesLegend } from "@/lib/salesTips";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "okr" | "methodology" | "ai" | "pipeline";
+type Tab = "okr" | "pipeline" | "methodology" | "ai";
 type MethodologyId = "Challenger" | "SPIN" | "MEDDIC" | "Sandler";
-type KrStatus = "ontrack" | "atrisk" | "behind";
 
-interface KeyResult {
+interface CrmLead {
+  id: number;
+  company: string;
+  contact: string;
+  region: string;
+  stage: "Lead" | "Proposal" | "Negotiation" | "Contract";
+  probability: number;
+  revenue_potential: number;
+  owner: string;
+  last_contact: string;
+  due_date: string;
+  due_label: string;
+  action: string;
+}
+
+interface CrmScore {
+  name: string;
+  score: number;
   label: string;
-  value: number;
-  target: number;
-  unit: string;
-  status: KrStatus;
-  customKrId?: string;
-}
-interface Objective {
-  objective: string;
-  description: string;
-  keyResults: KeyResult[];
-  isCustom?: boolean;
-  customId?: string;
+  won: number;
+  pipeline: number;
+  deals: number;
 }
 
-// ── Methodology Static Data ───────────────────────────────────────────────────
-const METHODOLOGIES: Record<MethodologyId, {
-  color: string; colorBg: string; emoji: string;
-  guru: string; book: string; quote: string;
-  stages_flow: { label: string; desc: string }[];
+interface CrmAction {
+  salesRep: string;
+  target: string;
+  prob: string;
+  action: string;
+  due: string;
+  region: string;
+  stage: string;
+}
+
+interface CrmPayload {
+  scores: CrmScore[];
+  actions: CrmAction[];
+  leads: CrmLead[];
+}
+
+const EMPTY_DASHBOARD: DashboardPayload = {
+  stats: [],
+  regional: [],
+  bottleneck: [],
+  individuals: [],
+  focusAccounts: [],
+  topAccounts: [],
+  hotDeals: [],
+  teamSummary: {
+    targetRevenue: 0,
+    actualRevenue: 0,
+    gapRevenue: 0,
+    attainment: 0,
+    accountCount: 0,
+    activatedCount: 0,
+    newRevenue: 0,
+    renewRevenue: 0,
+    directRevenue: 0,
+    channelRevenue: 0,
+    activityGoal: 0,
+    activityActual: 0,
+    activityCompletion: 0,
+    topManager: "TBD",
+    criticalRegionCount: 0,
+  },
+  pacing: [],
+  aging: [],
+  periodLabel: "BD Team",
+  dataSource: "fallback",
+  lastUpdated: "",
+};
+
+const EMPTY_DATA = {
+  dashboard: EMPTY_DASHBOARD,
+  crm: { scores: [], actions: [], leads: [] } as CrmPayload,
+};
+
+const METHOD_COPY: Record<MethodologyId, {
+  label: string;
+  summary: string;
+  bestFor: string;
+  whenToUse: string;
+  tip: string;
+  quote: string;
+  color: string;
+  stages: { label: string; desc: string }[];
   principles: string[];
-  currentTip: string;
 }> = {
   Challenger: {
-    color: "#6366f1", colorBg: "rgba(99,102,241,0.1)", emoji: "💡",
-    guru: "Matthew Dixon & Brent Adamson",
-    book: "The Challenger Sale (2011)",
-    quote: "최고의 영업사원은 관계를 쌓는 것이 아니라 고객의 현상 유지를 흔드는 사람이다.",
-    stages_flow: [
-      { label: "Warm Up",          desc: "신뢰 구축, 어젠다 설정" },
-      { label: "Reframe",          desc: "고객 관점을 바꾸는 인사이트 제공" },
-      { label: "Rational Drowning",desc: "데이터로 현 상황의 위험성 제시" },
-      { label: "Emotional Impact", desc: "개인에게 미치는 영향을 감성적으로 연결" },
-      { label: "New Way",          desc: "이상적인 해결책 제시" },
-      { label: "Solution",         desc: "자연스럽게 솔루션으로 연결" },
+    label: "Challenger",
+    summary: "문제 정의를 바꾸는 통찰형 세일즈.",
+    bestFor: "문제 인식이 약한 고객, 차별화가 필요한 딜",
+    whenToUse: "고객이 스스로 urgency를 못 느낄 때",
+    tip: "설명보다 먼저 '왜 지금 바꿔야 하는가'를 보여주세요.",
+    quote: "Teach something useful before you ask for action.",
+    color: "#6366f1",
+    stages: [
+      { label: "Warm-up", desc: "대화 권한 확보" },
+      { label: "Reframe", desc: "가정 뒤집기" },
+      { label: "Impact", desc: "비용/기회 수치화" },
+      { label: "New way", desc: "새 접근법 제시" },
+      { label: "Solution", desc: "실행안 연결" },
     ],
-    principles: [
-      "Teach for Differentiation — 고객이 몰랐던 인사이트로 차별화하라",
-      "Tailor for Resonance — 의사결정권자 개인에게 맞춤 메시지를 전달하라",
-      "Take Control of the Sale — 건설적 긴장을 주도하라",
-      "Commercial Teaching — 제품이 아닌 비즈니스 문제 해결을 가르쳐라",
-      "Reframe the Status Quo — 현재 상황이 '안전'하지 않음을 데이터로 증명하라",
-    ],
-    currentTip: "현재 87.4% 달성 — Reframe 단계에서 '목표 미달의 분기별 기회비용'을 고객에게 가르칠 최적 타이밍입니다.",
+    principles: ["Teach with a commercial point of view.", "Tailor the story to the buyer's context.", "Control the next step.", "Back claims with evidence."],
   },
   SPIN: {
-    color: "#22c55e", colorBg: "rgba(34,197,94,0.1)", emoji: "❓",
-    guru: "Neil Rackham",
-    book: "SPIN Selling (1988)",
-    quote: "사람들은 감정적으로 구매하고 논리적으로 정당화한다. 당신의 임무는 그들이 이미 느끼는 문제를 발굴하는 것이다.",
-    stages_flow: [
-      { label: "Situation",    desc: "현 상황 파악 — 고객 배경, 프로세스 이해" },
-      { label: "Problem",      desc: "문제 발굴 — 고객이 인식하는 어려움과 불만" },
-      { label: "Implication",  desc: "파급효과 — 문제가 방치될 경우의 결과 심화" },
-      { label: "Need-Payoff",  desc: "니즈 확인 — 해결책의 가치를 고객이 직접 말하게" },
+    label: "SPIN",
+    summary: "질문으로 니즈를 명확히 만드는 구조.",
+    bestFor: "복합 니즈, 내부 합의가 필요한 딜",
+    whenToUse: "고객의 pain point가 흐릿할 때",
+    tip: "문제-영향-해결의 순서로 대화를 끌고 가세요.",
+    quote: "Great questions make the buyer do part of the selling.",
+    color: "#22c55e",
+    stages: [
+      { label: "Situation", desc: "현재 상황" },
+      { label: "Problem", desc: "문제 인식" },
+      { label: "Implication", desc: "확대되는 비용" },
+      { label: "Need-payoff", desc: "해결의 가치" },
     ],
-    principles: [
-      "묻고 또 물어라 — 진술보다 질문이 대형 딜을 만든다",
-      "Implied Need를 Explicit Need로 전환하라",
-      "Implication 질문이 구매 긴급성을 만든다",
-      "Need-Payoff 질문으로 고객 스스로 가치를 발견하게 하라",
-      "Situation 질문은 최소화하라 — 지루하고 라포를 낮춘다",
-    ],
-    currentTip: "부산·대구 재방문 시 Implication 질문: '현재 달성률이 48%라면 Q2 예산에 어떤 영향이 올까요?'",
+    principles: ["Ask before you explain.", "Move from symptom to consequence.", "Connect pain to business impact.", "Close with a payoff the buyer can repeat."],
   },
   MEDDIC: {
-    color: "#f59e0b", colorBg: "rgba(245,158,11,0.1)", emoji: "🎯",
-    guru: "Jack Napoli (PTC, 1996)",
-    book: "MEDDIC / MEDDPICC Framework",
-    quote: "Economic Buyer를 찾지 못했다면 딜이 없는 것이다.",
-    stages_flow: [
-      { label: "Metrics",          desc: "정량적 성과 — ROI, 절감액, 성장률" },
-      { label: "Economic Buyer",   desc: "최종 결정권자 파악 및 직접 접근" },
-      { label: "Decision Criteria",desc: "구매 기준 파악 — 무엇으로 선택하나" },
-      { label: "Decision Process", desc: "의사결정 프로세스 매핑" },
-      { label: "Identify Pain",    desc: "핵심 고통 포인트 발굴" },
-      { label: "Champion",         desc: "내부 챔피언 육성 — 우리 편 의사결정자" },
+    label: "MEDDIC",
+    summary: "대형 딜의 검증 프레임.",
+    bestFor: "승인 구조가 복잡한 enterprise deal",
+    whenToUse: "의사결정 경로가 길고 리스크가 높을 때",
+    tip: "Economic Buyer와 Champion을 분리해서 보세요.",
+    quote: "If you cannot map the process, you cannot forecast the deal.",
+    color: "#f59e0b",
+    stages: [
+      { label: "Metrics", desc: "정량 성과" },
+      { label: "Economic Buyer", desc: "최종 승인자" },
+      { label: "Criteria", desc: "선정 기준" },
+      { label: "Process", desc: "의사결정 절차" },
+      { label: "Pain", desc: "고통 지점" },
+      { label: "Champion", desc: "내부 우군" },
     ],
-    principles: [
-      "Metrics로 시작하라 — 숫자가 없으면 설득이 없다",
-      "Economic Buyer는 반드시 직접 만나라 — 참조로는 불충분",
-      "Decision Criteria를 초기에 파악해 차별화하라",
-      "Champion이 없으면 딜이 죽는다 — 챔피언에게 투자하라",
-      "Competition 분석 추가 (MEDDPICC) — 경쟁 우위를 명확히",
-    ],
-    currentTip: "김민수(200%) 성공 패턴을 분석하세요: 어떤 딜에서 Champion 육성이 Contract 전환을 이끌었는지 확인하세요.",
+    principles: ["No metrics, no conviction.", "Champion 없는 딜은 길어집니다.", "Decision process is a map.", "Competition should be visible early."],
   },
   Sandler: {
-    color: "#ef4444", colorBg: "rgba(239,68,68,0.1)", emoji: "🔴",
-    guru: "David H. Sandler",
-    book: "You Can't Teach a Kid to Ride a Bike at a Seminar (1995)",
-    quote: "프로스펙팅은 좋아할 필요가 없다. 그냥 해야 한다.",
-    stages_flow: [
-      { label: "Bonding & Rapport", desc: "신뢰 기반 + Up-Front Contract 설정" },
-      { label: "Pain",              desc: "지적·감정·재정적 핵심 고통 발굴" },
-      { label: "Budget",            desc: "예산 및 투자 의지 검증" },
-      { label: "Decision",          desc: "의사결정 구조와 프로세스 파악" },
-      { label: "Fulfillment",       desc: "Pain과 직접 연결된 솔루션 제안" },
-      { label: "Post-Sell",         desc: "바이어 리모스 방지, 레퍼럴 확보" },
+    label: "Sandler",
+    summary: "자격 검증과 상담 구조를 분명히 하는 방식.",
+    bestFor: "짧은 사이클, 직접 판매, 빠른 자격 판별",
+    whenToUse: "예산/결정 구조를 먼저 확인해야 할 때",
+    tip: "Pain, budget, decision을 빠르게 확인하세요.",
+    quote: "The best sales conversations are honest conversations.",
+    color: "#ef4444",
+    stages: [
+      { label: "Bonding", desc: "관계/계약 범위" },
+      { label: "Pain", desc: "핵심 불편" },
+      { label: "Budget", desc: "예산 존재 여부" },
+      { label: "Decision", desc: "승인 경로" },
+      { label: "Fulfillment", desc: "해결 범위" },
+      { label: "Post-sell", desc: "확장 준비" },
     ],
-    principles: [
-      "Up-Front Contract — 미팅 전 기대치와 결과를 먼저 합의하라",
-      "자격 심사를 빨리 하라 — 가망 없는 딜에 시간 낭비 금지",
-      "'NO'를 얻는 것도 성공이다 — 불확실한 YES보다 빠른 NO",
-      "Pain 없이 제안하지 마라 — Pain을 반드시 먼저 확인하라",
-      "영업은 시스템 — 감정에 의존하지 말고 프로세스를 따라라",
-    ],
-    currentTip: "Negotiation 병목(44% 전환율) 재진단 — Sandler Pain 질문: '이 문제가 해결 안 되면 조직에 어떤 일이 생기나요?'",
+    principles: ["Up-front contract first.", "Qualification is a service.", "A clean no is better than a fuzzy maybe.", "Pain without budget is a weak forecast."],
   },
 };
 
-const STATUS_CONFIG: Record<KrStatus, {
-  color: string; bg: string; border: string; label: string; icon: React.ReactNode;
-}> = {
-  ontrack: { color: "#4ade80", bg: "rgba(74,222,128,0.1)", border: "rgba(74,222,128,0.25)", label: "On Track", icon: <CheckCircle2 size={11} /> },
-  atrisk:  { color: "#fbbf24", bg: "rgba(251,191,36,0.1)", border: "rgba(251,191,36,0.25)", label: "At Risk",  icon: <AlertTriangle size={11} /> },
-  behind:  { color: "#ef4444", bg: "rgba(239,68,68,0.1)",  border: "rgba(239,68,68,0.25)",  label: "Behind",   icon: <XCircle size={11} /> },
-};
+function normalizeDashboard(payload: Partial<DashboardPayload> | null | undefined): DashboardPayload {
+  return {
+    ...EMPTY_DASHBOARD,
+    ...(payload ?? {}),
+    stats: payload?.stats ?? [],
+    regional: payload?.regional ?? [],
+    bottleneck: payload?.bottleneck ?? [],
+    individuals: payload?.individuals ?? [],
+    focusAccounts: payload?.focusAccounts ?? [],
+    topAccounts: payload?.topAccounts ?? [],
+    hotDeals: payload?.hotDeals ?? [],
+    pacing: payload?.pacing ?? [],
+    aging: payload?.aging ?? [],
+    teamSummary: { ...EMPTY_DASHBOARD.teamSummary, ...(payload?.teamSummary ?? {}) },
+  };
+}
 
-const METHOD_LIST: { id: MethodologyId; label: string }[] = [
-  { id: "Challenger", label: "Challenger Sale" },
-  { id: "SPIN",       label: "SPIN Selling" },
-  { id: "MEDDIC",     label: "MEDDIC" },
-  { id: "Sandler",    label: "Sandler" },
-];
+function normalizeCrm(payload: Partial<CrmPayload> | null | undefined): CrmPayload {
+  return {
+    scores: payload?.scores ?? [],
+    actions: payload?.actions ?? [],
+    leads: payload?.leads ?? [],
+  };
+}
 
-// ── Main Component ────────────────────────────────────────────────────────────
+function formatRevenue(value: number): string {
+  return `KRW ${Math.round(value).toLocaleString()}M`;
+}
+
+function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+function getRegionSummary(regions: RegionData[]) {
+  const sorted = [...regions].sort((a, b) => b.progress - a.progress);
+  return {
+    strongest: sorted[0] ?? null,
+    weakest: sorted[sorted.length - 1] ?? null,
+  };
+}
+
+function parseAiResponse(text: string): { title: string; body: string }[] {
+  const lines = text.split("\n");
+  const sections: { title: string; body: string[] }[] = [];
+  let current: { title: string; body: string[] } | null = null;
+
+  for (const line of lines) {
+    if (line.startsWith("##")) {
+      if (current) sections.push(current);
+      current = { title: line.replace(/^##\s*/, "").trim() || "Insight", body: [] };
+    } else if (current) {
+      current.body.push(line);
+    }
+  }
+
+  if (current) sections.push(current);
+  return sections.length ? sections.map((section) => ({ title: section.title, body: section.body.join("\n").trim() })) : [{ title: "Insight", body: text.trim() }];
+}
+
+function buildAiPreview(dashboard: DashboardPayload, crm: CrmPayload, methodology: MethodologyId): string {
+  const { weakest } = getRegionSummary(dashboard.regional);
+  const weakestStage = dashboard.bottleneck.reduce<DashboardPayload["bottleneck"][number] | null>((lowest, stage) => {
+    if (!lowest || (stage.progress ?? 0) < (lowest.progress ?? 0)) return stage;
+    return lowest;
+  }, null);
+  const topLead = crm.leads[0];
+
+  return [
+    `Methodology: ${methodology}`,
+    `Period: ${dashboard.periodLabel}`,
+    `Attainment: ${formatPercent(dashboard.teamSummary.attainment)}`,
+    `Gap: ${formatRevenue(dashboard.teamSummary.gapRevenue)}`,
+    `Risk region: ${weakest ? `${weakest.name} (${weakest.progress}%)` : "n/a"}`,
+    `Weakest stage: ${weakestStage ? `${weakestStage.stage} (${weakestStage.progress ?? 0}%)` : "n/a"}`,
+    `Top lead: ${topLead ? `${topLead.company} (${topLead.probability}%)` : "n/a"}`,
+  ].join("\n");
+}
+
 export default function ProjectPage() {
-  const [tab, setTab]                 = useState<Tab>("okr");
+  const [tab, setTab] = useState<Tab>("okr");
   const [methodology, setMethodology] = useState<MethodologyId>("Challenger");
-  const [regions, setRegions]         = useState<RegionData[]>([]);
-  const [individuals, setIndividuals] = useState<IndividualData[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [aiInsight, setAiInsight]     = useState("");
-  const [aiLoading, setAiLoading]     = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(EMPTY_DATA);
+  const [aiInsight, setAiInsight] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/dashboard/regions")
-      .then(r => r.json())
-      .then(d => {
-        setRegions(d.regional ?? []);
-        setIndividuals(d.individuals ?? []);
-      })
-      .finally(() => setLoading(false));
+    let active = true;
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const [dashboardRes, crmRes] = await Promise.all([
+          fetch("/api/dashboard/regions", { signal: controller.signal }),
+          fetch("/api/crm/leads", { signal: controller.signal }),
+        ]);
+
+        if (!dashboardRes.ok) throw new Error(`Dashboard request failed (${dashboardRes.status})`);
+        if (!crmRes.ok) throw new Error(`CRM request failed (${crmRes.status})`);
+
+        const dashboard = normalizeDashboard((await dashboardRes.json()) as DashboardPayload);
+        const crm = normalizeCrm((await crmRes.json()) as CrmPayload);
+
+        if (active) {
+          setData({ dashboard, crm });
+        }
+      } catch (error) {
+        if (!(error instanceof Error && error.name === "AbortError")) {
+          console.error("Failed to load project data:", error);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, []);
 
-  const handleGenerateAI = async () => {
+  const dashboard = data.dashboard;
+  const crm = data.crm;
+  const { strongest, weakest } = getRegionSummary(dashboard.regional);
+  const executionWeakest = dashboard.bottleneck.reduce<DashboardPayload["bottleneck"][number] | null>((lowest, stage) => {
+    if (!lowest || (stage.progress ?? 0) < (lowest.progress ?? 0)) return stage;
+    return lowest;
+  }, null);
+  const topRep = dashboard.individuals[0] ?? null;
+  const openLeads = crm.leads.filter((lead) => lead.stage !== "Contract");
+  const weightedPipeline = crm.leads.reduce((sum, lead) => sum + lead.revenue_potential * (lead.probability / 100), 0);
+  const highPriorityLeads = openLeads.slice().sort((a, b) => b.probability - a.probability).slice(0, 4);
+
+  const generateAI = async () => {
+    if (aiLoading) return;
     setAiLoading(true);
+    setAiError(null);
+
     try {
       const res = await fetch("/api/ai/project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ regionalData: regions, individuals, methodology }),
+        body: JSON.stringify({ regionalData: dashboard.regional, individuals: dashboard.individuals, methodology }),
       });
-      const data = await res.json();
-      setAiInsight(data.insight ?? "");
-    } catch {
-      setAiInsight("AI 분석 실패. API 키를 확인하세요.");
+      const json = (await res.json()) as { insight?: string; error?: string };
+      if (!res.ok) throw new Error(json.error || "failed");
+      setAiInsight(json.insight ?? "");
+    } catch (error) {
+      console.error("Failed to generate AI insight:", error);
+      setAiInsight("");
+      setAiError("AI insight could not be generated. Check Gemini and sheet connectivity.");
     } finally {
       setAiLoading(false);
     }
   };
 
-  const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "okr",         label: "OKR / KPI",  icon: <Target size={14} /> },
-    { id: "pipeline",    label: "파이프라인", icon: <Tally4 size={14} /> },
-    { id: "methodology", label: "방법론 코치",   icon: <Lightbulb size={14} /> },
-    { id: "ai",          label: "AI 전략 진단", icon: <Brain size={14} /> },
-  ];
+  const moveLead = async (leadId: number, stage: CrmLead["stage"]) => {
+    const previous = data.crm.leads;
+    const next = previous.map((lead) => (lead.id === leadId ? { ...lead, stage } : lead));
+
+    setData((current) => ({ ...current, crm: { ...current.crm, leads: next } }));
+
+    try {
+      const res = await fetch("/api/crm/leads/update-stage", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, stage }),
+      });
+      if (!res.ok) throw new Error("update failed");
+    } catch (error) {
+      console.error("Failed to update lead stage:", error);
+      setData((current) => ({ ...current, crm: { ...current.crm, leads: previous } }));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.loadingShell}>
+        <Loader2 size={40} className={styles.spinner} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
-
-      {/* ── Header ── */}
-      <header className={styles.pageHeader}>
+      <header className={styles.header}>
         <div>
-          <h1 className={styles.title}>Project Strategy</h1>
-          <p className={styles.subtitle}>OKR 트래킹 · 방법론 코치 · AI 전략 진단</p>
+          <div className={styles.kicker}>Project Strategy</div>
+          <h1 className={styles.title}>BD execution cockpit</h1>
+          <p className={styles.subtitle}>Live sheet data, CRM pipeline, and operating methodology in one place.</p>
         </div>
-        <span className={styles.qBadge}>Q1 2026</span>
+        <div className={styles.headerMeta}>
+          <span className={styles.liveBadge}>{dashboard.dataSource === "google-sheets" ? "Live Sheet" : "Fallback"}</span>
+          <span className={styles.quarterBadge}>{dashboard.periodLabel}</span>
+        </div>
       </header>
 
-      {/* ── Tab Bar ── */}
+      <div className={styles.metricGrid}>
+        <MetricCard label="Revenue attainment" value={formatPercent(dashboard.teamSummary.attainment)} hint={`${formatRevenue(dashboard.teamSummary.actualRevenue)} of ${formatRevenue(dashboard.teamSummary.targetRevenue)}`} icon={<TrendingUp size={16} />} tone={dashboard.teamSummary.attainment >= 100 ? "good" : dashboard.teamSummary.attainment >= 80 ? "warn" : "bad"} />
+        <MetricCard label="Target gap" value={dashboard.teamSummary.gapRevenue > 0 ? formatRevenue(dashboard.teamSummary.gapRevenue) : "On plan"} hint="Quarter remainder" icon={<Target size={16} />} tone={dashboard.teamSummary.gapRevenue > 0 ? "warn" : "good"} />
+        <MetricCard label="Open leads" value={String(openLeads.length)} hint={`${crm.actions.length} priority actions`} icon={<Users size={16} />} tone="neutral" />
+        <MetricCard label="Execution completion" value={formatPercent(dashboard.teamSummary.activityCompletion)} hint={executionWeakest ? `${executionWeakest.stage} is the bottleneck` : "KPI data not ready"} icon={<Waypoints size={16} />} tone={dashboard.teamSummary.activityCompletion >= 60 ? "good" : dashboard.teamSummary.activityCompletion >= 30 ? "warn" : "bad"} />
+      </div>
+
       <div className={styles.tabBar}>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            className={`${styles.tabBtn} ${tab === t.id ? styles.tabBtnActive : ""}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.icon}
-            {t.label}
+        {[
+          { id: "okr", label: "OKR / KPI" },
+          { id: "pipeline", label: "Pipeline" },
+          { id: "methodology", label: "Methodology" },
+          { id: "ai", label: "AI Readout" },
+        ].map((item) => (
+          <button key={item.id} className={`${styles.tabBtn} ${tab === item.id ? styles.tabBtnActive : ""}`} onClick={() => setTab(item.id as Tab)} type="button">
+            {item.label}
           </button>
         ))}
       </div>
 
-      {/* ── Sales Tip ── */}
-      <SalesTip offset={14} />
-
-      {/* ── Content ── */}
-      {loading ? (
-        <div className={styles.loadingBox}>
-          <Loader2 size={32} className={styles.spinner} />
-        </div>
-      ) : (
-        <>
-          {tab === "okr"         && <OkrTab regions={regions} individuals={individuals} />}
-          {tab === "pipeline"    && <PipelineKanban />}
-          {tab === "methodology" && <MethodologyTab methodology={methodology} setMethodology={setMethodology} />}
-          {tab === "ai"          && (
-            <AiTab
-              aiInsight={aiInsight}
-              aiLoading={aiLoading}
-              methodology={methodology}
-              onGenerate={handleGenerateAI}
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── OKR Types & Storage ───────────────────────────────────────────────────────
-export interface CustomKr { id: string; label: string; target: number; value: number; unit: string; }
-export interface CustomObjective { id: string; objective: string; description: string; keyResults: CustomKr[]; }
-
-interface OkrStore {
-  targets: Record<string, number>;  // kr label → custom target
-  values:  Record<string, number>;  // kr label → manual value override
-  customOkrs: CustomObjective[];
-}
-
-const EMPTY_STORE: OkrStore = { targets: {}, values: {}, customOkrs: [] };
-
-// KRs whose value is NOT computed from live data (can be manually overridden)
-const MANUAL_VALUE_KRS = new Set(["Negotiation 단계 전환율"]);
-
-// ── OKR Tab ───────────────────────────────────────────────────────────────────
-function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: IndividualData[] }) {
-  const [store,    setStore]    = useState<OkrStore>(EMPTY_STORE);
-  const [editMode, setEditMode] = useState(false);
-  const [draft,    setDraft]    = useState<OkrStore>(EMPTY_STORE);
-  const [saved,    setSaved]    = useState(false);
-
-  // Load from localStorage once
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem(OKR_STORAGE_KEY);
-      if (s) setStore(JSON.parse(s));
-    } catch {}
-  }, []);
-
-  // ── Computed live values ───────────────────────────────────────────────────
-  const teamRevenue  = regions.reduce((s, r) => s + r.revenue, 0);
-  const teamTarget   = regions.reduce((s, r) => s + r.target,  0);
-  const teamProgress = teamTarget > 0 ? Math.round((teamRevenue / teamTarget) * 100) : 0;
-  const sorted       = [...regions].sort((a, b) => a.progress - b.progress);
-  const worst        = sorted[0];
-  const legendCount  = individuals.filter(p => p.progress >= 115).length;
-  const targetLegend = Math.max(Math.round(individuals.length * 0.3), 1);
-  const totalActive  = regions.reduce((s, r) => s + (r.deals_active  ?? 0), 0);
-  const totalClosed  = regions.reduce((s, r) => s + (r.deals_closed  ?? 0), 0);
-  const convRate     = totalActive > 0 ? Math.round((totalClosed / totalActive) * 100) : 0;
-  const over100      = individuals.filter(p => p.progress >= 100).length;
-  const indivRate    = individuals.length > 0 ? Math.round((over100 / individuals.length) * 100) : 0;
-
-  const getStatus = (v: number, t: number): KrStatus =>
-    v >= t ? "ontrack" : v >= t * 0.75 ? "atrisk" : "behind";
-
-  // Apply overrides: use draft in edit mode, store otherwise
-  const active = editMode ? draft : store;
-  const getTarget = (label: string, def: number) => active.targets[label] ?? def;
-  const getValue  = (label: string, computed: number) => active.values[label] ?? computed;
-
-  // Raw default data (before overrides)
-  const RAW_KRS: { label: string; computedValue: number; defaultTarget: number; unit: string }[] = [
-    { label: "팀 전체 달성률",                                      computedValue: teamProgress,    defaultTarget: 100,          unit: "%" },
-    { label: `최저 지역 (${worst?.name ?? "—"}) 회복`,              computedValue: worst?.progress ?? 0, defaultTarget: 80,      unit: "%" },
-    { label: "Legend(115%) 달성 인원",                               computedValue: legendCount,     defaultTarget: targetLegend, unit: "명" },
-    { label: "평균 딜 전환율",                                       computedValue: convRate,        defaultTarget: 65,           unit: "%" },
-    { label: "Negotiation 단계 전환율",                              computedValue: 44,              defaultTarget: 70,           unit: "%" },
-    { label: "개인 100% 달성자 비율",                                computedValue: indivRate,       defaultTarget: 70,           unit: "%" },
-  ];
-
-  const okrs: any[] = [
-    {
-      objective: "O1. 분기 매출 목표 초과 달성",
-      description: `팀 목표 ₩${teamTarget.toLocaleString()}M · 현재 ₩${teamRevenue.toLocaleString()}M (${teamProgress}%)`,
-      keyResults: RAW_KRS.slice(0, 3).map(k => {
-        const t = getTarget(k.label, k.defaultTarget);
-        const v = getValue(k.label, k.computedValue);
-        return { label: k.label, value: v, target: t, unit: k.unit, status: getStatus(v, t) };
-      }),
-    },
-    {
-      objective: "O2. 파이프라인 건전성 강화",
-      description: "딜 전환율 향상 및 Negotiation 병목 해소",
-      keyResults: RAW_KRS.slice(3).map(k => {
-        const t = getTarget(k.label, k.defaultTarget);
-        const v = getValue(k.label, k.computedValue);
-        return { label: k.label, value: v, target: t, unit: k.unit, status: getStatus(v, t) };
-      }),
-    },
-    ...(active.customOkrs || []).map(co => ({
-      isCustom: true,
-      customId: co.id,
-      objective: co.objective,
-      description: co.description,
-      keyResults: co.keyResults.map(kr => ({
-        customKrId: kr.id, label: kr.label, value: kr.value, target: kr.target, unit: kr.unit, status: getStatus(kr.value, kr.target)
-      }))
-    }))
-  ] as (Objective & { isCustom?: boolean; customId?: string; keyResults: (KeyResult & { customKrId?: string })[] })[];
-
-  // ── Handlers ─────────────────────────────────────────────────────────────
-  const startEdit = () => { setDraft({ ...store, customOkrs: store.customOkrs || [] }); setEditMode(true); setSaved(false); };
-  const cancelEdit = () => setEditMode(false);
-
-  const handleSave = () => {
-    setStore(draft);
-    localStorage.setItem(OKR_STORAGE_KEY, JSON.stringify(draft));
-    setEditMode(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
-
-  const handleReset = () => {
-    setStore(EMPTY_STORE);
-    setDraft(EMPTY_STORE);
-    localStorage.removeItem(OKR_STORAGE_KEY);
-    setEditMode(false);
-  };
-
-  const setDraftTarget = useCallback((label: string, val: number) => {
-    setDraft(d => ({ ...d, targets: { ...d.targets, [label]: val } }));
-  }, []);
-
-  const setDraftValue = useCallback((label: string, val: number) => {
-    setDraft(d => ({ ...d, values: { ...d.values, [label]: val } }));
-  }, []);
-
-  const handleAddCustomOkr = () => {
-    setDraft(d => ({
-      ...d,
-      customOkrs: [...(d.customOkrs || []), {
-        id: `obj-${Date.now()}`, objective: "새로운 전략 목표", description: "설명 입력",
-        keyResults: [{ id: `kr-${Date.now()}`, label: "신규 측정 지표", target: 100, value: 0, unit: "건" }]
-      }]
-    }));
-  };
-
-  const updateCustomOkr = (objId: string, field: string, val: string) => {
-    setDraft(d => ({
-      ...d,
-      customOkrs: d.customOkrs.map(o => o.id === objId ? { ...o, [field]: val } : o)
-    }));
-  };
-
-  const addCustomKr = (objId: string) => {
-    setDraft(d => ({
-      ...d,
-      customOkrs: d.customOkrs.map(o => o.id === objId ? {
-        ...o, keyResults: [...o.keyResults, { id: `kr-${Date.now()}`, label: "신규 지표", target: 100, value: 0, unit: "건" }]
-      } : o)
-    }));
-  };
-
-  const updateCustomKr = (objId: string, krId: string, field: string, val: string | number) => {
-    setDraft(d => ({
-      ...d,
-      customOkrs: d.customOkrs.map(o => o.id === objId ? {
-        ...o, keyResults: o.keyResults.map(kr => kr.id === krId ? { ...kr, [field]: val } : kr)
-      } : o)
-    }));
-  };
-
-  const removeCustomOkr = (objId: string) => {
-    setDraft(d => ({ ...d, customOkrs: d.customOkrs.filter(o => o.id !== objId) }));
-  };
-
-  const hasOverrides = Object.keys(store.targets).length > 0 || Object.keys(store.values).length > 0 || (store.customOkrs?.length || 0) > 0;
-
-  return (
-    <div>
-      {/* ── Toolbar ── */}
-      <div className={styles.okrToolbar}>
-        <div className={styles.okrToolbarLeft}>
-          <span className={styles.okrToolbarTitle}>Q1 2026 OKR</span>
-          {hasOverrides && !editMode && (
-            <span className={styles.customBadge}>수동 설정 적용 중</span>
-          )}
-          {saved && (
-            <span className={styles.savedBadge}>✓ 저장됨</span>
-          )}
-        </div>
-        <div className={styles.okrToolbarRight}>
-          {!editMode ? (
-            <>
-              <button className={styles.editBtn} onClick={startEdit}>
-                <Pencil size={13} /> 편집
-              </button>
-              {hasOverrides && (
-                <button className={styles.resetBtn} onClick={handleReset}>
-                  <RotateCcw size={13} /> 초기화
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <button className={styles.saveBtn} onClick={handleSave}>
-                <Save size={13} /> 저장
-              </button>
-              <button className={styles.cancelBtn} onClick={cancelEdit}>
-                <X size={13} /> 취소
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ── OKR Cards ── */}
-      <div className={styles.okrGrid}>
-        {okrs.map((okr, i) => (
-          <OkrCard
-            key={okr.customId || i}
-            okr={okr}
-            index={i}
-            editMode={editMode}
-            rawKrs={okr.isCustom ? [] : RAW_KRS.slice(i === 0 ? 0 : 3, i === 0 ? 3 : 6)}
-            store={store}
-            onTargetChange={setDraftTarget}
-            onValueChange={setDraftValue}
-            // @ts-ignore
-            onUpdateCustomOkr={updateCustomOkr}
-            onUpdateCustomKr={updateCustomKr}
-            onAddCustomKr={addCustomKr}
-            onRemoveOkr={removeCustomOkr}
-          />
-        ))}
-        {editMode && (
-          <button 
-            onClick={handleAddCustomOkr}
-            style={{ padding: "1.5rem", borderRadius: "12px", border: "1px dashed var(--glass-border)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
-          >
-            + 새로운 O(목표) 및 KR(핵심 결과) 추가하기
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── OKR Card ──────────────────────────────────────────────────────────────────
-function OkrCard({
-  okr, index, editMode, rawKrs, store, 
-  onTargetChange, onValueChange,
-  onUpdateCustomOkr, onUpdateCustomKr, onAddCustomKr, onRemoveOkr
-}: {
-  okr: any;
-  index: number;
-  editMode: boolean;
-  rawKrs: { label: string; computedValue: number; defaultTarget: number; unit: string }[];
-  store: OkrStore;
-  onTargetChange: (label: string, val: number) => void;
-  onValueChange:  (label: string, val: number) => void;
-  onUpdateCustomOkr: (oId: string, f: string, v: string) => void;
-  onUpdateCustomKr: (oId: string, krId: string, f: string, v: string|number) => void;
-  onAddCustomKr: (oId: string) => void;
-  onRemoveOkr: (oId: string) => void;
-}) {
-  const OBJ_COLORS = ["#6366f1", "#f59e0b", "#4ade80", "#ec4899", "#8b5cf6"];
-  const color = OBJ_COLORS[index % OBJ_COLORS.length] ?? "#818cf8";
-
-  return (
-    <div className={styles.okrCard} style={okr.isCustom && editMode ? { borderColor: `${color}66` } : undefined}>
-      <div className={styles.okrHeader} style={{ borderLeftColor: color, position: "relative" }}>
-        {okr.isCustom && editMode && (
-          <button onClick={() => onRemoveOkr(okr.customId!)} style={{ position: "absolute", right: 0, top: 0, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>
-            <X size={14} />
-          </button>
-        )}
-        {okr.isCustom && editMode ? (
-          <>
-            <input className={styles.krInput} style={{ fontSize: "1.1rem", fontWeight: 700, color, marginBottom: "0.25rem", width: "100%", background: "var(--glass-bg)" }} value={okr.objective} onChange={e => onUpdateCustomOkr(okr.customId!, "objective", e.target.value)} />
-            <input className={styles.krInput} style={{ fontSize: "0.85rem", width: "100%", background: "var(--glass-bg)" }} value={okr.description} onChange={e => onUpdateCustomOkr(okr.customId!, "description", e.target.value)} />
-          </>
-        ) : (
-          <>
-            <h3 className={styles.okrTitle} style={{ color }}>{okr.objective}</h3>
-            <p className={styles.okrDesc}>{okr.description}</p>
-          </>
-        )}
-      </div>
-      <div className={styles.krList}>
-        {okr.keyResults.map((kr: any, j: number) => {
-          const s        = STATUS_CONFIG[kr.status as KrStatus] || STATUS_CONFIG["ontrack"];
-          const pct      = Math.min((kr.value / Math.max(kr.target, 1)) * 100, 100);
-          const rawKr    = rawKrs[j];
-          const isManual = okr.isCustom || MANUAL_VALUE_KRS.has(kr.label);
-          const hasTargetOverride = store.targets[kr.label] !== undefined;
-          const hasValueOverride  = store.values[kr.label]  !== undefined;
-
-          return (
-            <div key={kr.customKrId || j} className={styles.krItem}>
-              <div className={styles.krTop}>
-                <div className={styles.krLabelWrap}>
-                  {okr.isCustom && editMode ? (
-                    <input className={styles.krInput} style={{ width: "120px" }} value={kr.label} onChange={e => onUpdateCustomKr(okr.customId!, kr.customKrId!, "label", e.target.value)} />
-                  ) : (
-                    <span className={styles.krLabel}>{kr.label}</span>
-                  )}
-                  {!okr.isCustom && (hasTargetOverride || hasValueOverride) && !editMode && (
-                    <span className={styles.manualDot} title="수동 설정된 값">●</span>
-                  )}
-                </div>
-                <div className={styles.krRight}>
-                  {editMode ? (
-                    <div className={styles.krEditGroup}>
-                      {/* Value override (only for manual KRs) */}
-                      {isManual && (
-                        <label className={styles.krInputWrap}>
-                          <span className={styles.krInputLabel}>현재값</span>
-                          <input
-                            type="number"
-                            className={styles.krInput}
-                            value={kr.value}
-                            onChange={e => okr.isCustom ? onUpdateCustomKr(okr.customId!, kr.customKrId!, "value", Number(e.target.value)) : onValueChange(kr.label, Number(e.target.value))}
-                            style={{ borderColor: `${color}44` }}
-                          />
-                          {okr.isCustom && editMode ? (
-                            <input className={styles.krInput} style={{ width: "40px" }} value={kr.unit} onChange={e => onUpdateCustomKr(okr.customId!, kr.customKrId!, "unit", e.target.value)} />
-                          ) : <span className={styles.krInputUnit}>{kr.unit}</span>}
-                        </label>
-                      )}
-                      {/* Target override (all KRs) */}
-                      <label className={styles.krInputWrap}>
-                        <span className={styles.krInputLabel}>목표값</span>
-                        <input
-                          type="number"
-                          className={styles.krInput}
-                          value={kr.target}
-                          onChange={e => okr.isCustom ? onUpdateCustomKr(okr.customId!, kr.customKrId!, "target", Number(e.target.value)) : onTargetChange(kr.label, Number(e.target.value))}
-                          style={{ borderColor: `${color}44` }}
-                        />
-                        {!okr.isCustom && <span className={styles.krInputUnit}>{kr.unit}</span>}
-                      </label>
-                    </div>
-                  ) : (
-                    <>
-                      <span className={styles.krValue} style={{ color: s.color }}>{kr.value}{kr.unit}</span>
-                      <span className={styles.krTarget}>/ {kr.target}{kr.unit}</span>
-                      <span className={styles.krChip} style={{ color: s.color, background: s.bg, borderColor: s.border }}>
-                        {s.icon} {s.label}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-              {!editMode && (
-                <div className={styles.krBarOuter}>
-                  <div
-                    className={styles.krBarFill}
-                    style={{
-                      width: `${pct}%`,
-                      background:
-                        kr.status === "ontrack" ? "linear-gradient(90deg,#16a34a,#4ade80)"
-                        : kr.status === "atrisk" ? "linear-gradient(90deg,#d97706,#fbbf24)"
-                        : "linear-gradient(90deg,#b91c1c,#ef4444)",
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {okr.isCustom && editMode && (
-          <button onClick={() => onAddCustomKr(okr.customId!)} style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: color, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-            + KR 추가
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Methodology Tab ───────────────────────────────────────────────────────────
-function MethodologyTab({
-  methodology, setMethodology,
-}: {
-  methodology: MethodologyId;
-  setMethodology: (m: MethodologyId) => void;
-}) {
-  const m = METHODOLOGIES[methodology];
-  return (
-    <div>
-      {/* Methodology Selector */}
-      <div className={styles.methodSelector}>
-        {METHOD_LIST.map(ml => (
-          <button
-            key={ml.id}
-            className={`${styles.methodBtn} ${methodology === ml.id ? styles.methodBtnActive : ""}`}
-            style={methodology === ml.id ? {
-              background:   METHODOLOGIES[ml.id].colorBg,
-              color:        METHODOLOGIES[ml.id].color,
-              borderColor: `${METHODOLOGIES[ml.id].color}55`,
-            } : {}}
-            onClick={() => setMethodology(ml.id)}
-          >
-            {ml.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Guru Card (full width) */}
-      <div className={styles.guruCard} style={{ borderColor: `${m.color}33` }}>
-        <div className={styles.guruHeader}>
-          <div className={styles.guruAvatar} style={{ background: m.colorBg, borderColor: `${m.color}55` }}>
-            <span style={{ fontSize: "1.6rem" }}>{m.emoji}</span>
-          </div>
-          <div style={{ flex: 1 }}>
-            <p className={styles.guruName}>{m.guru}</p>
-            <p className={styles.guruBook}>{m.book}</p>
-          </div>
-        </div>
-        <blockquote className={styles.guruQuote} style={{ borderLeftColor: m.color }}>
-          &ldquo;{m.quote}&rdquo;
-        </blockquote>
-        <div className={styles.guruTip} style={{ background: m.colorBg, borderColor: `${m.color}33` }}>
-          <Zap size={12} style={{ color: m.color, flexShrink: 0, marginTop: 1 }} />
-          <span style={{ color: m.color, fontSize: "0.75rem", lineHeight: 1.5 }}>
-            💡 {m.currentTip}
-          </span>
-        </div>
-      </div>
-
-      {/* Stages + Principles 2-col grid */}
-      <div className={styles.methodGrid}>
-        {/* Framework Stages */}
-        <div className={styles.methodCard}>
-          <h4 className={styles.sectionTitle}>프레임워크 단계</h4>
-          <div className={styles.stageList}>
-            {m.stages_flow.map((s, i) => (
-              <div key={i} className={styles.stageItem}>
-                <div className={styles.stageNum} style={{ background: `${m.color}22`, color: m.color }}>
-                  {i + 1}
-                </div>
+      {tab === "okr" ? (
+        <div className={styles.layout}>
+          <div className={styles.mainCol}>
+            <Card title="Quarter control" action={<span className={styles.cardPill}>Live sheet</span>}>
+              <div className={styles.heroBlock}>
                 <div>
-                  <span className={styles.stageLabel} style={{ color: m.color }}>{s.label}</span>
-                  <span className={styles.stageDesc}> — {s.desc}</span>
+                  <div className={styles.sectionLabel}>Current operating objective</div>
+                  <div className={styles.heroTitle}>{dashboard.periodLabel}</div>
+                  <p className={styles.heroCopy}>Close the revenue gap, stabilize weak regions, and keep the next stage handoff tight.</p>
+                </div>
+                <div className={styles.heroAside}>
+                  <div className={styles.asideLabel}>Top region</div>
+                  <div className={styles.asideValue}>{strongest?.name ?? "TBD"}</div>
+                  <div className={styles.asideMeta}>{strongest ? `${strongest.progress}% attainment` : "No regional data"}</div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </Card>
 
-        {/* Core Principles */}
-        <div className={styles.methodCard}>
-          <h4 className={styles.sectionTitle}>핵심 원칙</h4>
-          <ul className={styles.principleList}>
-            {m.principles.map((p, i) => (
-              <li key={i} className={styles.principleItem}>
-                <span style={{ color: m.color, fontWeight: 700, flexShrink: 0 }}>✓</span>
-                <span>{p}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Sales Legends Hall */}
-      <SalesLegendsSection active={methodology} />
-    </div>
-  );
-}
-
-// ── Sales Legends Section ─────────────────────────────────────────────────────
-function SalesLegendsSection({ active }: { active: MethodologyId }) {
-  const [quoteIdx, setQuoteIdx] = useState(0);
-  const todayLegend = getLegendOfDay();
-
-  return (
-    <div style={{ marginTop: "1.25rem" }}>
-      {/* Section header */}
-      <div className={styles.legendsHeader}>
-        <span className={styles.sectionTitle} style={{ margin: 0 }}>🏆 Sales Legends Hall of Fame</span>
-        <span className={styles.legendToday}>
-          이번 주 레전드: <span style={{ color: todayLegend.color, fontWeight: 700 }}>{todayLegend.name}</span>
-        </span>
-      </div>
-
-      {/* Legend cards grid */}
-      <div className={styles.legendGrid}>
-        {SALES_LEGENDS.map((legend) => (
-          <LegendCard
-            key={legend.id}
-            legend={legend}
-            isActive={active === legend.id}
-            isFeatured={todayLegend.id === legend.id}
-            quoteIdx={quoteIdx}
-            onNextQuote={() => setQuoteIdx(i => (i + 1) % 3)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LegendCard({
-  legend, isActive, isFeatured, quoteIdx, onNextQuote,
-}: {
-  legend: SalesLegend;
-  isActive: boolean;
-  isFeatured: boolean;
-  quoteIdx: number;
-  onNextQuote: () => void;
-}) {
-  const quote = legend.quotes[quoteIdx % legend.quotes.length];
-  return (
-    <div
-      className={styles.legendCard}
-      style={{
-        borderColor: isActive ? `${legend.color}55` : isFeatured ? `${legend.color}33` : "var(--glass-border)",
-        background:  isActive ? legend.colorBg : isFeatured ? `${legend.color}08` : "var(--card-bg-glass)",
-      }}
-    >
-      {/* Header */}
-      <div className={styles.legendCardHeader}>
-        <div className={styles.legendEmoji} style={{ background: legend.colorBg, borderColor: `${legend.color}44` }}>
-          {legend.emoji}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div className={styles.legendName} style={{ color: isActive ? legend.color : "var(--foreground)" }}>
-            {legend.name}
-          </div>
-          <div className={styles.legendTitle}>{legend.title}</div>
-        </div>
-        {isFeatured && (
-          <span className={styles.featuredBadge} style={{ background: `${legend.color}22`, color: legend.color, borderColor: `${legend.color}44` }}>
-            이번 주
-          </span>
-        )}
-        {isActive && (
-          <span className={styles.activeBadge} style={{ background: `${legend.color}22`, color: legend.color, borderColor: `${legend.color}44` }}>
-            선택됨
-          </span>
-        )}
-      </div>
-
-      {/* Bio */}
-      <p className={styles.legendBio}>{legend.bio}</p>
-
-      {/* Rotating quote */}
-      <div className={styles.legendQuoteBox} style={{ borderLeftColor: legend.color }}>
-        <p className={styles.legendQuote}>&ldquo;{quote}&rdquo;</p>
-        <button
-          className={styles.quoteNextBtn}
-          onClick={onNextQuote}
-          style={{ color: legend.color }}
-          title="다음 명언"
-        >
-          ↻
-        </button>
-      </div>
-
-      {/* Signature move */}
-      <div className={styles.legendSig} style={{ background: `${legend.color}10`, borderColor: `${legend.color}22` }}>
-        <span style={{ color: legend.color, fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-          시그니처
-        </span>
-        <span className={styles.legendSigText}>{legend.signatureMove}</span>
-      </div>
-
-      {/* Principles */}
-      <ul className={styles.legendPrinciples}>
-        {legend.principles.map((p, i) => (
-          <li key={i} className={styles.legendPrincipleItem}>
-            <span style={{ color: legend.color, fontWeight: 700 }}>✓</span>
-            <span>{p}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// ── AI Strategy Tab ───────────────────────────────────────────────────────────
-function AiTab({
-  aiInsight, aiLoading, methodology, onGenerate,
-}: {
-  aiInsight: string; aiLoading: boolean;
-  methodology: MethodologyId; onGenerate: () => void;
-}) {
-  const m = METHODOLOGIES[methodology];
-
-  const parseSection = (heading: string): string => {
-    const regex = new RegExp(`##\\s*${heading}([\\s\\S]*?)(?=##|$)`, "i");
-    return (aiInsight.match(regex)?.[1] ?? "").trim();
-  };
-
-  const sections = aiInsight ? [
-    { heading: "현재상태 진단", text: parseSection("현재상태 진단"), color: "#818cf8", icon: "📊" },
-    { heading: "전략 방향성",   text: parseSection("전략 방향성"),   color: "#fbbf24", icon: "🧭" },
-    { heading: "즉시 실행 플랜",text: parseSection("즉시 실행 플랜"),color: "#4ade80", icon: "⚡" },
-  ] : [];
-
-  return (
-    <div className={styles.aiTab}>
-      <div className={styles.aiHeader}>
-        <div>
-          <h3 className={styles.aiTitle}>AI 전략 진단</h3>
-          <p className={styles.aiSubtitle}>
-            적용 방법론: <span style={{ color: m.color, fontWeight: 700 }}>{methodology}</span> · Gemini 3.1 Pro
-          </p>
-        </div>
-        <button
-          className={styles.aiGenBtn}
-          onClick={onGenerate}
-          disabled={aiLoading}
-          style={{ borderColor: `${m.color}44`, color: m.color, background: m.colorBg }}
-        >
-          {aiLoading
-            ? <><Loader2 size={13} className={styles.spinner} /> 분석 중...</>
-            : <><Brain size={13} /> 전략 생성</>}
-        </button>
-      </div>
-
-      {!aiInsight && !aiLoading && (
-        <div className={styles.aiPlaceholder}>
-          <Brain size={44} style={{ color: "var(--text-muted)", opacity: 0.3, marginBottom: "0.875rem" }} />
-          <p>「전략 생성」을 클릭하면 Gemini 3.1 Pro가</p>
-          <p><strong style={{ color: m.color }}>{methodology}</strong> 방법론 관점에서 실시간 분석을 제공합니다.</p>
-        </div>
-      )}
-
-      {aiLoading && (
-        <div className={styles.aiPlaceholder}>
-          <Loader2 size={36} className={styles.spinner} style={{ marginBottom: "0.875rem" }} />
-          <p>Gemini 3.1 Pro가 분기 데이터를 분석 중입니다...</p>
-        </div>
-      )}
-
-      {aiInsight && !aiLoading && (
-        <div className={styles.aiGrid}>
-          {sections.map((sec, i) => (
-            <div key={i} className={styles.aiSection} style={{ borderTopColor: sec.color }}>
-              <h4 className={styles.aiSectionTitle} style={{ color: sec.color }}>
-                {sec.icon} {sec.heading}
-              </h4>
-              <p className={styles.aiText} style={{ whiteSpace: "pre-line" }}>
-                {sec.text || aiInsight}
-              </p>
+            <div className={styles.objectiveGrid}>
+              <ObjectiveCard
+                accent="#6366f1"
+                title="Revenue coverage"
+                summary={`Protect the quarter while closing the ${formatRevenue(dashboard.teamSummary.gapRevenue)} gap.`}
+                keyResults={[
+                  { label: "Attainment", value: formatPercent(dashboard.teamSummary.attainment), target: "100%" },
+                  { label: "Top rep", value: topRep?.name ?? "TBD", target: topRep ? formatRevenue(topRep.wonRevenue) : "n/a" },
+                  { label: "Risk region", value: weakest?.name ?? "n/a", target: weakest ? `${weakest.progress}%` : "n/a" },
+                  { label: "Critical regions", value: String(dashboard.teamSummary.criticalRegionCount), target: "< 2" },
+                ]}
+              />
+              <ObjectiveCard
+                accent="#22c55e"
+                title="Execution discipline"
+                summary="Keep stage conversion and activity completion from leaking on the way to contract."
+                keyResults={[
+                  { label: "Activity completion", value: formatPercent(dashboard.teamSummary.activityCompletion), target: "70%" },
+                  { label: "Weakest stage", value: executionWeakest?.stage ?? "n/a", target: executionWeakest ? `${executionWeakest.progress ?? 0}%` : "n/a" },
+                  { label: "Active accounts", value: String(dashboard.teamSummary.accountCount), target: "steady" },
+                  { label: "Activated accounts", value: String(dashboard.teamSummary.activatedCount), target: "up" },
+                ]}
+              />
+              <ObjectiveCard
+                accent="#f59e0b"
+                title="Pipeline momentum"
+                summary="Keep the next 7 days warm with visible actions, not just probability."
+                keyResults={[
+                  { label: "Open leads", value: String(openLeads.length), target: "sorted" },
+                  { label: "Weighted pipeline", value: formatRevenue(weightedPipeline), target: "growing" },
+                  { label: "Next action", value: crm.actions[0]?.target ?? "n/a", target: crm.actions[0]?.due ?? "n/a" },
+                  { label: "High-priority", value: crm.actions[0]?.prob ?? "n/a", target: "Urgent" },
+                ]}
+              />
             </div>
-          ))}
+          </div>
+
+          <div className={styles.sideCol}>
+            <Card title="Rep scoreboard" action={<span className={styles.cardPill}>Live</span>}>
+              <div className={styles.repList}>
+                {dashboard.individuals.slice(0, 5).map((rep, index) => (
+                  <RepRow key={rep.name} rep={rep} rank={index + 1} />
+                ))}
+              </div>
+            </Card>
+
+            <Card title="Region watchlist">
+              <div className={styles.regionList}>
+                {[...dashboard.regional].sort((a, b) => b.progress - a.progress).slice(0, 5).map((region) => (
+                  <div key={region.name} className={styles.regionRow}>
+                    <div>
+                      <div className={styles.regionName}>{region.name}</div>
+                      <div className={styles.regionMeta}>{formatRevenue(region.revenue)} of {formatRevenue(region.target)}</div>
+                    </div>
+                    <div className={styles.regionProgress}>{region.progress}%</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
         </div>
-      )}
+      ) : null}
+
+      {tab === "pipeline" ? (
+        <div className={styles.pipelineShell}>
+          <div className={styles.pipelineTopRow}>
+            <Card title="Pipeline pressure" className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{openLeads.length}</div><div className={styles.pipelineMetricHint}>open leads in motion</div></Card>
+            <Card title="Weighted value" className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{formatRevenue(weightedPipeline)}</div><div className={styles.pipelineMetricHint}>probability-adjusted</div></Card>
+            <Card title="Priority actions" className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{crm.actions.length}</div><div className={styles.pipelineMetricHint}>{highPriorityLeads[0]?.company ?? "No urgent leads"}</div></Card>
+          </div>
+
+          <PipelineKanban leads={crm.leads} scores={crm.scores} actions={crm.actions} onMoveLead={moveLead} />
+        </div>
+      ) : null}
+
+      {tab === "methodology" ? (
+        <div className={styles.methodLayout}>
+          <div className={styles.methodPicker}>
+            {(Object.keys(METHOD_COPY) as MethodologyId[]).map((id) => (
+              <button key={id} className={`${styles.methodBtn} ${methodology === id ? styles.methodBtnActive : ""}`} onClick={() => setMethodology(id)} type="button">
+                {METHOD_COPY[id].label}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.methodHero} style={{ borderColor: `${METHOD_COPY[methodology].color}33` }}>
+            <div>
+              <div className={styles.sectionLabel}>Playbook</div>
+              <div className={styles.methodTitle}>{METHOD_COPY[methodology].label}</div>
+              <p className={styles.methodSummary}>{METHOD_COPY[methodology].summary}</p>
+            </div>
+            <div className={styles.methodAside}>
+              <div className={styles.asideLabel}>Best for</div>
+              <div className={styles.asideValue}>{METHOD_COPY[methodology].bestFor}</div>
+              <div className={styles.asideMeta}>{METHOD_COPY[methodology].whenToUse}</div>
+            </div>
+          </div>
+
+          <div className={styles.methodGrid}>
+            <Card title="Stage flow">
+              <div className={styles.timeline}>
+                {METHOD_COPY[methodology].stages.map((stage, index) => (
+                  <div key={stage.label} className={styles.timelineItem}>
+                    <div className={styles.timelineIndex}>{index + 1}</div>
+                    <div>
+                      <div className={styles.timelineTitle}>{stage.label}</div>
+                      <div className={styles.timelineCopy}>{stage.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card title="Operating principles">
+              <div className={styles.principleList}>
+                {METHOD_COPY[methodology].principles.map((principle) => (
+                  <div key={principle} className={styles.principleRow}>
+                    <Sparkles size={13} />
+                    <span>{principle}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          <Card title="Coach note" className={styles.quoteCard}>
+            <div className={styles.quoteText}>&ldquo;{METHOD_COPY[methodology].quote}&rdquo;</div>
+            <div className={styles.quoteTip}>
+              <AlertTriangle size={13} />
+              <span>{METHOD_COPY[methodology].tip}</span>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {tab === "ai" ? (
+        <div className={styles.aiLayout}>
+          <div className={styles.aiHeader}>
+            <div>
+              <div className={styles.sectionLabel}>AI readout</div>
+              <div className={styles.aiTitle}>Live BD commentary</div>
+              <p className={styles.aiSubtitle}>The model reads the current BD sheet, regional pressure, and rep execution signals.</p>
+            </div>
+            <button className={styles.aiButton} onClick={generateAI} disabled={aiLoading} type="button">
+              {aiLoading ? <Loader2 size={14} className={styles.spinner} /> : <Brain size={14} />}
+              Generate
+            </button>
+          </div>
+
+          <div className={styles.aiGrid}>
+            <Card title="What the AI sees">
+              <div className={styles.aiAnchorList}>
+                <div className={styles.aiAnchor}><span>Period</span><strong>{dashboard.periodLabel}</strong></div>
+                <div className={styles.aiAnchor}><span>Attainment</span><strong>{formatPercent(dashboard.teamSummary.attainment)}</strong></div>
+                <div className={styles.aiAnchor}><span>Risk region</span><strong>{weakest ? `${weakest.name} (${weakest.progress}%)` : "n/a"}</strong></div>
+                <div className={styles.aiAnchor}><span>Weakest stage</span><strong>{executionWeakest ? `${executionWeakest.stage} (${executionWeakest.progress ?? 0}%)` : "n/a"}</strong></div>
+                <div className={styles.aiAnchor}><span>Top lead</span><strong>{crm.leads[0]?.company ?? "n/a"}</strong></div>
+              </div>
+              <pre className={styles.aiPreview}>{buildAiPreview(dashboard, crm, methodology)}</pre>
+            </Card>
+
+            <Card title="Generated response">
+              {aiError ? <div className={styles.aiError}>{aiError}</div> : null}
+              {!aiInsight && !aiLoading ? (
+                <div className={styles.aiEmpty}>
+                  <Brain size={40} />
+                  <p>Press Generate to produce a live operating summary.</p>
+                </div>
+              ) : null}
+              {aiLoading ? (
+                <div className={styles.aiEmpty}>
+                  <Loader2 size={32} className={styles.spinner} />
+                  <p>Building the summary from live sheet signals...</p>
+                </div>
+              ) : null}
+              {aiInsight ? (
+                <div className={styles.aiResponse}>
+                  {parseAiResponse(aiInsight).map((section) => (
+                    <div key={section.title} className={styles.aiSection}>
+                      <div className={styles.aiSectionTitle}>{section.title}</div>
+                      <div className={styles.aiSectionBody}>{section.body}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MetricCard({
+  icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint: string;
+  tone: "good" | "warn" | "bad" | "neutral";
+}) {
+  return (
+    <Card className={styles.metricCard}>
+      <div className={styles.metricTop}>
+        <div className={styles.metricIcon}>{icon}</div>
+        <span className={`${styles.metricTone} ${styles[`tone_${tone}`]}`}>{tone === "neutral" ? "live" : tone}</span>
+      </div>
+      <div className={styles.metricLabel}>{label}</div>
+      <div className={styles.metricValue}>{value}</div>
+      <div className={styles.metricHint}>{hint}</div>
+    </Card>
+  );
+}
+
+function ObjectiveCard({
+  title,
+  accent,
+  summary,
+  keyResults,
+}: {
+  title: string;
+  accent: string;
+  summary: string;
+  keyResults: { label: string; value: string; target: string }[];
+}) {
+  return (
+    <Card className={styles.objectiveCard}>
+      <div className={styles.objectiveCardHeader} style={{ borderColor: accent }}>
+        <div>
+          <div className={styles.objectiveCardTitle}>{title}</div>
+          <div className={styles.objectiveCardSummary}>{summary}</div>
+        </div>
+        <span className={styles.objectiveCardTag} style={{ background: `${accent}18`, color: accent }}>live</span>
+      </div>
+
+      <div className={styles.krList}>
+        {keyResults.map((kr) => (
+          <div key={kr.label} className={styles.krRow}>
+            <div>
+              <div className={styles.krLabel}>{kr.label}</div>
+              <div className={styles.krTarget}>target {kr.target}</div>
+            </div>
+            <div className={styles.krValue}>{kr.value}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function RepRow({ rep, rank }: { rep: IndividualData; rank: number }) {
+  const tone = rep.progress >= 100 ? "good" : rep.progress >= 75 ? "warn" : "bad";
+
+  return (
+    <div className={styles.repRow}>
+      <div className={styles.repRank}>#{rank}</div>
+      <div className={styles.repBody}>
+        <div className={styles.repHead}>
+          <div className={styles.repName}>{rep.name}</div>
+          <div className={`${styles.repTone} ${styles[`tone_${tone}`]}`}>{formatPercent(rep.progress)}</div>
+        </div>
+        <div className={styles.repMeta}>{formatRevenue(rep.wonRevenue)} won | {formatRevenue(rep.pipelineRevenue)} pipeline</div>
+        <div className={styles.repFoot}>{rep.activityActual ?? 0}/{rep.activityGoal ?? 0} activities</div>
+      </div>
     </div>
   );
 }
