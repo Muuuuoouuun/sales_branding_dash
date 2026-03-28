@@ -30,14 +30,8 @@ import TargetGapRing from "@/components/TargetGapRing";
 import { getHeatColor } from "@/lib/heatUtils";
 import type {
   ActivityStage,
-  DashboardDataSource,
   DashboardPayload,
-  DealAgingPoint,
-  HotDeal,
-  IndividualData,
   RegionData,
-  RevenuePacingPoint,
-  Stat,
   TeamSummary,
 } from "@/types/dashboard";
 import styles from "./page.module.css";
@@ -62,6 +56,22 @@ const EMPTY_SUMMARY: TeamSummary = {
   criticalRegionCount: 0,
 };
 
+const EMPTY_DASHBOARD: DashboardPayload = {
+  stats: [],
+  regional: [],
+  bottleneck: [],
+  individuals: [],
+  focusAccounts: [],
+  topAccounts: [],
+  hotDeals: [],
+  teamSummary: EMPTY_SUMMARY,
+  pacing: [],
+  aging: [],
+  periodLabel: "BD Team",
+  dataSource: "fallback",
+  lastUpdated: "",
+};
+
 const FILTER_LABELS: Record<StatusFilter, string> = {
   all: "All",
   good: "Good",
@@ -80,21 +90,44 @@ function formatRevenue(value: number): string {
   return `KRW ${Math.round(value).toLocaleString()}M`;
 }
 
+function normalizeDashboardPayload(
+  payload: Partial<DashboardPayload> | null | undefined,
+): DashboardPayload {
+  return {
+    ...EMPTY_DASHBOARD,
+    ...payload,
+    stats: payload?.stats ?? [],
+    regional: payload?.regional ?? [],
+    bottleneck: payload?.bottleneck ?? [],
+    individuals: payload?.individuals ?? [],
+    focusAccounts: payload?.focusAccounts ?? [],
+    topAccounts: payload?.topAccounts ?? [],
+    hotDeals: payload?.hotDeals ?? [],
+    pacing: payload?.pacing ?? [],
+    aging: payload?.aging ?? [],
+    teamSummary: {
+      ...EMPTY_SUMMARY,
+      ...(payload?.teamSummary ?? {}),
+    },
+  };
+}
+
 function buildInsightPlaceholder(
   summary: TeamSummary,
   bottleneck: ActivityStage[],
   periodLabel: string,
 ): string {
-  const weakestStage =
-    bottleneck
-      .slice()
-      .sort((left, right) => (left.progress ?? 0) - (right.progress ?? 0))[0] ?? null;
+  const weakestStage = bottleneck.reduce<ActivityStage | null>((lowest, current) => {
+    if (!lowest || (current.progress ?? 0) < (lowest.progress ?? 0)) {
+      return current;
+    }
 
-  return `${periodLabel} 기준 BD 팀은 ${summary.attainment.toFixed(1)}% 달성 중이며, 남은 갭은 ${formatRevenue(
-    summary.gapRevenue,
-  )}입니다. ${
+    return lowest;
+  }, null);
+
+  return `${periodLabel} 기준 BD 팀 달성률은 ${summary.attainment.toFixed(1)}%이며 남은 목표 갭은 ${formatRevenue(summary.gapRevenue)}입니다. ${
     weakestStage
-      ? `${weakestStage.stage} 실행률이 가장 낮아 후속 액션 우선순위로 보입니다.`
+      ? `${weakestStage.stage} 단계 실행률이 가장 낮아 우선 점검이 필요합니다.`
       : "실행 KPI 데이터가 아직 충분하지 않습니다."
   }`;
 }
@@ -104,8 +137,12 @@ function buildRevenueInsight(regions: RegionData[]): string {
     return "Regional revenue insight is not available yet.";
   }
 
-  const weakest = [...regions].sort((left, right) => left.progress - right.progress)[0];
-  const strongest = [...regions].sort((left, right) => right.progress - left.progress)[0];
+  const weakest = regions.reduce((lowest, current) =>
+    current.progress < lowest.progress ? current : lowest,
+  );
+  const strongest = regions.reduce((highest, current) =>
+    current.progress > highest.progress ? current : highest,
+  );
 
   return `${strongest.name} leads at ${strongest.progress}%, while ${weakest.name} needs the fastest catch-up at ${weakest.progress}%.`;
 }
@@ -115,7 +152,9 @@ function buildPipelineAction(stages: ActivityStage[]): string {
     return "No BD activity stage data is available yet.";
   }
 
-  const weakest = [...stages].sort((left, right) => (left.progress ?? 0) - (right.progress ?? 0))[0];
+  const weakest = stages.reduce((lowest, current) =>
+    (current.progress ?? 0) < (lowest.progress ?? 0) ? current : lowest,
+  );
   return `${weakest.stage} is the current bottleneck at ${weakest.progress ?? 0}% of goal. Coach the team on the next-step handoff around this stage first.`;
 }
 
@@ -123,19 +162,12 @@ function buildAiSummary(summary: TeamSummary, periodLabel: string): string {
   return `${periodLabel} 기준 ${summary.topManager}가 선두이며, 활성 계정 ${summary.accountCount}개 중 ${summary.activatedCount}개가 first payment까지 도달했습니다.`;
 }
 
-export interface IndividualDataExport extends IndividualData {}
+function getDataSourceLabel(dataSource: DashboardPayload["dataSource"]): string {
+  return dataSource === "google-sheets" ? "Live Sheet" : "Fallback";
+}
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<Stat[]>([]);
-  const [regionalData, setRegionalData] = useState<RegionData[]>([]);
-  const [bottleneckData, setBottleneckData] = useState<ActivityStage[]>([]);
-  const [individuals, setIndividuals] = useState<IndividualData[]>([]);
-  const [hotDeals, setHotDeals] = useState<HotDeal[]>([]);
-  const [pacingData, setPacingData] = useState<RevenuePacingPoint[]>([]);
-  const [agingData, setAgingData] = useState<DealAgingPoint[]>([]);
-  const [teamSummary, setTeamSummary] = useState<TeamSummary>(EMPTY_SUMMARY);
-  const [periodLabel, setPeriodLabel] = useState("BD Team");
-  const [dataSource, setDataSource] = useState<DashboardDataSource>("fallback");
+  const [dashboard, setDashboard] = useState<DashboardPayload>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [aiInsight, setAiInsight] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
@@ -144,33 +176,52 @@ export default function Dashboard() {
   const [drilldownData, setDrilldownData] = useState<MapRegionData | null>(null);
 
   useEffect(() => {
+    let isCancelled = false;
+    const controller = new AbortController();
+
     const fetchDashboard = async () => {
       try {
-        const response = await fetch("/api/dashboard/regions");
-        const payload = (await response.json()) as DashboardPayload;
+        const response = await fetch("/api/dashboard/regions", {
+          signal: controller.signal,
+        });
 
-        setStats(payload.stats ?? []);
-        setRegionalData(payload.regional ?? []);
-        setBottleneckData(payload.bottleneck ?? []);
-        setIndividuals(payload.individuals ?? []);
-        setHotDeals(payload.hotDeals ?? []);
-        setPacingData(payload.pacing ?? []);
-        setAgingData(payload.aging ?? []);
-        setTeamSummary(payload.teamSummary ?? EMPTY_SUMMARY);
-        setPeriodLabel(payload.periodLabel ?? "BD Team");
-        setDataSource(payload.dataSource ?? "fallback");
+        if (!response.ok) {
+          throw new Error(`Dashboard request failed with ${response.status}`);
+        }
+
+        const payload = normalizeDashboardPayload((await response.json()) as DashboardPayload);
+
+        if (!isCancelled) {
+          setDashboard(payload);
+        }
       } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
         console.error("Failed to fetch BD dashboard:", error);
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchDashboard();
+    void fetchDashboard();
+
+    return () => {
+      isCancelled = true;
+      controller.abort();
+    };
   }, []);
 
   const handleGenerateInsight = async () => {
+    if (insightLoading) {
+      return;
+    }
+
     setInsightLoading(true);
+
     try {
       const response = await fetch("/api/ai/insight", { method: "POST" });
       const data = (await response.json()) as { insight?: string };
@@ -185,10 +236,10 @@ export default function Dashboard() {
 
   const filteredRegions = useMemo(
     () =>
-      regionalData
+      dashboard.regional
         .filter((region) => statusFilter === "all" || region.status === statusFilter)
         .sort((left, right) => right.progress - left.progress),
-    [regionalData, statusFilter],
+    [dashboard.regional, statusFilter],
   );
 
   const handleRegionClick = (geoName: string, regionData: MapRegionData | null) => {
@@ -217,12 +268,12 @@ export default function Dashboard() {
           </p>
         </div>
         <div className={`glass ${styles.dateBadge}`}>
-          {dataSource === "google-sheets" ? "Live Sheet" : "Fallback"} · {periodLabel}
+          {getDataSourceLabel(dashboard.dataSource)} | {dashboard.periodLabel}
         </div>
       </header>
 
       <div className={styles.statsGrid}>
-        {stats.map((stat) => (
+        {dashboard.stats.map((stat) => (
           <Card key={stat.label} className={styles.statCard}>
             <span className={styles.statLabel}>{stat.label}</span>
             <span className={styles.statValue}>{stat.value}</span>
@@ -244,18 +295,18 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {regionalData.length > 0 ? (
+      {dashboard.regional.length > 0 ? (
         <QuarterlyTracker
-          data={regionalData}
-          individuals={individuals}
-          periodLabel={periodLabel}
+          data={dashboard.regional}
+          individuals={dashboard.individuals}
+          periodLabel={dashboard.periodLabel}
         />
       ) : null}
 
       <div className={styles.dashboardSplit}>
         <div className={styles.leftCol}>
-          <TargetGapRing teamSummary={teamSummary} periodLabel={periodLabel} />
-          <HotDealsWidget deals={hotDeals} />
+          <TargetGapRing teamSummary={dashboard.teamSummary} periodLabel={dashboard.periodLabel} />
+          <HotDealsWidget deals={dashboard.hotDeals} />
 
           <Card className={styles.alertCard} title="AI BD insight">
             <div className={styles.aiBoxContent}>
@@ -286,9 +337,15 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <p className={styles.aiText}>
-                    {buildInsightPlaceholder(teamSummary, bottleneckData, periodLabel)}
+                    {buildInsightPlaceholder(
+                      dashboard.teamSummary,
+                      dashboard.bottleneck,
+                      dashboard.periodLabel,
+                    )}
                     <br />
-                    <span className={styles.aiHint}>{buildAiSummary(teamSummary, periodLabel)}</span>
+                    <span className={styles.aiHint}>
+                      {buildAiSummary(dashboard.teamSummary, dashboard.periodLabel)}
+                    </span>
                   </p>
                 )}
 
@@ -303,16 +360,14 @@ export default function Dashboard() {
             <Card title="Revenue vs target" action={<button className={styles.viewReportBtn}>Regional view</button>}>
               <div className={styles.chartContainer}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={regionalData}>
+                  <BarChart data={dashboard.regional}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                     <XAxis dataKey="name" stroke="#666" tick={{ fontSize: 11 }} />
                     <YAxis stroke="#666" tick={{ fontSize: 11 }} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#18181b", borderColor: "#333" }}
                       itemStyle={{ color: "#fff" }}
-                      formatter={(value: number | undefined) =>
-                        value != null ? formatRevenue(value) : ""
-                      }
+                      formatter={(value: number | undefined) => (value != null ? formatRevenue(value) : "")}
                     />
                     <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} name="Revenue" />
                     <Bar dataKey="target" fill="#27272a" radius={[4, 4, 0, 0]} name="Target" />
@@ -320,14 +375,14 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
               <p className={styles.insightText}>
-                <strong>Insight:</strong> {buildRevenueInsight(regionalData)}
+                <strong>Insight:</strong> {buildRevenueInsight(dashboard.regional)}
               </p>
             </Card>
 
             <Card title="Execution funnel">
-              <PipelineFunnel data={bottleneckData} />
+              <PipelineFunnel data={dashboard.bottleneck} />
               <p className={styles.bottleneckAction} style={{ marginTop: "0.75rem" }}>
-                <strong>Action:</strong> {buildPipelineAction(bottleneckData)}
+                <strong>Action:</strong> {buildPipelineAction(dashboard.bottleneck)}
               </p>
             </Card>
           </div>
@@ -362,7 +417,7 @@ export default function Dashboard() {
             <div className={styles.heatmapLayout}>
               <div className={styles.mapWrapper}>
                 <KoreaProvinceMap
-                  data={regionalData}
+                  data={dashboard.regional}
                   filter={statusFilter}
                   onRegionClick={handleRegionClick}
                 />
@@ -380,6 +435,7 @@ export default function Dashboard() {
                 ) : (
                   filteredRegions.map((region) => {
                     const color = getHeatColor(region.progress);
+
                     return (
                       <div key={region.name} className={styles.regionRow}>
                         <div className={styles.regionName}>
@@ -420,8 +476,8 @@ export default function Dashboard() {
           ) : null}
 
           <div className={styles.chartsGrid}>
-            <RevenuePacingChart data={pacingData} periodLabel={periodLabel} />
-            <DealAgingChart data={agingData} />
+            <RevenuePacingChart data={dashboard.pacing} periodLabel={dashboard.periodLabel} />
+            <DealAgingChart data={dashboard.aging} />
           </div>
         </div>
       </div>
@@ -455,7 +511,7 @@ function PipelineFunnel({ data }: { data: ActivityStage[] }) {
                   color: isBottleneck ? "var(--danger-foreground)" : "var(--text-muted)",
                 }}
               >
-                <span>Δ</span>
+                <span>-</span>
                 <span>{dropPct}% drop-off</span>
                 {isBottleneck ? (
                   <span

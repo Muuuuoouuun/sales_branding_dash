@@ -71,7 +71,7 @@ export default function RevenuePacingChart({ data, periodLabel }: Props) {
             ? `Current quarter pacing is ahead by ${formatRevenue(delta)}.`
             : `Current quarter pacing is behind by ${formatRevenue(Math.abs(delta))}.`
           : "Quarter pacing data is not available yet."}
-        {hasDummy ? " 일부 구간은 -더미- 데이터입니다." : ""}
+        {hasDummy ? " Some points are marked as -더미-." : ""}
       </p>
     </Card>
   );

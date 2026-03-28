@@ -4,7 +4,10 @@ import {
   getCurrentFiscalQuarterLabel,
   getCurrentFiscalQuarterMonths,
 } from "@/lib/fiscalCalendar";
-import { getMultipleSheetValues } from "@/lib/server/googleSheets";
+import {
+  getMultipleSheetValues,
+  hasGoogleSheetsConfig,
+} from "@/lib/server/googleSheets";
 import type {
   ActivityStage,
   DashboardDataSource,
@@ -23,6 +26,9 @@ import type {
 const SEG_RANGE = "2. SEG!A1:S40";
 const REV_RANGE = "3. REV!A1:CZ400";
 const KPI_RANGE = "4. L-KPI!A1:AZ60";
+
+const LIVE_CACHE_TTL_MS = 5 * 60 * 1000;
+const FALLBACK_CACHE_TTL_MS = 60 * 1000;
 
 const ACTIVITY_KEYS = ["LD", "ACC", "OPP", "SOL", "VST"] as const;
 const ACTIVITY_LABELS: Record<(typeof ACTIVITY_KEYS)[number], string> = {
@@ -79,13 +85,39 @@ interface ActivitySnapshot {
   actual: Record<ActivityKey, number>;
 }
 
+interface ManagerBucket {
+  wonRevenue: number;
+  pipelineRevenue: number;
+  newRevenue: number;
+  renewRevenue: number;
+  dealsTotal: number;
+  dealsWon: number;
+}
+
 interface SheetRanges {
   [SEG_RANGE]: string[][];
   [REV_RANGE]: string[][];
   [KPI_RANGE]: string[][];
 }
 
-let cache: { expiresAt: number; data: DashboardPayload } | null = null;
+interface DashboardCacheEntry {
+  expiresAt: number;
+  data: DashboardPayload;
+}
+
+interface RevenueSummary {
+  managerBuckets: Map<string, ManagerBucket>;
+  regionCounts: Map<string, { total: number; activated: number }>;
+  monthlyActuals: Map<number, number>;
+  activatedCount: number;
+  newRevenue: number;
+  renewRevenue: number;
+  directRevenue: number;
+  channelRevenue: number;
+}
+
+let cache: DashboardCacheEntry | null = null;
+let inflightDashboard: Promise<DashboardPayload> | null = null;
 
 function padRow(row: string[], minLength: number): string[] {
   if (row.length >= minLength) {
@@ -108,6 +140,14 @@ function parseDate(value: string | undefined): string | null {
   }
 
   return normalized;
+}
+
+function getPeriodLabel(): string {
+  return `${getCurrentFiscalQuarterLabel()} | BD Team`;
+}
+
+function getMonthLabel(month: number): string {
+  return `${month}월`;
 }
 
 function getRegionStatus(progress: number): RegionData["status"] {
@@ -180,6 +220,36 @@ function getMonthColumns(headerRow: string[]): Array<{ month: number; index: num
     .filter(({ month }) => month >= 1 && month <= 12);
 }
 
+function createEmptyActivitySnapshot(): ActivitySnapshot {
+  return {
+    goal: { LD: 0, ACC: 0, OPP: 0, SOL: 0, VST: 0 },
+    actual: { LD: 0, ACC: 0, OPP: 0, SOL: 0, VST: 0 },
+  };
+}
+
+function createEmptyManagerBucket(): ManagerBucket {
+  return {
+    wonRevenue: 0,
+    pipelineRevenue: 0,
+    newRevenue: 0,
+    renewRevenue: 0,
+    dealsTotal: 0,
+    dealsWon: 0,
+  };
+}
+
+function findLowestProgressActivity(activityStages: ActivityStage[]): ActivityStage | null {
+  let lowest: ActivityStage | null = null;
+
+  for (const stage of activityStages) {
+    if (!lowest || (stage.progress ?? 0) < (lowest.progress ?? 0)) {
+      lowest = stage;
+    }
+  }
+
+  return lowest;
+}
+
 function parseSegRows(rows: string[][]): {
   totalTarget: number;
   totalRevenue: number;
@@ -241,16 +311,13 @@ function parseSegRows(rows: string[][]): {
 function parseRevenueRows(rows: string[][]): RevenueRow[] {
   const headerRow = rows[1] ?? [];
   const monthColumns = getMonthColumns(headerRow);
+  const minimumColumns = Math.max(headerRow.length, 13);
 
   return rows
     .slice(2)
-    .map((sourceRow) => padRow(sourceRow, headerRow.length))
+    .map((sourceRow) => padRow(sourceRow, minimumColumns))
     .filter((row) => row[0]?.trim())
     .map((row, index) => {
-      const monthTotals = Object.fromEntries(
-        monthColumns.map(({ month, index: columnIndex }) => [month, parseNumber(row[columnIndex])]),
-      );
-
       const revenueRow: RevenueRow = {
         id: `acct-${index}-${row[0]?.trim() ?? "unknown"}`,
         account: row[0].trim(),
@@ -265,7 +332,9 @@ function parseRevenueRows(rows: string[][]): RevenueRow[] {
         remark: row[11]?.trim() ?? "",
         amount: parseNumber(row[12]),
         probability: 0,
-        monthTotals,
+        monthTotals: Object.fromEntries(
+          monthColumns.map(({ month, index: columnIndex }) => [month, parseNumber(row[columnIndex])]),
+        ),
       };
 
       return {
@@ -327,9 +396,7 @@ function buildFocusAccount(row: RevenueRow): FocusAccount {
 }
 
 function buildStats(summary: TeamSummary, activityStages: ActivityStage[]): Stat[] {
-  const nextExecution = activityStages
-    .slice()
-    .sort((left, right) => (left.progress ?? 0) - (right.progress ?? 0))[0];
+  const weakestStage = findLowestProgressActivity(activityStages);
 
   return [
     {
@@ -356,8 +423,8 @@ function buildStats(summary: TeamSummary, activityStages: ActivityStage[]): Stat
     {
       label: "Execution KPI",
       value: `${summary.activityCompletion.toFixed(1)}%`,
-      trend: nextExecution
-        ? `${nextExecution.stage} ${nextExecution.actual ?? 0}/${nextExecution.goal ?? nextExecution.fullMark}`
+      trend: weakestStage
+        ? `${weakestStage.stage} ${weakestStage.actual ?? 0}/${weakestStage.goal ?? weakestStage.fullMark}`
         : "No KPI goals",
       trendType:
         summary.activityCompletion >= 60 ? "up" : summary.activityCompletion >= 30 ? "down" : "critical",
@@ -389,8 +456,9 @@ function buildFallbackPacing(totalTarget: number): RevenuePacingPoint[] {
 
   return quarterMonths.map((month, index) => {
     const cumulativeTarget = Math.round(baseTarget * (index + 1));
+
     return {
-      label: `${month}월 -더미-`,
+      label: `${getMonthLabel(month)} -더미-`,
       month,
       actual: Math.round(cumulativeTarget * factors[index]),
       target: cumulativeTarget,
@@ -399,11 +467,9 @@ function buildFallbackPacing(totalTarget: number): RevenuePacingPoint[] {
   });
 }
 
-function buildPacingData(revenueRows: RevenueRow[], totalTarget: number): RevenuePacingPoint[] {
+function buildPacingData(monthlyActuals: Map<number, number>, totalTarget: number): RevenuePacingPoint[] {
   const quarterMonths = getCurrentFiscalQuarterMonths();
-  const actualByMonth = quarterMonths.map((month) =>
-    revenueRows.reduce((sum, row) => sum + (row.monthTotals[month] ?? 0), 0),
-  );
+  const actualByMonth = quarterMonths.map((month) => monthlyActuals.get(month) ?? 0);
 
   if (actualByMonth.every((value) => value <= 0)) {
     return buildFallbackPacing(totalTarget);
@@ -416,7 +482,7 @@ function buildPacingData(revenueRows: RevenueRow[], totalTarget: number): Revenu
     runningActual += actualByMonth[index] ?? 0;
 
     return {
-      label: `${month}월`,
+      label: getMonthLabel(month),
       month,
       actual: runningActual,
       target: Math.round(linearMonthlyTarget * (index + 1)),
@@ -463,10 +529,83 @@ function buildHotDeals(accounts: FocusAccount[]): HotDeal[] {
     probability: account.probability,
     note: account.firstPayment
       ? `First payment ${account.firstPayment}`
-      : `${account.manager} · ${account.region} · ${account.type}`,
+      : `${account.manager} / ${account.region} / ${account.type}`,
     status: account.probability >= 80 ? "urgent" : "normal",
     isDummy: account.isDummy,
   }));
+}
+
+function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
+  const quarterMonths = getCurrentFiscalQuarterMonths();
+  const monthlyActuals = new Map<number, number>(
+    quarterMonths.map((month) => [month, 0]),
+  );
+  const managerBuckets = new Map<string, ManagerBucket>();
+  const regionCounts = new Map<string, { total: number; activated: number }>();
+
+  let activatedCount = 0;
+  let newRevenue = 0;
+  let renewRevenue = 0;
+  let directRevenue = 0;
+  let channelRevenue = 0;
+
+  for (const row of revenueRows) {
+    const currentRegion = regionCounts.get(row.location) ?? { total: 0, activated: 0 };
+    currentRegion.total += 1;
+    currentRegion.activated += row.firstPayment ? 1 : 0;
+    regionCounts.set(row.location, currentRegion);
+
+    const currentManager = managerBuckets.get(row.manager) ?? createEmptyManagerBucket();
+    currentManager.wonRevenue += row.amount;
+    currentManager.dealsTotal += 1;
+
+    if (row.firstPayment) {
+      activatedCount += 1;
+      currentManager.dealsWon += 1;
+    } else {
+      currentManager.pipelineRevenue += Math.round(row.amount * (row.probability / 100));
+    }
+
+    if (row.status === "New") {
+      newRevenue += row.amount;
+      currentManager.newRevenue += row.amount;
+    }
+
+    if (row.status === "Renew") {
+      renewRevenue += row.amount;
+      currentManager.renewRevenue += row.amount;
+    }
+
+    if (row.type === "Direct") {
+      directRevenue += row.amount;
+    }
+
+    if (row.type === "Channel") {
+      channelRevenue += row.amount;
+    }
+
+    for (const [month, amount] of Object.entries(row.monthTotals)) {
+      const monthNumber = Number(month);
+      if (!monthlyActuals.has(monthNumber)) {
+        continue;
+      }
+
+      monthlyActuals.set(monthNumber, (monthlyActuals.get(monthNumber) ?? 0) + amount);
+    }
+
+    managerBuckets.set(row.manager, currentManager);
+  }
+
+  return {
+    managerBuckets,
+    regionCounts,
+    monthlyActuals,
+    activatedCount,
+    newRevenue,
+    renewRevenue,
+    directRevenue,
+    channelRevenue,
+  };
 }
 
 function buildMinimalFallbackDashboard(): DashboardPayload {
@@ -480,7 +619,7 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
       deals_closed: 2,
       velocity: 50,
       status: "warning",
-      coordinates: REGION_COORDINATES.서울,
+      coordinates: REGION_COORDINATES["서울"],
       isDummy: true,
     },
     {
@@ -492,7 +631,7 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
       deals_closed: 1,
       velocity: 33,
       status: "critical",
-      coordinates: REGION_COORDINATES.경기,
+      coordinates: REGION_COORDINATES["경기"],
       isDummy: true,
     },
     {
@@ -504,7 +643,7 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
       deals_closed: 2,
       velocity: 67,
       status: "warning",
-      coordinates: REGION_COORDINATES.부산,
+      coordinates: REGION_COORDINATES["부산"],
       isDummy: true,
     },
   ];
@@ -625,7 +764,7 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
     teamSummary,
     pacing: buildFallbackPacing(teamSummary.targetRevenue),
     aging: buildAgingData([]),
-    periodLabel: `${getCurrentFiscalQuarterLabel()} · BD Team`,
+    periodLabel: getPeriodLabel(),
     dataSource: "fallback",
     lastUpdated: new Date().toISOString(),
   };
@@ -640,16 +779,9 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     return buildMinimalFallbackDashboard();
   }
 
-  const regionAccountCount = new Map<string, { total: number; activated: number }>();
-  for (const row of revenueRows) {
-    const current = regionAccountCount.get(row.location) ?? { total: 0, activated: 0 };
-    current.total += 1;
-    current.activated += row.firstPayment ? 1 : 0;
-    regionAccountCount.set(row.location, current);
-  }
-
+  const revenueSummary = summarizeRevenueRows(revenueRows);
   const regionalWithCounts = regional.map((row) => {
-    const counts = regionAccountCount.get(row.name) ?? { total: 0, activated: 0 };
+    const counts = revenueSummary.regionCounts.get(row.name) ?? { total: 0, activated: 0 };
     const velocity = counts.total > 0 ? Math.round((counts.activated / counts.total) * 100) : 0;
 
     return {
@@ -662,51 +794,47 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
 
   const managerNames = Array.from(
     new Set([
-      ...revenueRows.map((row) => row.manager).filter(Boolean),
+      ...revenueSummary.managerBuckets.keys(),
       ...Object.keys(kpiByMember),
     ]),
   );
   const equalTarget = managerNames.length > 0 ? Math.round(totalTarget / managerNames.length) : 0;
+  const activityTotals = Object.fromEntries(
+    ACTIVITY_KEYS.map((key) => [key, { goal: 0, actual: 0 }]),
+  ) as Record<ActivityKey, { goal: number; actual: number }>;
 
   const individuals: IndividualData[] = managerNames
     .map((manager) => {
-      const ownedRows = revenueRows.filter((row) => row.manager === manager);
-      const activity = kpiByMember[manager] ?? {
-        goal: { LD: 0, ACC: 0, OPP: 0, SOL: 0, VST: 0 },
-        actual: { LD: 0, ACC: 0, OPP: 0, SOL: 0, VST: 0 },
-      };
+      const bucket = revenueSummary.managerBuckets.get(manager) ?? createEmptyManagerBucket();
+      const activity = kpiByMember[manager] ?? createEmptyActivitySnapshot();
+      const kpis: IndividualKpi[] = ACTIVITY_KEYS.map((key) => {
+        const goal = activity.goal[key];
+        const actual = activity.actual[key];
 
-      const wonRevenue = ownedRows.reduce((sum, row) => sum + row.amount, 0);
-      const newRevenue = ownedRows
-        .filter((row) => row.status === "New")
-        .reduce((sum, row) => sum + row.amount, 0);
-      const renewRevenue = ownedRows
-        .filter((row) => row.status === "Renew")
-        .reduce((sum, row) => sum + row.amount, 0);
-      const dealsTotal = ownedRows.length;
-      const dealsWon = ownedRows.filter((row) => row.firstPayment).length;
-      const kpis: IndividualKpi[] = ACTIVITY_KEYS.map((key) => ({
-        key,
-        label: ACTIVITY_LABELS[key],
-        goal: activity.goal[key],
-        actual: activity.actual[key],
-        progress: activity.goal[key] > 0 ? Math.round((activity.actual[key] / activity.goal[key]) * 100) : 0,
-      }));
-      const activityGoal = kpis.reduce((sum, kpi) => sum + kpi.goal, 0);
-      const activityActual = kpis.reduce((sum, kpi) => sum + kpi.actual, 0);
+        activityTotals[key].goal += goal;
+        activityTotals[key].actual += actual;
+
+        return {
+          key,
+          label: ACTIVITY_LABELS[key],
+          goal,
+          actual,
+          progress: goal > 0 ? Math.round((actual / goal) * 100) : 0,
+        };
+      });
+      const activityGoal = kpis.reduce((sum, item) => sum + item.goal, 0);
+      const activityActual = kpis.reduce((sum, item) => sum + item.actual, 0);
 
       return {
         name: manager,
-        wonRevenue,
-        pipelineRevenue: ownedRows
-          .filter((row) => !row.firstPayment)
-          .reduce((sum, row) => sum + Math.round(row.amount * (row.probability / 100)), 0),
+        wonRevenue: bucket.wonRevenue,
+        pipelineRevenue: bucket.pipelineRevenue,
         target: equalTarget,
-        progress: equalTarget > 0 ? Math.round((wonRevenue / equalTarget) * 100) : 0,
-        deals_total: dealsTotal,
-        deals_won: dealsWon,
-        newRevenue,
-        renewRevenue,
+        progress: equalTarget > 0 ? Math.round((bucket.wonRevenue / equalTarget) * 100) : 0,
+        deals_total: bucket.dealsTotal,
+        deals_won: bucket.dealsWon,
+        newRevenue: bucket.newRevenue,
+        renewRevenue: bucket.renewRevenue,
         activityGoal,
         activityActual,
         kpis,
@@ -714,40 +842,17 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     })
     .sort((left, right) => right.wonRevenue - left.wonRevenue);
 
-  const activitySummary: ActivityStage[] = ACTIVITY_KEYS.map((key) => {
-    const goal = individuals.reduce((sum, person) => {
-      const metric = person.kpis?.find((item) => item.key === key);
-      return sum + (metric?.goal ?? 0);
-    }, 0);
+  const activitySummary: ActivityStage[] = ACTIVITY_KEYS.map((key) => ({
+    stage: ACTIVITY_LABELS[key],
+    value: activityTotals[key].actual,
+    fullMark: activityTotals[key].goal,
+    goal: activityTotals[key].goal,
+    actual: activityTotals[key].actual,
+    progress: activityTotals[key].goal > 0
+      ? Math.round((activityTotals[key].actual / activityTotals[key].goal) * 100)
+      : 0,
+  }));
 
-    const actual = individuals.reduce((sum, person) => {
-      const metric = person.kpis?.find((item) => item.key === key);
-      return sum + (metric?.actual ?? 0);
-    }, 0);
-
-    return {
-      stage: ACTIVITY_LABELS[key],
-      value: actual,
-      fullMark: goal,
-      goal,
-      actual,
-      progress: goal > 0 ? Math.round((actual / goal) * 100) : 0,
-    };
-  });
-
-  const activatedCount = revenueRows.filter((row) => row.firstPayment).length;
-  const newRevenue = revenueRows
-    .filter((row) => row.status === "New")
-    .reduce((sum, row) => sum + row.amount, 0);
-  const renewRevenue = revenueRows
-    .filter((row) => row.status === "Renew")
-    .reduce((sum, row) => sum + row.amount, 0);
-  const directRevenue = revenueRows
-    .filter((row) => row.type === "Direct")
-    .reduce((sum, row) => sum + row.amount, 0);
-  const channelRevenue = revenueRows
-    .filter((row) => row.type === "Channel")
-    .reduce((sum, row) => sum + row.amount, 0);
   const activityGoal = activitySummary.reduce((sum, item) => sum + (item.goal ?? item.fullMark), 0);
   const activityActual = activitySummary.reduce((sum, item) => sum + (item.actual ?? item.value), 0);
   const attainment = totalTarget > 0 ? (totalRevenue / totalTarget) * 100 : 0;
@@ -758,11 +863,11 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     gapRevenue: Math.max(totalTarget - totalRevenue, 0),
     attainment,
     accountCount: revenueRows.length,
-    activatedCount,
-    newRevenue,
-    renewRevenue,
-    directRevenue,
-    channelRevenue,
+    activatedCount: revenueSummary.activatedCount,
+    newRevenue: revenueSummary.newRevenue,
+    renewRevenue: revenueSummary.renewRevenue,
+    directRevenue: revenueSummary.directRevenue,
+    channelRevenue: revenueSummary.channelRevenue,
     activityGoal,
     activityActual,
     activityCompletion: activityGoal > 0 ? (activityActual / activityGoal) * 100 : 0,
@@ -802,12 +907,21 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     topAccounts,
     hotDeals: buildHotDeals(focusAccounts),
     teamSummary,
-    pacing: buildPacingData(revenueRows, totalTarget),
+    pacing: buildPacingData(revenueSummary.monthlyActuals, totalTarget),
     aging: buildAgingData(revenueRows),
-    periodLabel: `${getCurrentFiscalQuarterLabel()} · BD Team`,
+    periodLabel: getPeriodLabel(),
     dataSource,
     lastUpdated: new Date().toISOString(),
   };
+}
+
+function rememberDashboard(data: DashboardPayload, ttlMs: number): DashboardPayload {
+  cache = {
+    data,
+    expiresAt: Date.now() + ttlMs,
+  };
+
+  return data;
 }
 
 async function loadLiveDashboard(): Promise<DashboardPayload> {
@@ -827,21 +941,28 @@ export async function getBdDashboardData(): Promise<DashboardPayload> {
     return cache.data;
   }
 
-  try {
-    const liveData = await loadLiveDashboard();
-    cache = {
-      data: liveData,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-    };
-    return liveData;
-  } catch (error) {
-    console.error("Failed to load BD dashboard from Google Sheets:", error);
-
-    const fallback = buildMinimalFallbackDashboard();
-    cache = {
-      data: fallback,
-      expiresAt: Date.now() + 60 * 1000,
-    };
-    return fallback;
+  if (!hasGoogleSheetsConfig()) {
+    return rememberDashboard(cache?.data ?? buildMinimalFallbackDashboard(), FALLBACK_CACHE_TTL_MS);
   }
+
+  if (inflightDashboard) {
+    return inflightDashboard;
+  }
+
+  inflightDashboard = loadLiveDashboard()
+    .then((liveData) => rememberDashboard(liveData, LIVE_CACHE_TTL_MS))
+    .catch((error) => {
+      console.error("Failed to load BD dashboard from Google Sheets:", error);
+
+      if (cache) {
+        return rememberDashboard(cache.data, FALLBACK_CACHE_TTL_MS);
+      }
+
+      return rememberDashboard(buildMinimalFallbackDashboard(), FALLBACK_CACHE_TTL_MS);
+    })
+    .finally(() => {
+      inflightDashboard = null;
+    });
+
+  return inflightDashboard;
 }

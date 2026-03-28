@@ -38,7 +38,7 @@ export default function HotDealsWidget({ deals }: Props) {
                   {deal.isDummy ? " -더미-" : ""}
                 </div>
                 <div className={styles.dealMeta}>
-                  {deal.note} · {deal.probability}% confidence
+                  {deal.note} | {deal.probability}% confidence
                 </div>
               </div>
               <div className={styles.dealRight}>

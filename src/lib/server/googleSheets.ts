@@ -16,6 +16,9 @@ const SERVICE_ACCOUNT_FILE_CANDIDATES = [
   "service-account.json",
 ];
 
+let cachedCredentials: ServiceAccountCredentials | null | undefined;
+let cachedSpreadsheetId: string | null | undefined;
+
 function normalizePrivateKey(value: string | undefined): string | null {
   if (!value) {
     return null;
@@ -45,6 +48,10 @@ function readServiceAccountFile(filePath: string): ServiceAccountCredentials | n
 }
 
 function getServiceAccountCredentials(): ServiceAccountCredentials | null {
+  if (cachedCredentials !== undefined) {
+    return cachedCredentials;
+  }
+
   const clientEmail =
     process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
     process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
@@ -53,24 +60,38 @@ function getServiceAccountCredentials(): ServiceAccountCredentials | null {
   );
 
   if (clientEmail && privateKey) {
-    return { clientEmail, privateKey };
+    cachedCredentials = { clientEmail, privateKey };
+    return cachedCredentials;
   }
 
   for (const candidate of SERVICE_ACCOUNT_FILE_CANDIDATES) {
     const fullPath = path.join(process.cwd(), candidate);
     const credentials = readServiceAccountFile(fullPath);
     if (credentials) {
-      return credentials;
+      cachedCredentials = credentials;
+      return cachedCredentials;
     }
   }
 
-  return null;
+  cachedCredentials = null;
+  return cachedCredentials;
 }
 
-function getSpreadsheetId(): string {
+function getOptionalSpreadsheetId(): string | null {
+  if (cachedSpreadsheetId !== undefined) {
+    return cachedSpreadsheetId;
+  }
+
   const sheetId =
     process.env.GOOGLE_SHEET_ID ||
     process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+
+  cachedSpreadsheetId = sheetId?.trim() || null;
+  return cachedSpreadsheetId;
+}
+
+function getSpreadsheetId(): string {
+  const sheetId = getOptionalSpreadsheetId();
 
   if (!sheetId) {
     throw new Error("Missing GOOGLE_SHEET_ID or GOOGLE_SHEETS_SPREADSHEET_ID.");
@@ -105,7 +126,7 @@ function normalizeValues(values: unknown): SheetValues {
 }
 
 export function hasGoogleSheetsConfig(): boolean {
-  return Boolean(getServiceAccountCredentials());
+  return Boolean(getServiceAccountCredentials() && getOptionalSpreadsheetId());
 }
 
 export async function getSheetData(range: string): Promise<SheetValues> {
