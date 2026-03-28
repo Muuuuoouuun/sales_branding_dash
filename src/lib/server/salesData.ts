@@ -3,6 +3,7 @@ import 'server-only';
 import fs from 'fs';
 import path from 'path';
 import { loadCSV } from '@/lib/csvLoader';
+import { getCurrentMonthPeriod } from '@/lib/fiscalCalendar';
 import { createSupabaseAdminClient, hasSupabaseServerConfig } from '@/lib/supabase/server';
 
 export type DataBackend = 'supabase' | 'csv';
@@ -75,12 +76,6 @@ function toNumber(value: number | string | null | undefined): number {
 
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function getCurrentMonthPeriod(date = new Date()): string {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  return `${year}-${month}-01`;
 }
 
 function normalizeSalesRow(row: SalesTableRow): RegionMetricRow {

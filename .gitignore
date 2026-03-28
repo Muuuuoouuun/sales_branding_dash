@@ -23,6 +23,11 @@
 # misc
 .DS_Store
 *.pem
+.claude/
+.branch-cleanup-archives/
+sales-brandboard-*.json
+service-account.json
+data/*.backup.*.csv
 
 # debug
 npm-debug.log*
