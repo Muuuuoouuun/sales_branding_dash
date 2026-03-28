@@ -1,0 +1,107 @@
+.viewAllBtn {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.viewAllBtn:hover {
+  color: var(--foreground);
+}
+
+.listContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.dealRow {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.dealRow:hover {
+  background: rgba(128, 128, 128, 0.1);
+  border-color: var(--card-border);
+  transform: translateY(-1px);
+}
+
+.dealInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  z-index: 1;
+}
+
+.clientName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.urgentIcon {
+  color: var(--danger);
+}
+
+.dealMeta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.dealRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1;
+}
+
+.dealValue {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.dealRow:hover .chevron {
+  transform: translateX(2px);
+  color: var(--foreground);
+}
+
+.probBarWrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+  z-index: 0;
+}
+
+.probBarFill {
+  height: 100%;
+  opacity: 0.6;
+}

@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { User, Users } from "lucide-react";
 import { getHeatColor } from "@/lib/heatUtils";
-import { getCurrentFiscalQuarterLabel } from "@/lib/fiscalCalendar";
-import type { RegionData } from "./KoreaProvinceMap";
-import type { IndividualData } from "@/app/page";
+import type { IndividualData, RegionData } from "@/types/dashboard";
 import styles from "./QuarterlyTracker.module.css";
 
 const MILESTONES = [
@@ -21,13 +19,14 @@ const BAR_MAX = 115;
 interface Props {
   data: RegionData[];
   individuals: IndividualData[];
+  periodLabel: string;
 }
 
 function formatRevenue(value: number): string {
   return `KRW ${Math.round(value).toLocaleString()}M`;
 }
 
-export default function QuarterlyTracker({ data, individuals }: Props) {
+export default function QuarterlyTracker({ data, individuals, periodLabel }: Props) {
   const [view, setView] = useState<"team" | "individual">("team");
 
   const totalRevenue = data.reduce((sum, region) => sum + region.revenue, 0);
@@ -37,13 +36,11 @@ export default function QuarterlyTracker({ data, individuals }: Props) {
   const barFillPct = Math.min((progress / BAR_MAX) * 100, 100);
   const currentMilestone =
     [...MILESTONES].reverse().find((item) => progress >= item.pct) ?? null;
-  const fiscalQuarterLabel = getCurrentFiscalQuarterLabel();
-
   return (
     <div className={styles.card}>
       <div className={styles.header}>
         <div className={styles.titleGroup}>
-          <span className={styles.qBadge}>{fiscalQuarterLabel}</span>
+          <span className={styles.qBadge}>{periodLabel}</span>
           <div>
             <h3 className={styles.title}>BD target tracker</h3>
             <p className={styles.sub}>

@@ -15,10 +15,27 @@ export interface FiscalCalendarInfo {
   fiscalYearStart: number;
   fiscalYearEnd: number;
   fiscalQuarter: FiscalQuarter;
+  fiscalQuarterMonths: [number, number, number];
   fiscalMonthIndex: number;
   monthPeriod: string;
   fiscalYearLabel: string;
   fiscalQuarterLabel: string;
+}
+
+function getFiscalQuarterMonths(fiscalQuarter: FiscalQuarter): [number, number, number] {
+  if (fiscalQuarter === 1) {
+    return [4, 5, 6];
+  }
+
+  if (fiscalQuarter === 2) {
+    return [7, 8, 9];
+  }
+
+  if (fiscalQuarter === 3) {
+    return [10, 11, 12];
+  }
+
+  return [1, 2, 3];
 }
 
 function getZonedDateParts(date: Date, timeZone: string): ZonedDateParts {
@@ -91,6 +108,7 @@ export function getFiscalCalendarInfo(
     fiscalYearStart: fiscalYear.start,
     fiscalYearEnd: fiscalYear.end,
     fiscalQuarter,
+    fiscalQuarterMonths: getFiscalQuarterMonths(fiscalQuarter),
     fiscalMonthIndex,
     monthPeriod,
     fiscalYearLabel,
@@ -110,4 +128,11 @@ export function getCurrentFiscalQuarterLabel(
   timeZone = DEFAULT_TIME_ZONE,
 ): string {
   return getFiscalCalendarInfo(date, timeZone).fiscalQuarterLabel;
+}
+
+export function getCurrentFiscalQuarterMonths(
+  date = new Date(),
+  timeZone = DEFAULT_TIME_ZONE,
+): [number, number, number] {
+  return getFiscalCalendarInfo(date, timeZone).fiscalQuarterMonths;
 }

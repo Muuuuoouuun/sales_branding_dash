@@ -6,16 +6,16 @@ import SalesTip from "@/components/SalesTip";
 import {
   Target, Brain, Loader2,
   CheckCircle2, AlertTriangle, XCircle, Lightbulb, Zap,
-  Pencil, Save, RotateCcw, X,
+  Pencil, Save, RotateCcw, X, Tally4
 } from "lucide-react";
+import PipelineKanban from "@/components/PipelineKanban";
 
 const OKR_STORAGE_KEY = "salesmaster-okr-v1";
-import type { RegionData } from "@/components/KoreaProvinceMap";
-import type { IndividualData } from "@/app/page";
+import type { IndividualData, RegionData } from "@/types/dashboard";
 import { SALES_LEGENDS, getLegendOfDay, type SalesLegend } from "@/lib/salesTips";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Tab = "okr" | "methodology" | "ai";
+type Tab = "okr" | "methodology" | "ai" | "pipeline";
 type MethodologyId = "Challenger" | "SPIN" | "MEDDIC" | "Sandler";
 type KrStatus = "ontrack" | "atrisk" | "behind";
 
@@ -185,6 +185,7 @@ export default function ProjectPage() {
 
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "okr",         label: "OKR / KPI",  icon: <Target size={14} /> },
+    { id: "pipeline",    label: "파이프라인", icon: <Tally4 size={14} /> },
     { id: "methodology", label: "방법론 코치",   icon: <Lightbulb size={14} /> },
     { id: "ai",          label: "AI 전략 진단", icon: <Brain size={14} /> },
   ];
@@ -226,6 +227,7 @@ export default function ProjectPage() {
       ) : (
         <>
           {tab === "okr"         && <OkrTab regions={regions} individuals={individuals} />}
+          {tab === "pipeline"    && <PipelineKanban />}
           {tab === "methodology" && <MethodologyTab methodology={methodology} setMethodology={setMethodology} />}
           {tab === "ai"          && (
             <AiTab
@@ -451,6 +453,7 @@ function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: 
             store={store}
             onTargetChange={setDraftTarget}
             onValueChange={setDraftValue}
+            // @ts-ignore
             onUpdateCustomOkr={updateCustomOkr}
             onUpdateCustomKr={updateCustomKr}
             onAddCustomKr={addCustomKr}
@@ -460,7 +463,7 @@ function OkrTab({ regions, individuals }: { regions: RegionData[]; individuals: 
         {editMode && (
           <button 
             onClick={handleAddCustomOkr}
-            style={{ padding: "1.5rem", borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.2)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
+            style={{ padding: "1.5rem", borderRadius: "12px", border: "1px dashed var(--glass-border)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
           >
             + 새로운 O(목표) 및 KR(핵심 결과) 추가하기
           </button>
@@ -501,8 +504,8 @@ function OkrCard({
         )}
         {okr.isCustom && editMode ? (
           <>
-            <input className={styles.krInput} style={{ fontSize: "1.1rem", fontWeight: 700, color, marginBottom: "0.25rem", width: "100%", background: "rgba(0,0,0,0.2)" }} value={okr.objective} onChange={e => onUpdateCustomOkr(okr.customId!, "objective", e.target.value)} />
-            <input className={styles.krInput} style={{ fontSize: "0.85rem", width: "100%", background: "rgba(0,0,0,0.2)" }} value={okr.description} onChange={e => onUpdateCustomOkr(okr.customId!, "description", e.target.value)} />
+            <input className={styles.krInput} style={{ fontSize: "1.1rem", fontWeight: 700, color, marginBottom: "0.25rem", width: "100%", background: "var(--glass-bg)" }} value={okr.objective} onChange={e => onUpdateCustomOkr(okr.customId!, "objective", e.target.value)} />
+            <input className={styles.krInput} style={{ fontSize: "0.85rem", width: "100%", background: "var(--glass-bg)" }} value={okr.description} onChange={e => onUpdateCustomOkr(okr.customId!, "description", e.target.value)} />
           </>
         ) : (
           <>
@@ -739,8 +742,8 @@ function LegendCard({
     <div
       className={styles.legendCard}
       style={{
-        borderColor: isActive ? `${legend.color}55` : isFeatured ? `${legend.color}33` : "rgba(255,255,255,0.07)",
-        background:  isActive ? legend.colorBg : isFeatured ? `${legend.color}08` : "rgba(255,255,255,0.02)",
+        borderColor: isActive ? `${legend.color}55` : isFeatured ? `${legend.color}33` : "var(--glass-border)",
+        background:  isActive ? legend.colorBg : isFeatured ? `${legend.color}08` : "var(--card-bg-glass)",
       }}
     >
       {/* Header */}
@@ -846,7 +849,7 @@ function AiTab({
 
       {!aiInsight && !aiLoading && (
         <div className={styles.aiPlaceholder}>
-          <Brain size={44} style={{ color: "rgba(255,255,255,0.12)", marginBottom: "0.875rem" }} />
+          <Brain size={44} style={{ color: "var(--text-muted)", opacity: 0.3, marginBottom: "0.875rem" }} />
           <p>「전략 생성」을 클릭하면 Gemini 3.1 Pro가</p>
           <p><strong style={{ color: m.color }}>{methodology}</strong> 방법론 관점에서 실시간 분석을 제공합니다.</p>
         </div>
