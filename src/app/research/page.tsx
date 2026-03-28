@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Award,
   BadgeInfo,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import styles from "./page.module.css";
 import { SALES_LEGENDS, type SalesLegend } from "@/lib/salesTips";
+import type { ActivityStage, DashboardPayload, HotDeal, IndividualData, RegionData } from "@/types/dashboard";
 
 type ResearchTab = "library" | "patterns" | "intel";
 type MethodologyId = SalesLegend["id"];
@@ -48,6 +49,40 @@ type IntelCard = {
   summary: string;
   countermove: string;
   date: string;
+};
+
+type DashboardSnapshot = DashboardPayload;
+
+const EMPTY_DASHBOARD: DashboardSnapshot = {
+  stats: [],
+  regional: [],
+  bottleneck: [],
+  individuals: [],
+  focusAccounts: [],
+  topAccounts: [],
+  hotDeals: [],
+  teamSummary: {
+    targetRevenue: 0,
+    actualRevenue: 0,
+    gapRevenue: 0,
+    attainment: 0,
+    accountCount: 0,
+    activatedCount: 0,
+    newRevenue: 0,
+    renewRevenue: 0,
+    directRevenue: 0,
+    channelRevenue: 0,
+    activityGoal: 0,
+    activityActual: 0,
+    activityCompletion: 0,
+    topManager: "TBD",
+    criticalRegionCount: 0,
+  },
+  pacing: [],
+  aging: [],
+  periodLabel: "BD Team",
+  dataSource: "fallback",
+  lastUpdated: "",
 };
 
 const TABS: Array<{ id: ResearchTab; label: string; icon: React.ReactNode }> = [
@@ -134,96 +169,360 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
   },
 };
 
-const GOLDEN_PATTERNS: PatternCard[] = [
-  {
-    id: "reframe-before-demo",
-    tag: "Reframe",
-    methodology: "Challenger",
-    title: "Open with a commercial insight before the first demo",
-    summary: "Teams that lead with a point of view turn passive discovery into active urgency.",
-    signal: "The strongest reps in the book are the ones changing the buyer's frame early.",
-    impact: "Reported lift in meeting-to-next-step conversion.",
-    usedBy: "Top field reps",
-    winRate: 78,
-    region: "Seoul / Gyeonggi",
-  },
-  {
-    id: "spin-implication-loop",
-    tag: "Implication",
-    methodology: "SPIN",
-    title: "Use implication questions to surface the cost of delay",
-    summary: "Once the buyer feels the downside, the conversation shifts from curiosity to urgency.",
-    signal: "Three sequential implication questions consistently sharpened the need.",
-    impact: "Shortened proposal drift in discovery-led deals.",
-    usedBy: "Enterprise sellers",
-    winRate: 85,
-    region: "EMEA",
-  },
-  {
-    id: "meddic-process-lock",
-    tag: "Process",
-    methodology: "MEDDIC",
-    title: "Lock the decision process before the team assumes the path",
-    summary: "Late-stage deals close faster when the approval path is written down early.",
-    signal: "Paper process and economic buyer clarity were the biggest differentiators.",
-    impact: "Reduced late-stage slippage in forecast reviews.",
-    usedBy: "Ops-led sellers",
-    winRate: 90,
-    region: "Global",
-  },
-  {
-    id: "sandler-contract",
-    tag: "Commitment",
-    methodology: "Sandler",
-    title: "Set an upfront contract on every meeting",
-    summary: "The team moves faster when the next step, pain, and timing are explicit.",
-    signal: "The cleanest deals had the strongest mutual commitment upfront.",
-    impact: "Improved show rate and reduced vague follow-up loops.",
-    usedBy: "SDR + AE pods",
-    winRate: 71,
-    region: "APAC",
-  },
-];
-
-const INTEL_CARDS: IntelCard[] = [
-  {
-    id: "intel-1",
-    urgency: "high",
-    region: "Gyeonggi North",
-    title: "Pricing pressure is showing up earlier in the cycle",
-    summary: "Several accounts are pushing for comparative pricing before the team has clarified outcome scope.",
-    countermove: "Anchor the business cost first, then disclose price structure.",
-    date: "2026-03-28",
-  },
-  {
-    id: "intel-2",
-    urgency: "medium",
-    region: "Seoul Enterprise",
-    title: "Decision makers are asking for a shorter approval trail",
-    summary: "Multiple late-stage accounts want a cleaner paper process and fewer handoffs.",
-    countermove: "Map the approval chain before the proposal goes out.",
-    date: "2026-03-24",
-  },
-  {
-    id: "intel-3",
-    urgency: "low",
-    region: "Busan / Ulsan",
-    title: "AI-led positioning is resonating in new conversations",
-    summary: "Accounts that see an operations use case are reacting better than accounts that see a demo pitch.",
-    countermove: "Lead with workflow and adoption, not feature breadth.",
-    date: "2026-03-20",
-  },
-];
-
 function matchesQuery(value: string, query: string): boolean {
   return value.toLowerCase().includes(query.toLowerCase());
+}
+
+function formatRevenue(value: number): string {
+  if (value >= 1000) {
+    return `KRW ${(value / 1000).toFixed(1)}B`;
+  }
+
+  return `KRW ${Math.round(value).toLocaleString()}M`;
+}
+
+function formatDateStamp(value?: string): string {
+  if (!value) {
+    return "Not synced yet";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Not synced yet";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatIsoDate(value?: string): string {
+  if (!value) {
+    return "Not synced yet";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Not synced yet";
+  }
+
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function normalizeDashboardPayload(payload: Partial<DashboardPayload> | null | undefined): DashboardSnapshot {
+  return {
+    ...EMPTY_DASHBOARD,
+    ...payload,
+    stats: payload?.stats ?? [],
+    regional: payload?.regional ?? [],
+    bottleneck: payload?.bottleneck ?? [],
+    individuals: payload?.individuals ?? [],
+    focusAccounts: payload?.focusAccounts ?? [],
+    topAccounts: payload?.topAccounts ?? [],
+    hotDeals: payload?.hotDeals ?? [],
+    pacing: payload?.pacing ?? [],
+    aging: payload?.aging ?? [],
+    teamSummary: {
+      ...EMPTY_DASHBOARD.teamSummary,
+      ...(payload?.teamSummary ?? {}),
+    },
+  };
+}
+
+function getWeakestRegion(regions: RegionData[]): RegionData | null {
+  if (regions.length === 0) {
+    return null;
+  }
+
+  return regions.reduce((lowest, current) => (current.progress < lowest.progress ? current : lowest));
+}
+
+function getStrongestRegion(regions: RegionData[]): RegionData | null {
+  if (regions.length === 0) {
+    return null;
+  }
+
+  return regions.reduce((highest, current) => (current.progress > highest.progress ? current : highest));
+}
+
+function getWeakestStage(stages: ActivityStage[]): ActivityStage | null {
+  if (stages.length === 0) {
+    return null;
+  }
+
+  return stages.reduce((lowest, current) => ((current.progress ?? 0) < (lowest.progress ?? 0) ? current : lowest));
+}
+
+function getTopDeal(deals: HotDeal[]): HotDeal | null {
+  if (deals.length === 0) {
+    return null;
+  }
+
+  return deals.reduce((best, current) => {
+    if (current.probability !== best.probability) {
+      return current.probability > best.probability ? current : best;
+    }
+
+    return current.value > best.value ? current : best;
+  });
+}
+
+function getTopManager(individuals: IndividualData[]): IndividualData | null {
+  if (individuals.length === 0) {
+    return null;
+  }
+
+  return individuals[0] ?? null;
+}
+
+function buildPatternCards(dashboard: DashboardSnapshot): PatternCard[] {
+  const weakestRegion = getWeakestRegion(dashboard.regional);
+  const strongestRegion = getStrongestRegion(dashboard.regional);
+  const weakestStage = getWeakestStage(dashboard.bottleneck);
+  const topDeal = getTopDeal(dashboard.hotDeals);
+  const topManager = getTopManager(dashboard.individuals);
+  const fallback = dashboard.dataSource !== "google-sheets";
+  const cards: PatternCard[] = [];
+
+  if (weakestRegion && strongestRegion) {
+    const regionGap = Math.max(strongestRegion.progress - weakestRegion.progress, 0);
+    cards.push({
+      id: `pattern-region-${weakestRegion.name}`,
+      tag: "Reframe",
+      methodology: "Challenger",
+      title: `${weakestRegion.name} is the region to reframe first`,
+      summary: `It is sitting at ${weakestRegion.progress}% attainment versus ${strongestRegion.name} at ${strongestRegion.progress}%.`,
+      signal: `${formatRevenue(weakestRegion.revenue)} booked against ${formatRevenue(weakestRegion.target)} target.`,
+      impact: `Use a commercial insight to close the ${regionGap}-point gap before the next manager review.`,
+      usedBy: dashboard.teamSummary.topManager,
+      winRate: Math.max(40, Math.min(95, weakestRegion.progress)),
+      region: weakestRegion.name,
+    });
+  }
+
+  if (weakestStage) {
+    cards.push({
+      id: `pattern-stage-${weakestStage.stage}`,
+      tag: "Qualification",
+      methodology: "MEDDIC",
+      title: `${weakestStage.stage} is the active bottleneck`,
+      summary: `Activity is running at ${weakestStage.progress ?? 0}% of goal, with ${weakestStage.actual ?? 0}/${weakestStage.goal ?? weakestStage.fullMark} completed.`,
+      signal: `Team execution is at ${dashboard.teamSummary.activityCompletion.toFixed(1)}% across the current board.`,
+      impact: "Tighten decision criteria and owner handoff here first.",
+      usedBy: "Ops-led sellers",
+      winRate: Math.max(35, Math.min(95, weakestStage.progress ?? 0)),
+      region: "BD Team",
+    });
+  }
+
+  if (topDeal) {
+    cards.push({
+      id: `pattern-deal-${topDeal.id}`,
+      tag: "Momentum",
+      methodology: "Sandler",
+      title: `${topDeal.client} is the clearest near-term commitment`,
+      summary: `At ${topDeal.probability}% probability and ${formatRevenue(topDeal.value)} value, this is the fastest path to forecast certainty.`,
+      signal: `${topDeal.manager} / ${topDeal.region} / ${topDeal.version}`,
+      impact: "Lock the next meeting, pain, and decision path now.",
+      usedBy: "Active pipeline",
+      winRate: topDeal.probability,
+      region: topDeal.region,
+    });
+  }
+
+  if (topManager) {
+    cards.push({
+      id: `pattern-manager-${topManager.name}`,
+      tag: "Adoption",
+      methodology: "General",
+      title: `${topManager.name} is the current operating reference`,
+      summary: `They have ${formatRevenue(topManager.wonRevenue)} won revenue on ${topManager.deals_won}/${topManager.deals_total} closed deals.`,
+      signal: `Activity ${topManager.activityActual ?? 0}/${topManager.activityGoal ?? 0} and ${formatRevenue(topManager.pipelineRevenue)} still in play.`,
+      impact: "Replicate the motion that is already producing the board's best numbers.",
+      usedBy: "Team bench",
+      winRate: Math.max(40, Math.min(95, topManager.progress)),
+      region: "BD Team",
+    });
+  }
+
+  if (cards.length === 0) {
+    return [
+      {
+        id: "pattern-dummy-1",
+        tag: "-더미- Reframe",
+        methodology: "Challenger",
+        title: "-더미- regional pattern placeholder",
+        summary: "Waiting for the BD dashboard payload to generate live patterns.",
+        signal: "-더미- no live regional data yet.",
+        impact: "-더미- keep this tab aligned to sheet-backed data once it arrives.",
+        usedBy: "BD Team",
+        winRate: 0,
+        region: "BD Team",
+      },
+      {
+        id: "pattern-dummy-2",
+        tag: "-더미- Qualification",
+        methodology: "MEDDIC",
+        title: "-더미- pipeline placeholder",
+        summary: "Waiting for the live bottleneck and deal list to populate this view.",
+        signal: "-더미- no live stage data yet.",
+        impact: "-더미- replace with dashboard-derived cards when the payload is ready.",
+        usedBy: "Ops",
+        winRate: 0,
+        region: "BD Team",
+      },
+    ];
+  }
+
+  return cards.slice(0, 4).map((card) =>
+    fallback ? { ...card, tag: `-더미- ${card.tag}` } : card,
+  );
+}
+
+function buildIntelCards(dashboard: DashboardSnapshot): IntelCard[] {
+  const weakestRegion = getWeakestRegion(dashboard.regional);
+  const weakestStage = getWeakestStage(dashboard.bottleneck);
+  const topDeal = getTopDeal(dashboard.hotDeals);
+  const agingDeals = dashboard.aging.filter((deal) => deal.days >= 40);
+  const lastUpdated = formatIsoDate(dashboard.lastUpdated);
+  const fallback = dashboard.dataSource !== "google-sheets";
+  const cards: IntelCard[] = [];
+
+  if (weakestRegion) {
+    const openGap = Math.max(weakestRegion.target - weakestRegion.revenue, 0);
+    cards.push({
+      id: `intel-region-${weakestRegion.name}`,
+      urgency: weakestRegion.progress < 70 ? "high" : weakestRegion.progress < 85 ? "medium" : "low",
+      region: weakestRegion.name,
+      title: `${weakestRegion.name} is the first region to intervene on`,
+      summary: `It is at ${weakestRegion.progress}% attainment, with ${formatRevenue(openGap)} still open against target.`,
+      countermove: "Open with a reframing note and tighten the next-step ask around the gap.",
+      date: lastUpdated,
+    });
+  }
+
+  if (agingDeals.length > 0) {
+    const oldest = agingDeals.slice().sort((left, right) => right.days - left.days)[0];
+    cards.push({
+      id: `intel-aging-${oldest.id}`,
+      urgency: "high",
+      region: "BD Team",
+      title: `${agingDeals.length} aging deals need a re-qualification pass`,
+      summary: `The oldest open item is ${oldest.days} days old and should be reset before the month closes.`,
+      countermove: "Re-open pain, decision criteria, and owner path on the oldest account first.",
+      date: lastUpdated,
+    });
+  }
+
+  if (topDeal) {
+    cards.push({
+      id: `intel-deal-${topDeal.id}`,
+      urgency: topDeal.probability >= 85 ? "high" : topDeal.probability >= 75 ? "medium" : "low",
+      region: topDeal.region,
+      title: `${topDeal.client} is the clearest momentum signal`,
+      summary: `The deal sits at ${topDeal.probability}% probability and ${formatRevenue(topDeal.value)} value, making it a useful board proof point.`,
+      countermove: "Copy the current commitment discipline to adjacent opportunities.",
+      date: lastUpdated,
+    });
+  }
+
+  if (weakestStage) {
+    cards.push({
+      id: `intel-stage-${weakestStage.stage}`,
+      urgency: (weakestStage.progress ?? 0) < 50 ? "high" : (weakestStage.progress ?? 0) < 75 ? "medium" : "low",
+      region: "BD Team",
+      title: `${weakestStage.stage} is the activity bottleneck`,
+      summary: `The stage is at ${weakestStage.progress ?? 0}% of goal, which is shaping the next manager coaching cycle.`,
+      countermove: "Use the weakest stage as the playbook for coaching, not just reporting.",
+      date: lastUpdated,
+    });
+  }
+
+  if (cards.length === 0) {
+    return [
+      {
+        id: "intel-dummy-1",
+        urgency: "medium",
+        region: "BD Team",
+        title: "-더미- live intel placeholder",
+        summary: "Waiting for the dashboard payload to surface region, deal, and activity signals.",
+        countermove: "-더미- keep this view tied to the live board, not static research notes.",
+        date: lastUpdated,
+      },
+    ];
+  }
+
+  return cards.slice(0, 4).map((card) =>
+    fallback ? { ...card, title: `-더미- ${card.title}` } : card,
+  );
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className={styles.emptyState}>
+      <Sparkles size={16} />
+      <div>
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function ResearchPage() {
   const [activeTab, setActiveTab] = useState<ResearchTab>("library");
   const [query, setQuery] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<MethodologyId | "All">("All");
+  const [dashboard, setDashboard] = useState<DashboardSnapshot>(EMPTY_DASHBOARD);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const focusMethod = selectedMethod === "All" ? "Challenger" : selectedMethod;
+
+  useEffect(() => {
+    let alive = true;
+    const controller = new AbortController();
+
+    const loadDashboard = async () => {
+      try {
+        const response = await fetch("/api/dashboard/regions", { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`Research dashboard request failed with ${response.status}`);
+        }
+
+        const payload = normalizeDashboardPayload((await response.json()) as Partial<DashboardPayload>);
+
+        if (alive) {
+          setDashboard(payload);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Failed to load research dashboard:", error);
+        if (alive) {
+          setDashboard(EMPTY_DASHBOARD);
+        }
+      } finally {
+        if (alive) {
+          setHasLoaded(true);
+        }
+      }
+    };
+
+    void loadDashboard();
+
+    return () => {
+      alive = false;
+      controller.abort();
+    };
+  }, []);
 
   const filteredLegends = useMemo(() => {
     return SALES_LEGENDS.filter((legend) => {
@@ -240,8 +539,10 @@ export default function ResearchPage() {
     });
   }, [query]);
 
+  const livePatterns = useMemo(() => buildPatternCards(dashboard), [dashboard]);
+
   const filteredPatterns = useMemo(() => {
-    return GOLDEN_PATTERNS.filter((pattern) => {
+    return livePatterns.filter((pattern) => {
       const searchHit =
         !query ||
         matchesQuery(pattern.tag, query) ||
@@ -254,10 +555,12 @@ export default function ResearchPage() {
 
       return searchHit && methodologyHit;
     });
-  }, [query, selectedMethod]);
+  }, [livePatterns, query, selectedMethod]);
+
+  const liveIntel = useMemo(() => buildIntelCards(dashboard), [dashboard]);
 
   const filteredIntel = useMemo(() => {
-    return INTEL_CARDS.filter((card) => {
+    return liveIntel.filter((card) => {
       if (!query) {
         return true;
       }
@@ -270,18 +573,21 @@ export default function ResearchPage() {
         matchesQuery(card.date, query)
       );
     });
-  }, [query]);
+  }, [liveIntel, query]);
 
-  const activeSummary = useMemo(() => {
-    const legendCount = filteredLegends.length;
-    const patternCount = filteredPatterns.length;
-    const intelCount = filteredIntel.length;
-    return [
-      { label: "Library", value: `${legendCount} methods` },
-      { label: "Patterns", value: `${patternCount} plays` },
-      { label: "Intel", value: `${intelCount} signals` },
-    ];
-  }, [filteredIntel.length, filteredLegends.length, filteredPatterns.length]);
+  const sourceLabel = hasLoaded ? (dashboard.dataSource === "google-sheets" ? "Live Sheet" : "Fallback") : "Loading";
+  const activeSummary = useMemo(
+    () => [
+      { label: "Source", value: sourceLabel },
+      { label: "Patterns", value: hasLoaded ? `${filteredPatterns.length} plays` : "Loading" },
+      { label: "Intel", value: hasLoaded ? `${filteredIntel.length} signals` : "Loading" },
+    ],
+    [filteredIntel.length, filteredPatterns.length, hasLoaded, sourceLabel],
+  );
+
+  const subtitle = hasLoaded
+    ? `Board source: ${sourceLabel}. Updated ${formatDateStamp(dashboard.lastUpdated)}. Research cards are generated from the current BD dashboard payload.`
+    : "Pulling the current BD dashboard payload before generating patterns and intel.";
 
   return (
     <div className={styles.container}>
@@ -289,9 +595,7 @@ export default function ResearchPage() {
         <div>
           <p className={styles.kicker}>Research Hub</p>
           <h1 className={styles.title}>BD enablement library, winning patterns, and field intel</h1>
-          <p className={styles.subtitle}>
-            A working reference for the team, built to turn field observations into repeatable operating rules.
-          </p>
+          <p className={styles.subtitle}>{subtitle}</p>
         </div>
         <div className={styles.summaryRow}>
           {activeSummary.map((item) => (
@@ -453,8 +757,16 @@ export default function ResearchPage() {
 
       {activeTab === "patterns" && (
         <section className={styles.patternGrid}>
-          {filteredPatterns.length === 0 ? (
-            <EmptyState title="No patterns matched" description="Try a different method or keyword to surface a stronger play." />
+          {!hasLoaded ? (
+            <EmptyState
+              title="Loading live board"
+              description="Waiting for the current BD dashboard payload before generating patterns."
+            />
+          ) : filteredPatterns.length === 0 ? (
+            <EmptyState
+              title="No patterns matched"
+              description="Try a different method or keyword to surface a live board pattern."
+            />
           ) : (
             filteredPatterns.map((pattern) => (
               <article key={pattern.id} className={styles.patternCard}>
@@ -491,13 +803,21 @@ export default function ResearchPage() {
             </div>
             <h2>Signals that should shape the next BD move</h2>
             <p>
-              These notes are meant to keep the field team focused on current pressure points, not to create a separate research theater.
+              These notes are generated from the current BD dashboard payload so the team stays tied to the live board, not a separate research theater.
             </p>
           </div>
 
           <div className={styles.intelList}>
-            {filteredIntel.length === 0 ? (
-              <EmptyState title="No intel matched" description="Try another keyword to surface the current watchlist." />
+            {!hasLoaded ? (
+              <EmptyState
+                title="Loading live board"
+                description="Waiting for the current BD dashboard payload before generating intel."
+              />
+            ) : filteredIntel.length === 0 ? (
+              <EmptyState
+                title="No intel matched"
+                description="Try another keyword to surface the current watchlist."
+              />
             ) : (
               filteredIntel.map((card) => (
                 <article key={card.id} className={`${styles.intelCard} ${styles[`intel${card.urgency}`]}`}>
@@ -520,18 +840,6 @@ export default function ResearchPage() {
           </div>
         </section>
       )}
-    </div>
-  );
-}
-
-function EmptyState({ title, description }: { title: string; description: string }) {
-  return (
-    <div className={styles.emptyState}>
-      <Sparkles size={16} />
-      <div>
-        <h3>{title}</h3>
-        <p>{description}</p>
-      </div>
     </div>
   );
 }

@@ -178,6 +178,112 @@ const METHOD_COPY: Record<MethodologyId, {
   },
 };
 
+type MethodologyCardCopy = {
+  label: string;
+  summary: string;
+  bestFor: string;
+  whenToUse: string;
+  tip: string;
+  quote: string;
+  color: string;
+  stages: { label: string; desc: string }[];
+  principles: string[];
+};
+
+const PROJECT_METHOD_COPY: Record<MethodologyId, MethodologyCardCopy> = {
+  Challenger: {
+    label: "Challenger",
+    summary: "Frame the business problem before you pitch the product.",
+    bestFor: "Complex deals where the buyer needs a sharper commercial point of view.",
+    whenToUse: "Use when the customer sees symptoms but has not named the cost.",
+    tip: "Teach first, then tailor the solution.",
+    quote: "Insight earns attention before features do.",
+    color: "#6366f1",
+    stages: [
+      { label: "Warm-up", desc: "Establish context and credibility." },
+      { label: "Reframe", desc: "Name the missed cost of staying put." },
+      { label: "Impact", desc: "Show the business consequence." },
+      { label: "New path", desc: "Offer a better operating model." },
+      { label: "Solution", desc: "Connect the new path to our offer." },
+    ],
+    principles: [
+      "Lead with a commercial point of view.",
+      "Tailor the message to the buyer's reality.",
+      "Control the next step with purpose.",
+      "Support claims with evidence from the sheet.",
+    ],
+  },
+  SPIN: {
+    label: "SPIN",
+    summary: "Use structured questions to uncover need, urgency, and impact.",
+    bestFor: "Discovery-heavy conversations and early-stage deals.",
+    whenToUse: "Use when the buyer understands the symptom but not the consequence.",
+    tip: "Let the buyer name the pain in their own words.",
+    quote: "Great questions make the buyer do part of the selling.",
+    color: "#22c55e",
+    stages: [
+      { label: "Situation", desc: "Set the operating context." },
+      { label: "Problem", desc: "Surface the real friction." },
+      { label: "Implication", desc: "Quantify the cost of inaction." },
+      { label: "Need-payoff", desc: "Show why change is worth it." },
+    ],
+    principles: [
+      "Ask before you explain.",
+      "Move from symptom to consequence.",
+      "Connect pain to business impact.",
+      "Close with a payoff the buyer can repeat.",
+    ],
+  },
+  MEDDIC: {
+    label: "MEDDIC",
+    summary: "Qualify complex deals with metrics, process, and buyer clarity.",
+    bestFor: "Enterprise pursuits with multiple stakeholders and longer cycles.",
+    whenToUse: "Use when the decision path is unclear or the forecast is at risk.",
+    tip: "Map the economic buyer, criteria, and process early.",
+    quote: "If you cannot map the process, you cannot forecast the deal.",
+    color: "#f59e0b",
+    stages: [
+      { label: "Metrics", desc: "Tie the deal to measurable outcomes." },
+      { label: "Economic buyer", desc: "Confirm who can approve the change." },
+      { label: "Criteria", desc: "Understand the decision standard." },
+      { label: "Process", desc: "Map the path to signature." },
+      { label: "Pain", desc: "Clarify the business problem." },
+      { label: "Champion", desc: "Identify the internal driver." },
+    ],
+    principles: [
+      "No metrics, no conviction.",
+      "No champion means the deal is still fragile.",
+      "Decision process is a map, not a guess.",
+      "Competition should be visible early.",
+    ],
+  },
+  Sandler: {
+    label: "Sandler",
+    summary: "Qualify fit early and keep the conversation mutually honest.",
+    bestFor: "Direct selling, renewals, and pipeline clean-up.",
+    whenToUse: "Use when budget, pain, or decision clarity are weak.",
+    tip: "Make pain, budget, and decision criteria explicit.",
+    quote: "The best sales conversations are honest conversations.",
+    color: "#ef4444",
+    stages: [
+      { label: "Bonding", desc: "Create a practical working tone." },
+      { label: "Pain", desc: "Surface the actual discomfort." },
+      { label: "Budget", desc: "Check whether the deal can be funded." },
+      { label: "Decision", desc: "Confirm the path to a decision." },
+      { label: "Fulfillment", desc: "Lock the expected outcome." },
+      { label: "Post-sell", desc: "Set the handoff and next steps." },
+    ],
+    principles: [
+      "Set the contract up front.",
+      "Qualification is a service, not a gate.",
+      "A clean no is better than a fuzzy maybe.",
+      "Pain without budget is a weak forecast.",
+    ],
+  },
+};
+
+void METHOD_COPY;
+
 function normalizeDashboard(payload: Partial<DashboardPayload> | null | undefined): DashboardPayload {
   return {
     ...EMPTY_DASHBOARD,
@@ -237,22 +343,112 @@ function parseAiResponse(text: string): { title: string; body: string }[] {
   return sections.length ? sections.map((section) => ({ title: section.title, body: section.body.join("\n").trim() })) : [{ title: "Insight", body: text.trim() }];
 }
 
-function buildAiPreview(dashboard: DashboardPayload, crm: CrmPayload, methodology: MethodologyId): string {
-  const { weakest } = getRegionSummary(dashboard.regional);
-  const weakestStage = dashboard.bottleneck.reduce<DashboardPayload["bottleneck"][number] | null>((lowest, stage) => {
+function buildAiContext(dashboard: DashboardPayload, crm: CrmPayload, methodology: MethodologyId) {
+  const method = PROJECT_METHOD_COPY[methodology];
+  const sortedRegions = [...dashboard.regional].sort((a, b) => b.progress - a.progress);
+  const { strongest, weakest } = getRegionSummary(dashboard.regional);
+  const bottleneck = dashboard.bottleneck.reduce<DashboardPayload["bottleneck"][number] | null>((lowest, stage) => {
     if (!lowest || (stage.progress ?? 0) < (lowest.progress ?? 0)) return stage;
     return lowest;
   }, null);
-  const topLead = crm.leads[0];
+  const openLeads = crm.leads.filter((lead) => lead.stage !== "Contract").sort((a, b) => b.probability - a.probability);
+  const weightedPipeline = crm.leads.reduce((sum, lead) => sum + lead.revenue_potential * (lead.probability / 100), 0);
+
+  return {
+    periodLabel: dashboard.periodLabel,
+    dataSource: dashboard.dataSource,
+    teamSummary: {
+      attainment: formatPercent(dashboard.teamSummary.attainment),
+      gapRevenue: formatRevenue(dashboard.teamSummary.gapRevenue),
+      targetRevenue: formatRevenue(dashboard.teamSummary.targetRevenue),
+      actualRevenue: formatRevenue(dashboard.teamSummary.actualRevenue),
+      activityCompletion: formatPercent(dashboard.teamSummary.activityCompletion),
+      criticalRegionCount: dashboard.teamSummary.criticalRegionCount,
+      accountCount: dashboard.teamSummary.accountCount,
+      activatedCount: dashboard.teamSummary.activatedCount,
+      topManager: dashboard.teamSummary.topManager,
+    },
+    regions: {
+      strongest: strongest ? { name: strongest.name, progress: strongest.progress, revenue: formatRevenue(strongest.revenue), target: formatRevenue(strongest.target) } : null,
+      weakest: weakest ? { name: weakest.name, progress: weakest.progress, revenue: formatRevenue(weakest.revenue), target: formatRevenue(weakest.target) } : null,
+      watchlist: sortedRegions.slice(0, 3).map((region) => ({
+        name: region.name,
+        progress: region.progress,
+        revenue: formatRevenue(region.revenue),
+        target: formatRevenue(region.target),
+      })),
+    },
+    execution: {
+      weakestStage: bottleneck ? { stage: bottleneck.stage, progress: bottleneck.progress ?? 0 } : null,
+      topRep: dashboard.individuals[0]
+        ? {
+            name: dashboard.individuals[0].name,
+            progress: dashboard.individuals[0].progress,
+            wonRevenue: formatRevenue(dashboard.individuals[0].wonRevenue),
+            pipelineRevenue: formatRevenue(dashboard.individuals[0].pipelineRevenue),
+          }
+        : null,
+    },
+    pipeline: {
+      openLeadCount: openLeads.length,
+      weightedPipeline: formatRevenue(weightedPipeline),
+      topLead: openLeads[0]
+        ? {
+            company: openLeads[0].company,
+            contact: openLeads[0].contact,
+            region: openLeads[0].region,
+            stage: openLeads[0].stage,
+            probability: openLeads[0].probability,
+            revenuePotential: formatRevenue(openLeads[0].revenue_potential),
+            owner: openLeads[0].owner,
+            dueDate: openLeads[0].due_date,
+            dueLabel: openLeads[0].due_label,
+            action: openLeads[0].action,
+          }
+        : null,
+      urgentActions: crm.actions.slice(0, 3).map((action) => ({
+        salesRep: action.salesRep,
+        target: action.target,
+        prob: action.prob,
+        action: action.action,
+        due: action.due,
+        region: action.region,
+        stage: action.stage,
+      })),
+    },
+    reps: dashboard.individuals.slice(0, 5).map((rep) => ({
+      name: rep.name,
+      progress: rep.progress,
+      wonRevenue: formatRevenue(rep.wonRevenue),
+      pipelineRevenue: formatRevenue(rep.pipelineRevenue),
+      activityActual: rep.activityActual ?? 0,
+      activityGoal: rep.activityGoal ?? 0,
+    })),
+    methodology: {
+      id: methodology,
+      label: method.label,
+      summary: method.summary,
+      bestFor: method.bestFor,
+      whenToUse: method.whenToUse,
+      quote: method.quote,
+      stages: method.stages.map((stage) => stage.label),
+      principles: method.principles,
+    },
+  };
+}
+
+function buildAiPreview(dashboard: DashboardPayload, crm: CrmPayload, methodology: MethodologyId): string {
+  const context = buildAiContext(dashboard, crm, methodology);
 
   return [
-    `Methodology: ${methodology}`,
-    `Period: ${dashboard.periodLabel}`,
-    `Attainment: ${formatPercent(dashboard.teamSummary.attainment)}`,
-    `Gap: ${formatRevenue(dashboard.teamSummary.gapRevenue)}`,
-    `Risk region: ${weakest ? `${weakest.name} (${weakest.progress}%)` : "n/a"}`,
-    `Weakest stage: ${weakestStage ? `${weakestStage.stage} (${weakestStage.progress ?? 0}%)` : "n/a"}`,
-    `Top lead: ${topLead ? `${topLead.company} (${topLead.probability}%)` : "n/a"}`,
+    `Data source: ${context.dataSource}`,
+    `Period: ${context.periodLabel}`,
+    `Attainment: ${context.teamSummary.attainment}`,
+    `Gap: ${context.teamSummary.gapRevenue}`,
+    `Weakest region: ${context.regions.weakest ? `${context.regions.weakest.name} (${context.regions.weakest.progress}%)` : "n/a"}`,
+    `Weakest stage: ${context.execution.weakestStage ? `${context.execution.weakestStage.stage} (${context.execution.weakestStage.progress}%)` : "n/a"}`,
+    `Top lead: ${context.pipeline.topLead ? `${context.pipeline.topLead.company} (${context.pipeline.topLead.probability}%)` : "n/a"}`,
+    `Priority action: ${context.pipeline.urgentActions[0] ? context.pipeline.urgentActions[0].action : "n/a"}`,
   ].join("\n");
 }
 
@@ -321,7 +517,12 @@ export default function ProjectPage() {
       const res = await fetch("/api/ai/project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ regionalData: dashboard.regional, individuals: dashboard.individuals, methodology }),
+        body: JSON.stringify({
+          regionalData: dashboard.regional,
+          individuals: dashboard.individuals,
+          methodology,
+          context: buildAiContext(dashboard, crm, methodology),
+        }),
       });
       const json = (await res.json()) as { insight?: string; error?: string };
       if (!res.ok) throw new Error(json.error || "failed");
@@ -492,30 +693,30 @@ export default function ProjectPage() {
       {tab === "methodology" ? (
         <div className={styles.methodLayout}>
           <div className={styles.methodPicker}>
-            {(Object.keys(METHOD_COPY) as MethodologyId[]).map((id) => (
+            {(Object.keys(PROJECT_METHOD_COPY) as MethodologyId[]).map((id) => (
               <button key={id} className={`${styles.methodBtn} ${methodology === id ? styles.methodBtnActive : ""}`} onClick={() => setMethodology(id)} type="button">
-                {METHOD_COPY[id].label}
+                {PROJECT_METHOD_COPY[id].label}
               </button>
             ))}
           </div>
 
-          <div className={styles.methodHero} style={{ borderColor: `${METHOD_COPY[methodology].color}33` }}>
+          <div className={styles.methodHero} style={{ borderColor: `${PROJECT_METHOD_COPY[methodology].color}33` }}>
             <div>
               <div className={styles.sectionLabel}>Playbook</div>
-              <div className={styles.methodTitle}>{METHOD_COPY[methodology].label}</div>
-              <p className={styles.methodSummary}>{METHOD_COPY[methodology].summary}</p>
+              <div className={styles.methodTitle}>{PROJECT_METHOD_COPY[methodology].label}</div>
+              <p className={styles.methodSummary}>{PROJECT_METHOD_COPY[methodology].summary}</p>
             </div>
             <div className={styles.methodAside}>
               <div className={styles.asideLabel}>Best for</div>
-              <div className={styles.asideValue}>{METHOD_COPY[methodology].bestFor}</div>
-              <div className={styles.asideMeta}>{METHOD_COPY[methodology].whenToUse}</div>
+              <div className={styles.asideValue}>{PROJECT_METHOD_COPY[methodology].bestFor}</div>
+              <div className={styles.asideMeta}>{PROJECT_METHOD_COPY[methodology].whenToUse}</div>
             </div>
           </div>
 
           <div className={styles.methodGrid}>
             <Card title="Stage flow">
               <div className={styles.timeline}>
-                {METHOD_COPY[methodology].stages.map((stage, index) => (
+                {PROJECT_METHOD_COPY[methodology].stages.map((stage, index) => (
                   <div key={stage.label} className={styles.timelineItem}>
                     <div className={styles.timelineIndex}>{index + 1}</div>
                     <div>
@@ -529,7 +730,7 @@ export default function ProjectPage() {
 
             <Card title="Operating principles">
               <div className={styles.principleList}>
-                {METHOD_COPY[methodology].principles.map((principle) => (
+                {PROJECT_METHOD_COPY[methodology].principles.map((principle) => (
                   <div key={principle} className={styles.principleRow}>
                     <Sparkles size={13} />
                     <span>{principle}</span>
@@ -540,10 +741,10 @@ export default function ProjectPage() {
           </div>
 
           <Card title="Coach note" className={styles.quoteCard}>
-            <div className={styles.quoteText}>&ldquo;{METHOD_COPY[methodology].quote}&rdquo;</div>
+            <div className={styles.quoteText}>&ldquo;{PROJECT_METHOD_COPY[methodology].quote}&rdquo;</div>
             <div className={styles.quoteTip}>
               <AlertTriangle size={13} />
-              <span>{METHOD_COPY[methodology].tip}</span>
+              <span>{PROJECT_METHOD_COPY[methodology].tip}</span>
             </div>
           </Card>
         </div>
@@ -566,11 +767,13 @@ export default function ProjectPage() {
           <div className={styles.aiGrid}>
             <Card title="What the AI sees">
               <div className={styles.aiAnchorList}>
+                <div className={styles.aiAnchor}><span>Data source</span><strong>{dashboard.dataSource === "google-sheets" ? "Live sheet" : "Fallback"}</strong></div>
                 <div className={styles.aiAnchor}><span>Period</span><strong>{dashboard.periodLabel}</strong></div>
                 <div className={styles.aiAnchor}><span>Attainment</span><strong>{formatPercent(dashboard.teamSummary.attainment)}</strong></div>
                 <div className={styles.aiAnchor}><span>Risk region</span><strong>{weakest ? `${weakest.name} (${weakest.progress}%)` : "n/a"}</strong></div>
                 <div className={styles.aiAnchor}><span>Weakest stage</span><strong>{executionWeakest ? `${executionWeakest.stage} (${executionWeakest.progress ?? 0}%)` : "n/a"}</strong></div>
                 <div className={styles.aiAnchor}><span>Top lead</span><strong>{crm.leads[0]?.company ?? "n/a"}</strong></div>
+                <div className={styles.aiAnchor}><span>Priority action</span><strong>{crm.actions[0]?.action ?? "n/a"}</strong></div>
               </div>
               <pre className={styles.aiPreview}>{buildAiPreview(dashboard, crm, methodology)}</pre>
             </Card>

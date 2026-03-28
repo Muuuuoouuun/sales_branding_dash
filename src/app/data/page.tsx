@@ -185,6 +185,11 @@ function parseCsvRows(text: string): RegionRow[] | null {
   });
 }
 
+function isCsvFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith(".csv") || file.type === "text/csv";
+}
+
 export default function DataPage() {
   const [activeTab, setActiveTab] = useState<Tab>("crm");
   const [platforms, setPlatforms] = useState<CrmPlatform[]>(RECOMMENDED_PLATFORMS);
@@ -367,6 +372,13 @@ export default function DataPage() {
   };
 
   const handleFileRead = (file: File) => {
+    if (!isCsvFile(file)) {
+      setUploadFilename("");
+      setUploadRows(null);
+      setUploadError("Only CSV files are supported here. Export Excel data to CSV before staging.");
+      return;
+    }
+
     setUploadError("");
     setUploadRows(null);
     setUploadFilename(file.name);
@@ -687,13 +699,13 @@ export default function DataPage() {
             >
               <Upload size={32} className={styles.dropIcon} />
               <p className={styles.dropText}>
-                Drop a CSV here or <span className={styles.dropHighlight}>click to stage a file</span>
+                Drop a CSV here or <span className={styles.dropHighlight}>click to stage a CSV</span>
               </p>
-              <p className={styles.dropHint}>Accepted schema: name, revenue, target, deals_active, deals_closed</p>
+              <p className={styles.dropHint}>CSV only. Required schema: name, revenue, target, deals_active, deals_closed</p>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".csv,.xlsx,.xls"
+                accept=".csv,text/csv"
                 className={styles.fileInput}
                 onChange={(event) => {
                   const file = event.target.files?.[0];

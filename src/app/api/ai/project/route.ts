@@ -1,37 +1,117 @@
-import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+type ProjectAiContext = {
+  periodLabel?: string;
+  dataSource?: string;
+  teamSummary?: {
+    attainment?: string;
+    gapRevenue?: string;
+    targetRevenue?: string;
+    actualRevenue?: string;
+    activityCompletion?: string;
+    criticalRegionCount?: number;
+    accountCount?: number;
+    activatedCount?: number;
+    topManager?: string;
+  };
+  regions?: {
+    strongest?: { name: string; progress: number; revenue: string; target: string } | null;
+    weakest?: { name: string; progress: number; revenue: string; target: string } | null;
+    watchlist?: { name: string; progress: number; revenue: string; target: string }[];
+  };
+  execution?: {
+    weakestStage?: { stage: string; progress: number } | null;
+    topRep?: { name: string; progress: number; wonRevenue: string; pipelineRevenue: string } | null;
+  };
+  pipeline?: {
+    openLeadCount?: number;
+    weightedPipeline?: string;
+    topLead?: {
+      company: string;
+      contact: string;
+      region: string;
+      stage: string;
+      probability: number;
+      revenuePotential: string;
+      owner: string;
+      dueDate: string;
+      dueLabel: string;
+      action: string;
+    } | null;
+    urgentActions?: {
+      salesRep: string;
+      target: string;
+      prob: string;
+      action: string;
+      due: string;
+      region: string;
+      stage: string;
+    }[];
+  };
+  reps?: {
+    name: string;
+    progress: number;
+    wonRevenue: string;
+    pipelineRevenue: string;
+    activityActual: number;
+    activityGoal: number;
+  }[];
+  methodology?: {
+    id?: string;
+    label?: string;
+    summary?: string;
+    bestFor?: string;
+    whenToUse?: string;
+    quote?: string;
+    stages?: string[];
+    principles?: string[];
+  };
+};
 
 export async function POST(req: Request) {
   try {
-    const { regionalData, individuals, methodology } = await req.json();
+    const payload = (await req.json()) as {
+      regionalData?: unknown[];
+      individuals?: unknown[];
+      methodology?: string;
+      context?: ProjectAiContext;
+    };
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const methodology = payload.methodology || "Challenger";
+    const liveContext =
+      payload.context ?? {
+        periodLabel: "BD Team",
+        dataSource: "unknown",
+        regionalData: payload.regionalData ?? [],
+        individuals: payload.individuals ?? [],
+        methodology,
+      };
+
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro" });
 
     const prompt = `
-당신은 한국 시니어 세일즈 전략 컨설턴트입니다. 다음 영업 데이터를 분석하고 한국어로 전략 인사이트를 제공하세요.
+You are the Project Strategy copilot for a BD sheet-driven operating system.
+Use only the supplied live context. Do not invent metrics or overstate certainty.
+Keep the tone direct, operator-friendly, and commercially useful.
+If the data source is fallback or a signal is missing, say so plainly.
 
-적용 방법론: ${methodology}
+Selected methodology: ${methodology}
 
-지역별 실적:
-${JSON.stringify(regionalData, null, 2)}
+Live project context:
+${JSON.stringify(liveContext, null, 2)}
 
-개인별 실적:
-${JSON.stringify(individuals, null, 2)}
+Return exactly three sections with these headings:
+## Current state
+Summarize the quarter, the strongest and weakest signals, and the main operating risk in 2-3 short paragraphs.
 
-아래 정확히 3개의 섹션으로 구분해서 응답하세요 (섹션 제목은 ## 형식 유지):
+## Priority moves
+List 3 concrete actions for the next 7 days. Each action must reference a real signal from the context.
 
-## 현재상태 진단
-현재 팀 성과를 2-3문장으로 요약. 숫자를 반드시 포함.
-
-## 전략 방향성
-${methodology} 방법론 관점에서 2-3개 전략 방향. 각 항목은 새 줄로.
-
-## 즉시 실행 플랜
-이번 주 내 실행 가능한 3개 액션. 번호(1. 2. 3.) 형식으로.
-
-각 섹션은 간결하고 실행 가능하게 작성하세요.
+## Methodology fit
+Explain how the selected methodology should be applied to this team right now. Keep it concise and practical.
 `;
 
     const result = await model.generateContent(prompt);
@@ -39,9 +119,9 @@ ${methodology} 방법론 관점에서 2-3개 전략 방향. 각 항목은 새 �
 
     return NextResponse.json({ insight: text });
   } catch (error) {
-    console.error('AI Project Strategy Error:', error);
+    console.error("AI Project Strategy Error:", error);
     return NextResponse.json(
-      { insight: 'AI 분석 실패. GEMINI_API_KEY를 확인하세요.' },
+      { insight: "AI analysis failed. Check Gemini connectivity and live sheet data." },
       { status: 500 },
     );
   }
