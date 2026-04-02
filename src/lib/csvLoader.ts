@@ -77,7 +77,7 @@ export async function loadExcel<T>(filename: string, sheetIndex = 0): Promise<T[
   try {
     const buffer = fs.readFileSync(filePath);
     // eval을 통해 정적 분석 우회 (선택적 의존성)
-    const requireFn = eval('require') as NodeRequire;  // eslint-disable-line no-eval
+    const requireFn = eval('require') as NodeRequire;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const XLSX = requireFn('xlsx') as any;
     const workbook = XLSX.read(buffer, { type: 'buffer' });

@@ -22,6 +22,7 @@
   padding: 11px 14px;
   z-index: 50;
   min-width: 170px;
+  max-width: min(220px, calc(100vw - 32px));
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-soft);
   animation: ttIn 0.12s ease;
@@ -117,4 +118,41 @@
   font-size: 10px;
   color: var(--text-muted);
   pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .wrap {
+    min-height: 360px;
+  }
+
+  .legend {
+    bottom: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    min-height: 300px;
+  }
+
+  .tooltip {
+    min-width: 0;
+    max-width: 180px;
+    padding: 9px 10px;
+  }
+
+  .legend {
+    bottom: 12px;
+  }
+
+  .legendBar,
+  .legendTicks {
+    width: 120px;
+  }
+
+  .zoomHint {
+    top: 10px;
+    left: 10px;
+    right: auto;
+  }
 }

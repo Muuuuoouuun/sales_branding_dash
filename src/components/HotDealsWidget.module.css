@@ -1,15 +1,18 @@
 .viewAllBtn {
   font-size: 0.75rem;
-  color: var(--text-muted);
-  background: none;
-  border: none;
+  color: var(--primary-foreground);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+  border-radius: 999px;
   cursor: pointer;
-  padding: 0;
-  transition: color 0.2s;
+  padding: 0.35rem 0.8rem;
+  transition: all 0.2s;
+  text-decoration: none;
+  font-weight: 700;
 }
 
 .viewAllBtn:hover {
-  color: var(--foreground);
+  background: var(--primary-soft-strong);
 }
 
 .listContainer {
@@ -17,6 +20,7 @@
   flex-direction: column;
   gap: 0.5rem;
   margin-top: 1rem;
+  min-width: 0;
 }
 
 .dealRow {
@@ -31,11 +35,20 @@
   transition: all 0.2s;
   cursor: pointer;
   overflow: hidden;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.rowLink {
+  text-decoration: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
 }
 
 .dealRow:hover {
-  background: rgba(128, 128, 128, 0.1);
-  border-color: var(--card-border);
+  background: var(--surface-hover);
+  border-color: var(--surface-border-strong);
   transform: translateY(-1px);
 }
 
@@ -44,6 +57,8 @@
   flex-direction: column;
   gap: 0.25rem;
   z-index: 1;
+  min-width: 0;
+  flex: 1;
 }
 
 .clientName {
@@ -53,10 +68,14 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .urgentIcon {
   color: var(--danger);
+  flex-shrink: 0;
 }
 
 .dealMeta {
@@ -65,6 +84,17 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dealSubMeta {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  line-height: 1.45;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .dealRight {
@@ -72,6 +102,7 @@
   align-items: center;
   gap: 0.5rem;
   z-index: 1;
+  flex-shrink: 0;
 }
 
 .dealValue {
@@ -79,6 +110,8 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--foreground);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .chevron {
@@ -104,4 +137,23 @@
 .probBarFill {
   height: 100%;
   opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .dealRow {
+    padding: 0.85rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .dealRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dealValue {
+    text-align: left;
+    white-space: normal;
+  }
 }

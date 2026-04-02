@@ -20,20 +20,13 @@ interface KoreaMapProps {
 export default function KoreaMap({ data }: KoreaMapProps) {
     const [hoveredRegion, setHoveredRegion] = useState<Region | null>(null);
 
-    // Simple relative coordinates for major cities on a 300x400 SVG canvas
-    // These are conceptual positions for the "South Korea" shape
-    const mapPath = "M120,60 L180,60 L200,90 L240,100 L240,240 L200,280 L140,290 L100,270 L80,200 L90,120 Z";
-    // Note: Detailed map paths are complex. For this dashboard aesthetic, we can use 
-    // either a simplified polygon or just plot points. 
-    // Let's use a "Tech/Cyber" style grid with points for a modern look.
-
     return (
         <div className={styles.mapContainer}>
             <svg viewBox="0 0 300 400" className={styles.mapSvg}>
                 {/* Background Grid Pattern */}
                 <defs>
                     <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--glass-border)" strokeWidth="1" />
                     </pattern>
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid)" />

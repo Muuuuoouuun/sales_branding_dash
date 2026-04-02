@@ -41,6 +41,13 @@ type PatternCard = {
   region: string;
 };
 
+type PatternWorkbench = PatternCard & {
+  evidence: string[];
+  recommendedPlay: string[];
+  replicationTargets: string[];
+  experiment: string;
+};
+
 type IntelCard = {
   id: string;
   urgency: "high" | "medium" | "low";
@@ -49,6 +56,12 @@ type IntelCard = {
   summary: string;
   countermove: string;
   date: string;
+};
+
+type IntelWorkbench = IntelCard & {
+  drivers: string[];
+  checklist: string[];
+  scenarioImpact: string;
 };
 
 type DashboardSnapshot = DashboardPayload;
@@ -464,6 +477,86 @@ function buildIntelCards(dashboard: DashboardSnapshot): IntelCard[] {
   );
 }
 
+function buildPatternWorkbenchCards(dashboard: DashboardSnapshot): PatternWorkbench[] {
+  const strongestRegion = getStrongestRegion(dashboard.regional);
+  const weakestRegion = getWeakestRegion(dashboard.regional);
+  const weakestStage = getWeakestStage(dashboard.bottleneck);
+  const topDeal = getTopDeal(dashboard.hotDeals);
+  const topManager = getTopManager(dashboard.individuals);
+
+  return buildPatternCards(dashboard).map((pattern) => {
+    const method = METHODOLOGY_DETAILS[pattern.methodology];
+    const evidence = [
+      pattern.signal,
+      dashboard.dataSource === "google-sheets"
+        ? `Live board updated ${formatDateStamp(dashboard.lastUpdated)}.`
+        : "Fallback board is active, so use this as a mock planning view.",
+      weakestStage ? `Weakest stage right now: ${weakestStage.stage} at ${weakestStage.progress ?? 0}%.` : null,
+      weakestRegion ? `Lowest regional attainment is ${weakestRegion.name} at ${weakestRegion.progress}%.` : null,
+    ].filter((item): item is string => Boolean(item));
+
+    const replicationTargets = [
+      strongestRegion ? `${strongestRegion.name} region cadence` : null,
+      topManager ? `${topManager.name} manager motion` : null,
+      topDeal ? `${topDeal.client} account play` : null,
+    ].filter((item): item is string => Boolean(item));
+
+    return {
+      ...pattern,
+      evidence: evidence.slice(0, 3),
+      recommendedPlay: [
+        method.playbook[0],
+        method.playbook[1],
+        `Use ${pattern.impact.toLowerCase()}`,
+      ].slice(0, 3),
+      replicationTargets: replicationTargets.slice(0, 3),
+      experiment:
+        pattern.methodology === "Challenger"
+          ? "Test a sharper commercial reframe on the next weak-region review."
+          : pattern.methodology === "MEDDIC"
+            ? "Score decision criteria and sponsor clarity before the next forecast call."
+            : pattern.methodology === "Sandler"
+              ? "Force a clean yes/no on pain, budget, and next-step commitment."
+              : "Run a tighter discovery sequence and compare response quality after one week.",
+    };
+  });
+}
+
+function buildIntelWorkbenchCards(dashboard: DashboardSnapshot): IntelWorkbench[] {
+  const weakestRegion = getWeakestRegion(dashboard.regional);
+  const weakestStage = getWeakestStage(dashboard.bottleneck);
+  const topDeal = getTopDeal(dashboard.hotDeals);
+  const lastUpdated = formatDateStamp(dashboard.lastUpdated);
+
+  return buildIntelCards(dashboard).map((card) => ({
+    ...card,
+    drivers: [
+      weakestRegion && card.region === weakestRegion.name
+        ? `${weakestRegion.name} still has ${formatRevenue(Math.max(weakestRegion.target - weakestRegion.revenue, 0))} open against target.`
+        : null,
+      weakestStage ? `${weakestStage.stage} is tracking at ${weakestStage.progress ?? 0}% of goal.` : null,
+      topDeal ? `${topDeal.client} remains the cleanest momentum proof point on the board.` : null,
+      `Board reference refreshed ${lastUpdated}.`,
+    ].filter((item): item is string => Boolean(item)).slice(0, 3),
+    checklist:
+      card.urgency === "high"
+        ? [
+            "Confirm owner and next meeting within 24 hours.",
+            "Re-check the blocker that is creating the delay or risk.",
+            "Escalate if the decision path is still vague after the next touchpoint.",
+          ]
+        : [
+            "Confirm the next move before the next weekly review.",
+            "Tie the note back to one region, deal, or stage signal.",
+            "Log whether the countermove changed confidence or timing.",
+          ],
+    scenarioImpact:
+      card.urgency === "high"
+        ? "If this signal is ignored, forecast confidence and team focus will likely degrade first."
+        : "If this signal is handled early, the team can recover pace without a full escalation cycle.",
+  }));
+}
+
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
     <div className={styles.emptyState}>
@@ -480,6 +573,8 @@ export default function ResearchPage() {
   const [activeTab, setActiveTab] = useState<ResearchTab>("library");
   const [query, setQuery] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<MethodologyId | "All">("All");
+  const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
+  const [selectedIntelId, setSelectedIntelId] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(EMPTY_DASHBOARD);
   const [hasLoaded, setHasLoaded] = useState(false);
   const focusMethod = selectedMethod === "All" ? "Challenger" : selectedMethod;
@@ -539,7 +634,7 @@ export default function ResearchPage() {
     });
   }, [query]);
 
-  const livePatterns = useMemo(() => buildPatternCards(dashboard), [dashboard]);
+  const livePatterns = useMemo(() => buildPatternWorkbenchCards(dashboard), [dashboard]);
 
   const filteredPatterns = useMemo(() => {
     return livePatterns.filter((pattern) => {
@@ -557,7 +652,7 @@ export default function ResearchPage() {
     });
   }, [livePatterns, query, selectedMethod]);
 
-  const liveIntel = useMemo(() => buildIntelCards(dashboard), [dashboard]);
+  const liveIntel = useMemo(() => buildIntelWorkbenchCards(dashboard), [dashboard]);
 
   const filteredIntel = useMemo(() => {
     return liveIntel.filter((card) => {
@@ -574,6 +669,31 @@ export default function ResearchPage() {
       );
     });
   }, [liveIntel, query]);
+
+  useEffect(() => {
+    if (filteredPatterns.length === 0) {
+      setSelectedPatternId(null);
+      return;
+    }
+
+    if (!selectedPatternId || !filteredPatterns.some((pattern) => pattern.id === selectedPatternId)) {
+      setSelectedPatternId(filteredPatterns[0].id);
+    }
+  }, [filteredPatterns, selectedPatternId]);
+
+  useEffect(() => {
+    if (filteredIntel.length === 0) {
+      setSelectedIntelId(null);
+      return;
+    }
+
+    if (!selectedIntelId || !filteredIntel.some((card) => card.id === selectedIntelId)) {
+      setSelectedIntelId(filteredIntel[0].id);
+    }
+  }, [filteredIntel, selectedIntelId]);
+
+  const selectedPattern = filteredPatterns.find((pattern) => pattern.id === selectedPatternId) ?? filteredPatterns[0] ?? null;
+  const selectedIntel = filteredIntel.find((card) => card.id === selectedIntelId) ?? filteredIntel[0] ?? null;
 
   const sourceLabel = hasLoaded ? (dashboard.dataSource === "google-sheets" ? "Live Sheet" : "Fallback") : "Loading";
   const activeSummary = useMemo(
@@ -756,7 +876,7 @@ export default function ResearchPage() {
       )}
 
       {activeTab === "patterns" && (
-        <section className={styles.patternGrid}>
+        <section className={styles.patternWorkbench}>
           {!hasLoaded ? (
             <EmptyState
               title="Loading live board"
@@ -768,76 +888,206 @@ export default function ResearchPage() {
               description="Try a different method or keyword to surface a live board pattern."
             />
           ) : (
-            filteredPatterns.map((pattern) => (
-              <article key={pattern.id} className={styles.patternCard}>
-                <div className={styles.patternTop}>
-                  <span className={styles.patternTag}>{pattern.tag}</span>
-                  <span className={styles.patternMethod}>{pattern.methodology}</span>
-                </div>
-                <h3 className={styles.patternTitle}>{pattern.title}</h3>
-                <p className={styles.patternDesc}>{pattern.summary}</p>
-                <p className={styles.patternSignal}>{pattern.signal}</p>
-                <div className={styles.patternFooter}>
-                  <div>
-                    <span className={styles.patternMetric}>{pattern.winRate}%</span>
-                    <span className={styles.patternMetricLabel}>win rate</span>
+            <>
+              <div className={styles.patternList}>
+                {dashboard.dataSource !== "google-sheets" ? (
+                  <div className={styles.sourceBanner}>
+                    Demo mode is active. These pattern cards are using the fallback board payload as a visual mockup.
                   </div>
-                  <div className={styles.patternMeta}>
-                    <span>{pattern.usedBy}</span>
-                    <span>{pattern.region}</span>
-                    <span>{pattern.impact}</span>
+                ) : null}
+
+                {filteredPatterns.map((pattern) => (
+                  <button
+                    key={pattern.id}
+                    type="button"
+                    className={`${styles.patternSelectCard} ${selectedPattern?.id === pattern.id ? styles.patternSelectCardActive : ""}`}
+                    onClick={() => setSelectedPatternId(pattern.id)}
+                  >
+                    <div className={styles.patternTop}>
+                      <span className={styles.patternTag}>{pattern.tag}</span>
+                      <span className={styles.patternMethod}>{pattern.methodology}</span>
+                    </div>
+                    <h3 className={styles.patternTitle}>{pattern.title}</h3>
+                    <p className={styles.patternDesc}>{pattern.summary}</p>
+                    <div className={styles.patternMiniMeta}>
+                      <span>{pattern.region}</span>
+                      <span>{pattern.usedBy}</span>
+                      <span>{pattern.winRate}% win</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {selectedPattern ? (
+                <aside className={styles.patternDetailPanel}>
+                  <div className={styles.detailHero}>
+                    <div className={styles.patternTop}>
+                      <span className={styles.patternTag}>{selectedPattern.tag}</span>
+                      <span className={styles.patternMethod}>{selectedPattern.methodology}</span>
+                    </div>
+                    <h3 className={styles.detailTitle}>{selectedPattern.title}</h3>
+                    <p className={styles.patternDesc}>{selectedPattern.summary}</p>
+                    <p className={styles.patternSignal}>{selectedPattern.signal}</p>
                   </div>
-                </div>
-              </article>
-            ))
+
+                  <div className={styles.detailGrid}>
+                    <div className={styles.detailBlock}>
+                      <div className={styles.sectionLabel}>
+                        <Sparkles size={12} /> Evidence
+                      </div>
+                      <ul className={styles.list}>
+                        {selectedPattern.evidence.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className={styles.detailBlock}>
+                      <div className={styles.sectionLabel}>
+                        <Target size={12} /> Recommended play
+                      </div>
+                      <ul className={styles.list}>
+                        {selectedPattern.recommendedPlay.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className={styles.detailBlock}>
+                      <div className={styles.sectionLabel}>
+                        <Award size={12} /> Replication targets
+                      </div>
+                      <ul className={styles.list}>
+                        {selectedPattern.replicationTargets.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className={styles.detailBlock}>
+                      <div className={styles.sectionLabel}>
+                        <BadgeInfo size={12} /> Experiment tracker
+                      </div>
+                      <p className={styles.detailCopy}>{selectedPattern.experiment}</p>
+                      <div className={styles.detailMetricRow}>
+                        <span className={styles.patternMetric}>{selectedPattern.winRate}%</span>
+                        <span className={styles.patternMetricLabel}>board fit score</span>
+                      </div>
+                    </div>
+                  </div>
+                </aside>
+              ) : null}
+            </>
           )}
         </section>
       )}
 
       {activeTab === "intel" && (
-        <section className={styles.intelLayout}>
-          <div className={styles.intelLead}>
-            <div className={styles.sideHeader}>
-              <ShieldAlert size={15} />
-              <span>Market watchlist</span>
-            </div>
-            <h2>Signals that should shape the next BD move</h2>
-            <p>
-              These notes are generated from the current BD dashboard payload so the team stays tied to the live board, not a separate research theater.
-            </p>
-          </div>
+        <section className={styles.intelWorkbench}>
+          {!hasLoaded ? (
+            <EmptyState
+              title="Loading live board"
+              description="Waiting for the current BD dashboard payload before generating intel."
+            />
+          ) : filteredIntel.length === 0 ? (
+            <EmptyState
+              title="No intel matched"
+              description="Try another keyword to surface the current watchlist."
+            />
+          ) : (
+            <>
+              <div className={styles.intelWatchColumn}>
+                <div className={styles.intelLead}>
+                  <div className={styles.sideHeader}>
+                    <ShieldAlert size={15} />
+                    <span>Market watchlist</span>
+                  </div>
+                  <h2>Signals that should shape the next BD move</h2>
+                  <p>
+                    These notes are generated from the current BD dashboard payload so the team stays tied to the live board, not a separate research theater.
+                  </p>
+                </div>
 
-          <div className={styles.intelList}>
-            {!hasLoaded ? (
-              <EmptyState
-                title="Loading live board"
-                description="Waiting for the current BD dashboard payload before generating intel."
-              />
-            ) : filteredIntel.length === 0 ? (
-              <EmptyState
-                title="No intel matched"
-                description="Try another keyword to surface the current watchlist."
-              />
-            ) : (
-              filteredIntel.map((card) => (
-                <article key={card.id} className={`${styles.intelCard} ${styles[`intel${card.urgency}`]}`}>
-                  <div className={styles.intelTop}>
-                    <div className={styles.intelBadgeWrap}>
-                      <span className={styles.intelBadge}>{card.urgency.toUpperCase()}</span>
-                      <span className={styles.intelRegion}>{card.region}</span>
+                {dashboard.dataSource !== "google-sheets" ? (
+                  <div className={styles.sourceBanner}>
+                    Demo mode is active. Intel entries are using fallback board signals until the live sheet is connected.
+                  </div>
+                ) : null}
+
+                <div className={styles.intelSelectList}>
+                  {filteredIntel.map((card) => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className={`${styles.intelSelectCard} ${selectedIntel?.id === card.id ? styles.intelSelectCardActive : ""} ${styles[`intel${card.urgency}`]}`}
+                      onClick={() => setSelectedIntelId(card.id)}
+                    >
+                      <div className={styles.intelTop}>
+                        <div className={styles.intelBadgeWrap}>
+                          <span className={styles.intelBadge}>{card.urgency.toUpperCase()}</span>
+                          <span className={styles.intelRegion}>{card.region}</span>
+                        </div>
+                        <span className={styles.intelDate}>{card.date}</span>
+                      </div>
+                      <h3 className={styles.intelTitle}>{card.title}</h3>
+                      <p className={styles.intelDesc}>{card.summary}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {selectedIntel ? (
+                <div className={styles.intelDetailPanel}>
+                  <div className={`${styles.intelCard} ${styles[`intel${selectedIntel.urgency}`]}`}>
+                    <div className={styles.intelTop}>
+                      <div className={styles.intelBadgeWrap}>
+                        <span className={styles.intelBadge}>{selectedIntel.urgency.toUpperCase()}</span>
+                        <span className={styles.intelRegion}>{selectedIntel.region}</span>
+                      </div>
+                      <span className={styles.intelDate}>{selectedIntel.date}</span>
                     </div>
-                    <span className={styles.intelDate}>{card.date}</span>
+                    <h3 className={styles.detailTitle}>{selectedIntel.title}</h3>
+                    <p className={styles.intelDesc}>{selectedIntel.summary}</p>
+                    <div className={styles.counterBox}>
+                      <span className={styles.counterLabel}>Next move</span>
+                      <span className={styles.counterText}>{selectedIntel.countermove}</span>
+                    </div>
                   </div>
-                  <h3 className={styles.intelTitle}>{card.title}</h3>
-                  <p className={styles.intelDesc}>{card.summary}</p>
-                  <div className={styles.counterBox}>
-                    <span className={styles.counterLabel}>Next move</span>
-                    <span className={styles.counterText}>{card.countermove}</span>
+
+                  <div className={styles.detailGrid}>
+                    <div className={styles.detailBlock}>
+                      <div className={styles.sectionLabel}>
+                        <BadgeInfo size={12} /> Drivers
+                      </div>
+                      <ul className={styles.list}>
+                        {selectedIntel.drivers.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className={styles.detailBlock}>
+                      <div className={styles.sectionLabel}>
+                        <Target size={12} /> Next-move checklist
+                      </div>
+                      <ul className={styles.list}>
+                        {selectedIntel.checklist.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className={styles.detailBlock}>
+                      <div className={styles.sectionLabel}>
+                        <Brain size={12} /> Scenario impact
+                      </div>
+                      <p className={styles.detailCopy}>{selectedIntel.scenarioImpact}</p>
+                    </div>
                   </div>
-                </article>
-              ))
-            )}
-          </div>
+                </div>
+              ) : null}
+            </>
+          )}
         </section>
       )}
     </div>

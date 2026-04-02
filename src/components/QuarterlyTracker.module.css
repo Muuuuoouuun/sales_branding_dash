@@ -5,6 +5,8 @@
   border-radius: 1rem;
   padding: 1.25rem 1.5rem 1.25rem;
   margin-bottom: 1.5rem;
+  overflow: hidden;
+  min-width: 0;
 }
 
 /* ── Header ── */
@@ -14,12 +16,15 @@
   align-items: center;
   margin-bottom: 1.5rem;
   gap: 1rem;
+  min-width: 0;
 }
 
 .titleGroup {
   display: flex;
   align-items: center;
   gap: 0.875rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .qBadge {
@@ -41,6 +46,7 @@
   font-weight: 700;
   color: var(--foreground);
   margin: 0 0 2px;
+  overflow-wrap: anywhere;
 }
 
 .sub {
@@ -57,6 +63,8 @@
   padding: 3px;
   border-radius: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .toggle {
@@ -85,6 +93,7 @@
   margin-bottom: 1.25rem;
   padding-top: 2.25rem; /* space for milestone labels above */
   padding-bottom: 1.25rem; /* space for pct labels below */
+  min-width: 0;
 }
 
 /* Milestone emoji + label row (above bar) */
@@ -236,6 +245,7 @@
   border-top: 1px solid var(--surface-border);
   padding-top: 1rem;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .statItem {
@@ -246,6 +256,7 @@
   gap: 4px;
   padding: 0 1rem;
   border-right: 1px solid var(--surface-border);
+  min-width: 0;
 }
 .statItem:first-child { padding-left: 0; }
 .statItem:last-child  { border-right: none; }
@@ -270,6 +281,7 @@
   gap: 0.3rem;
   border-top: 1px solid var(--surface-border);
   padding-top: 0.875rem;
+  min-width: 0;
 }
 
 /* col: rank | name | bar | pct | won | pipeline | deals */
@@ -296,6 +308,7 @@
   padding: 5px 4px;
   border-radius: 5px;
   transition: background 0.12s;
+  min-width: 0;
 }
 .indivRow:hover {
   background: var(--surface-hover);
@@ -311,10 +324,11 @@
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--foreground);
-  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .indivMs {
@@ -351,18 +365,21 @@
   color: var(--foreground);
   text-align: right;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .indivPipe {
   font-size: 0.68rem;
   text-align: right;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .indivDeals {
   font-size: 0.68rem;
   text-align: right;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .indivNote {
@@ -371,4 +388,170 @@
   margin: 4px 0 0;
   padding-top: 6px;
   border-top: 1px solid var(--surface-border);
+}
+
+@media (max-width: 900px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .toggleGroup {
+    width: 100%;
+  }
+
+  .toggle {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .teamRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .statItem {
+    min-width: 0;
+    padding: 0.85rem 0.9rem;
+    border-right: none;
+    border-top: 1px solid var(--surface-border);
+    border-radius: 0.8rem;
+    background: var(--surface-1);
+  }
+
+  .statItem:first-child,
+  .statItem:nth-child(2) {
+    border-top: none;
+  }
+
+  .indivHeader {
+    display: none;
+  }
+
+  .indivRow {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "rank name pct"
+      "bar bar bar"
+      "rev pipe deals";
+    gap: 0.45rem 0.7rem;
+    padding: 0.8rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 0.85rem;
+    background: var(--surface-1);
+  }
+
+  .indivRow > :nth-child(1) {
+    grid-area: rank;
+  }
+
+  .indivRow > :nth-child(2) {
+    grid-area: name;
+  }
+
+  .indivRow > :nth-child(3) {
+    grid-area: bar;
+  }
+
+  .indivRow > :nth-child(4) {
+    grid-area: pct;
+  }
+
+  .indivRow > :nth-child(5) {
+    grid-area: rev;
+  }
+
+  .indivRow > :nth-child(6) {
+    grid-area: pipe;
+  }
+
+  .indivRow > :nth-child(7) {
+    grid-area: deals;
+  }
+
+  .indivRank,
+  .indivPct,
+  .indivRev,
+  .indivPipe,
+  .indivDeals {
+    text-align: left;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 1rem;
+  }
+
+  .titleGroup {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  .trackArea {
+    padding-top: 1.5rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .milestoneRow,
+  .pctRow {
+    display: none;
+  }
+
+  .cursor {
+    top: auto;
+    bottom: 100%;
+    transform: translate(-50%, -6px);
+  }
+
+  .cursorPill {
+    font-size: 0.58rem;
+    margin-top: 0;
+    padding: 2px 6px;
+  }
+
+  .teamRow {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .statItem,
+  .statItem:nth-child(2) {
+    padding: 0.8rem 0.85rem;
+    border-top: 1px solid var(--surface-border);
+  }
+
+  .statItem:first-child {
+    border-top: none;
+  }
+
+  .indivRow {
+    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-areas:
+      "rank name"
+      "bar bar"
+      "pct pct"
+      "rev pipe"
+      "deals deals";
+    gap: 0.4rem 0.6rem;
+    padding: 0.75rem;
+  }
+
+  .indivRow > :nth-child(4),
+  .indivRow > :nth-child(5),
+  .indivRow > :nth-child(6),
+  .indivRow > :nth-child(7) {
+    font-size: 0.7rem;
+  }
+
+  .indivName {
+    flex-wrap: wrap;
+  }
+
+  .indivMs {
+    font-size: 0.62rem;
+  }
 }

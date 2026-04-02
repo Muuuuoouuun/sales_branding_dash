@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Flame, BookOpen } from "lucide-react";
+import { useEffect, useSyncExternalStore } from "react";
+import { BookOpen, Flame } from "lucide-react";
 import styles from "./GrowthWidget.module.css";
 
 interface Level {
@@ -9,41 +9,80 @@ interface Level {
   color: string;
 }
 
+const TIP_GOAL = 3;
+const STORAGE_EVENT = "growth-widget-storage";
+
 function getLevel(streak: number, total: number): Level {
   const score = streak * 2 + total;
+
   if (score >= 100) return { label: "Platinum", color: "#e879f9" };
-  if (score >= 50)  return { label: "Gold",     color: "#f59e0b" };
-  if (score >= 20)  return { label: "Silver",   color: "#94a3b8" };
-  return                   { label: "Bronze",   color: "#b45309" };
+  if (score >= 50) return { label: "Gold", color: "#f59e0b" };
+  if (score >= 20) return { label: "Silver", color: "#94a3b8" };
+  return { label: "Bronze", color: "#b45309" };
 }
 
-const TIP_GOAL = 3;
+function subscribeToStorage(callback: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const handler = () => callback();
+  window.addEventListener("storage", handler);
+  window.addEventListener(STORAGE_EVENT, handler);
+
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener(STORAGE_EVENT, handler);
+  };
+}
+
+function readStoredValue(key: string): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(key) ?? "";
+}
+
+function useStoredValue(key: string): string {
+  return useSyncExternalStore(
+    subscribeToStorage,
+    () => readStoredValue(key),
+    () => "",
+  );
+}
+
+function emitStorageChange() {
+  window.dispatchEvent(new Event(STORAGE_EVENT));
+}
+
+function parseNumber(value: string): number {
+  const parsed = Number.parseInt(value || "0", 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export default function GrowthWidget() {
-  const [streak,    setStreak]    = useState(0);
-  const [tipsToday, setTipsToday] = useState(0);
-  const [tipsTotal, setTipsTotal] = useState(0);
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const yesterday = new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10);
+
+  const streak = parseNumber(useStoredValue("growth_streak"));
+  const tipsToday = parseNumber(useStoredValue(`tips_today_${today}`));
+  const tipsTotal = parseNumber(useStoredValue("tips_total"));
 
   useEffect(() => {
-    const today     = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const lastVisit = readStoredValue("growth_last_visit");
+    const storedStreak = parseNumber(readStoredValue("growth_streak"));
 
-    const lastVisit    = localStorage.getItem("growth_last_visit");
-    const storedStreak = parseInt(localStorage.getItem("growth_streak") || "0", 10);
-
-    let newStreak = storedStreak;
-    if (lastVisit !== today) {
-      newStreak = lastVisit === yesterday ? storedStreak + 1 : 1;
-      localStorage.setItem("growth_streak",     String(newStreak));
-      localStorage.setItem("growth_last_visit", today);
+    if (lastVisit === today) {
+      return;
     }
-    setStreak(newStreak);
 
-    const td = parseInt(localStorage.getItem(`tips_today_${today}`) || "0", 10);
-    const tt = parseInt(localStorage.getItem("tips_total")           || "0", 10);
-    setTipsToday(td);
-    setTipsTotal(tt);
-  }, []);
+    const nextStreak = lastVisit === yesterday ? storedStreak + 1 : 1;
+    window.localStorage.setItem("growth_streak", String(nextStreak));
+    window.localStorage.setItem("growth_last_visit", today);
+    emitStorageChange();
+  }, [today, yesterday]);
 
   const level = getLevel(streak, tipsTotal);
 
@@ -68,7 +107,9 @@ export default function GrowthWidget() {
             />
           ))}
         </div>
-        <span className={styles.tipsCount}>{Math.min(tipsToday, TIP_GOAL)}/{TIP_GOAL} 팁</span>
+        <span className={styles.tipsCount}>
+          {Math.min(tipsToday, TIP_GOAL)}/{TIP_GOAL} 오늘
+        </span>
       </div>
 
       <span

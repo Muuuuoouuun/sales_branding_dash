@@ -27,7 +27,7 @@
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.5rem;
 }
 
@@ -130,5 +130,40 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@media (max-width: 640px) {
+    .container {
+        padding: 1rem 0.875rem 1.5rem;
+    }
+
+    .title {
+        font-size: 1.6rem;
+    }
+
+    .subtitle {
+        font-size: 0.92rem;
+        line-height: 1.6;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* secondary responsive overrides */
+.container {
+    min-width: 0;
+}
+
+.grid {
+    align-items: stretch;
+}
+
+@media (max-width: 900px) {
+    .grid {
+        grid-template-columns: 1fr;
     }
 }

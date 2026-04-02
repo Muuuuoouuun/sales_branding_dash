@@ -589,6 +589,11 @@
     flex-direction: column;
   }
 
+  .headerMeta,
+  .methodPicker {
+    width: 100%;
+  }
+
   .title {
     font-size: 1.55rem;
   }
@@ -599,6 +604,94 @@
 
   .tabBtn {
     flex: 1;
+    text-align: center;
+  }
+
+  .aiHeader,
+  .krRow,
+  .repHead,
+  .regionRow,
+  .aiAnchor {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .aiButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* secondary responsive overrides */
+@media (max-width: 960px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .generateBtn,
+  .dlBtn {
+    flex: 1 1 160px;
+    justify-content: center;
+  }
+
+  .tabBar {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tabBar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabBtn {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .methodHeader {
+    flex-direction: column;
+  }
+
+  .methodIdentity,
+  .methodPills,
+  .patternFooter,
+  .intelTop {
+    width: 100%;
+  }
+
+  .patternFooter,
+  .intelTop {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 720px) {
+  .headerActions {
+    width: 100%;
+  }
+
+  .generateBtn,
+  .dlBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .tabBar {
+    width: 100%;
+  }
+
+  .tabBtn {
+    flex: 1 1 0;
     text-align: center;
   }
 }

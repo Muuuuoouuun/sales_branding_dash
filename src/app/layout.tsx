@@ -1,6 +1,19 @@
 import type { Metadata } from "next";
+import { Noto_Sans_KR, Outfit } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import { ThemeProvider } from "@/components/ThemeProvider";
+
+const headingFont = Outfit({
+  subsets: ["latin"],
+  variable: "--font-heading",
+});
+
+const bodyFont = Noto_Sans_KR({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-body",
+});
 
 export const metadata: Metadata = {
   title: "Sales Master Intelligence System",
@@ -13,14 +26,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
-        <div style={{ display: "flex", minHeight: "100vh" }}>
-          <Sidebar />
-          <main style={{ marginLeft: "260px", flex: 1, padding: "2rem", width: "calc(100vw - 260px)" }}>
-            {children}
-          </main>
-        </div>
+    <html lang="ko" suppressHydrationWarning>
+      <body className={`${headingFont.variable} ${bodyFont.variable}`}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <div className="appShell">
+            <Sidebar />
+            <main className="appMain">{children}</main>
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

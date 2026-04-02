@@ -1,17 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import Card from "@/components/Card";
 import styles from "./page.module.css";
 import { Users, DollarSign, FileText, Send, CheckCircle } from "lucide-react";
 
+type Status = "idle" | "submitting" | "success";
+
 export default function InputDataPage() {
     // State management for interactions
-    const [crmStatus, setCrmStatus] = useState("idle");
-    const [salesStatus, setSalesStatus] = useState("idle");
-    const [noteStatus, setNoteStatus] = useState("idle");
+    const [crmStatus, setCrmStatus] = useState<Status>("idle");
+    const [salesStatus, setSalesStatus] = useState<Status>("idle");
+    const [noteStatus, setNoteStatus] = useState<Status>("idle");
 
-    const handleSubmit = (type: string, setStatus: any) => {
+    const handleSubmit = (type: string, setStatus: Dispatch<SetStateAction<Status>>) => {
         setStatus("submitting");
         // Simulate API call
         setTimeout(() => {
@@ -79,7 +82,19 @@ export default function InputDataPage() {
                         </div>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Probability (%)</label>
-                            <input type="range" min="0" max="100" className={styles.range} defaultValue="50" onInput={(e: any) => e.target.nextElementSibling.value = e.target.value + '%'} />
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                className={styles.range}
+                                defaultValue="50"
+                                onInput={(event: React.FormEvent<HTMLInputElement>) => {
+                                    const output = event.currentTarget.nextElementSibling as HTMLOutputElement | null;
+                                    if (output) {
+                                        output.value = `${event.currentTarget.value}%`;
+                                    }
+                                }}
+                            />
                             <output style={{ display: 'block', textAlign: 'right', fontSize: '0.8rem', color: 'var(--accent)' }}>50%</output>
                         </div>
                         <button type="submit" className={styles.submitBtn} disabled={salesStatus === "submitting"}>

@@ -82,7 +82,6 @@ export default function RegionHeatmap({ data, filter = "all" }: RegionHeatmapPro
     const tw = 172; // tooltip width approx
     const th = 120; // tooltip height approx
     const containerW = 340;
-    const containerH = 445;
     const x = mousePos.x + offset + tw > containerW ? mousePos.x - tw - offset : mousePos.x + offset;
     const y = mousePos.y - offset - th < 0 ? mousePos.y + offset : mousePos.y - offset - th;
     return { left: x, top: y };
@@ -110,7 +109,7 @@ export default function RegionHeatmap({ data, filter = "all" }: RegionHeatmapPro
 
           {/* background grid */}
           <pattern id="heatGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--glass-border)" strokeWidth="1" />
           </pattern>
         </defs>
 

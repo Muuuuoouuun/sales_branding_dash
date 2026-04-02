@@ -592,6 +592,16 @@
 }
 
 @media (max-width: 860px) {
+  .headerActions {
+    width: 100%;
+  }
+
+  .generateBtn,
+  .dlBtn {
+    flex: 1;
+    justify-content: center;
+  }
+
   .analyticsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -629,9 +639,62 @@
     flex-direction: column;
   }
 
+  .deckAction {
+    justify-content: flex-start;
+  }
+
   .loadingPanel,
   .errorPanel {
     grid-template-columns: 1fr;
     text-align: left;
+  }
+}
+
+/* secondary responsive overrides */
+@media (max-width: 960px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .generateBtn,
+  .dlBtn {
+    flex: 1 1 160px;
+    justify-content: center;
+  }
+
+  .tabBar {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tabBar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabBtn {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .generateBtn,
+  .dlBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .heroCopy {
+    max-width: 100%;
   }
 }

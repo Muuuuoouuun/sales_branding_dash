@@ -10,13 +10,20 @@ export interface IntegrationStatusItem {
   configuredWith: 'env' | 'database' | 'mixed';
   summary: string;
   requiredEnvKeys: string[];
+  missingEnvKeys: string[];
 }
 
-function hasEnvKeys(keys: string[]): boolean {
-  return keys.every((key) => Boolean(process.env[key]?.trim()));
+function getMissingEnvKeys(keys: string[]): string[] {
+  return keys.filter((key) => !process.env[key]?.trim());
 }
 
 export function getIntegrationStatuses(): IntegrationStatusItem[] {
+  const supabaseKeys = [
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
+  ];
+
   const googleSheetsKeys = [
     'GOOGLE_SHEETS_SPREADSHEET_ID',
     'GOOGLE_SHEETS_CLIENT_EMAIL',
@@ -33,6 +40,11 @@ export function getIntegrationStatuses(): IntegrationStatusItem[] {
 
   const restKeys = ['CRM_SYNC_ENDPOINT', 'CRM_SYNC_TOKEN'];
 
+  const supabaseMissing = getMissingEnvKeys(supabaseKeys);
+  const googleSheetsMissing = getMissingEnvKeys(googleSheetsKeys);
+  const neoCrmMissing = getMissingEnvKeys(neoCrmKeys);
+  const restMissing = getMissingEnvKeys(restKeys);
+
   return [
     {
       id: 'supabase',
@@ -43,44 +55,44 @@ export function getIntegrationStatuses(): IntegrationStatusItem[] {
       summary: hasSupabaseAdminConfig()
         ? 'Configured for read/write API routes.'
         : 'Missing public URL, anon key, or service role key.',
-      requiredEnvKeys: [
-        'NEXT_PUBLIC_SUPABASE_URL',
-        'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-        'SUPABASE_SERVICE_ROLE_KEY',
-      ],
+      requiredEnvKeys: supabaseKeys,
+      missingEnvKeys: supabaseMissing,
     },
     {
       id: 'google_sheets',
       name: 'Google Sheets',
       category: 'spreadsheet',
-      ready: hasEnvKeys(googleSheetsKeys),
+      ready: googleSheetsMissing.length === 0,
       configuredWith: 'env',
-      summary: hasEnvKeys(googleSheetsKeys)
+      summary: googleSheetsMissing.length === 0
         ? 'Ready for sheet-driven imports and sync jobs.'
         : 'Waiting for spreadsheet ID and service-account credentials.',
       requiredEnvKeys: googleSheetsKeys,
+      missingEnvKeys: googleSheetsMissing,
     },
     {
       id: 'neo_crm',
       name: 'Neo CRM',
       category: 'crm',
-      ready: hasEnvKeys(neoCrmKeys),
+      ready: neoCrmMissing.length === 0,
       configuredWith: 'env',
-      summary: hasEnvKeys(neoCrmKeys)
+      summary: neoCrmMissing.length === 0
         ? 'Ready for server-side CRM sync adapter wiring.'
         : 'Waiting for Neo CRM auth and lead-sync endpoint configuration.',
       requiredEnvKeys: neoCrmKeys,
+      missingEnvKeys: neoCrmMissing,
     },
     {
       id: 'rest',
       name: 'REST API',
       category: 'custom',
-      ready: hasEnvKeys(restKeys),
+      ready: restMissing.length === 0,
       configuredWith: 'env',
-      summary: hasEnvKeys(restKeys)
+      summary: restMissing.length === 0
         ? 'Ready for generic webhook or middleware sync.'
         : 'Waiting for endpoint and bearer token.',
       requiredEnvKeys: restKeys,
+      missingEnvKeys: restMissing,
     },
   ];
 }
