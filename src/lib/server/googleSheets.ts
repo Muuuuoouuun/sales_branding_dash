@@ -19,12 +19,35 @@ const SERVICE_ACCOUNT_FILE_CANDIDATES = [
 let cachedCredentials: ServiceAccountCredentials | null | undefined;
 let cachedSpreadsheetId: string | null | undefined;
 
-function normalizePrivateKey(value: string | undefined): string | null {
+function normalizeEnvValue(value: string | undefined): string | null {
   if (!value) {
     return null;
   }
 
-  return value.replace(/\\n/g, "\n");
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const unwrapped = trimmed.replace(/^(['"])([\s\S]*)\1$/, "$2");
+  return unwrapped.trim() || null;
+}
+
+function normalizePrivateKey(value: string | undefined): string | null {
+  const normalizedValue = normalizeEnvValue(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return normalizedValue.replace(/\\n/g, "\n");
+}
+
+function looksLikePrivateKey(value: string): boolean {
+  return (
+    /-----BEGIN(?: [A-Z]+)* PRIVATE KEY-----/.test(value) &&
+    /-----END(?: [A-Z]+)* PRIVATE KEY-----/.test(value)
+  );
 }
 
 function readServiceAccountFile(filePath: string): ServiceAccountCredentials | null {
@@ -32,18 +55,46 @@ function readServiceAccountFile(filePath: string): ServiceAccountCredentials | n
     return null;
   }
 
-  const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as {
-    client_email?: string;
-    private_key?: string;
-  };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as {
+      client_email?: string;
+      private_key?: string;
+    };
 
-  if (!parsed.client_email || !parsed.private_key) {
+    const clientEmail = normalizeEnvValue(parsed.client_email);
+    const privateKey = normalizePrivateKey(parsed.private_key);
+
+    if (!clientEmail || !privateKey || !looksLikePrivateKey(privateKey)) {
+      return null;
+    }
+
+    return {
+      clientEmail,
+      privateKey,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readEnvServiceAccountCredentials(): ServiceAccountCredentials | null {
+  const clientEmail =
+    normalizeEnvValue(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) ||
+    normalizeEnvValue(process.env.GOOGLE_SHEETS_CLIENT_EMAIL) ||
+    normalizeEnvValue(process.env.GOOGLE_CLIENT_EMAIL);
+  const privateKey = normalizePrivateKey(
+    process.env.GOOGLE_PRIVATE_KEY ||
+      process.env.GOOGLE_SHEETS_PRIVATE_KEY ||
+      process.env.GOOGLE_CLIENT_PRIVATE_KEY,
+  );
+
+  if (!clientEmail || !privateKey || !looksLikePrivateKey(privateKey)) {
     return null;
   }
 
   return {
-    clientEmail: parsed.client_email,
-    privateKey: parsed.private_key,
+    clientEmail,
+    privateKey,
   };
 }
 
@@ -52,16 +103,24 @@ function getServiceAccountCredentials(): ServiceAccountCredentials | null {
     return cachedCredentials;
   }
 
-  const clientEmail =
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
-  const privateKey = normalizePrivateKey(
-    process.env.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_SHEETS_PRIVATE_KEY,
-  );
-
-  if (clientEmail && privateKey) {
-    cachedCredentials = { clientEmail, privateKey };
+  const envCredentials = readEnvServiceAccountCredentials();
+  if (envCredentials) {
+    cachedCredentials = envCredentials;
     return cachedCredentials;
+  }
+
+  const applicationCredentialsPath = normalizeEnvValue(
+    process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  );
+  if (applicationCredentialsPath) {
+    const resolvedPath = path.isAbsolute(applicationCredentialsPath)
+      ? applicationCredentialsPath
+      : path.join(process.cwd(), applicationCredentialsPath);
+    const credentials = readServiceAccountFile(resolvedPath);
+    if (credentials) {
+      cachedCredentials = credentials;
+      return cachedCredentials;
+    }
   }
 
   for (const candidate of SERVICE_ACCOUNT_FILE_CANDIDATES) {
@@ -83,10 +142,10 @@ function getOptionalSpreadsheetId(): string | null {
   }
 
   const sheetId =
-    process.env.GOOGLE_SHEET_ID ||
-    process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    normalizeEnvValue(process.env.GOOGLE_SHEET_ID) ||
+    normalizeEnvValue(process.env.GOOGLE_SHEETS_SPREADSHEET_ID);
 
-  cachedSpreadsheetId = sheetId?.trim() || null;
+  cachedSpreadsheetId = sheetId || null;
   return cachedSpreadsheetId;
 }
 
@@ -125,6 +184,11 @@ function normalizeValues(values: unknown): SheetValues {
   return Array.isArray(values) ? (values as SheetValues) : [];
 }
 
+function getSheetNameFromRange(range: string): string {
+  const [sheetName = ""] = range.split("!");
+  return sheetName.replace(/^'(.*)'$/, "$1");
+}
+
 export function hasGoogleSheetsConfig(): boolean {
   return Boolean(getServiceAccountCredentials() && getOptionalSpreadsheetId());
 }
@@ -149,13 +213,16 @@ export async function getMultipleSheetValues(
   });
 
   const valuesByRange = Object.fromEntries(ranges.map((range) => [range, [] as SheetValues]));
+  const requestedRangesBySheet = new Map(
+    ranges.map((range) => [getSheetNameFromRange(range), range]),
+  );
 
   for (const valueRange of res.data.valueRanges ?? []) {
     if (!valueRange.range) {
       continue;
     }
 
-    const matchedRange = ranges.find((range) => valueRange.range?.startsWith(range.split("!")[0]));
+    const matchedRange = requestedRangesBySheet.get(getSheetNameFromRange(valueRange.range));
     if (!matchedRange) {
       continue;
     }

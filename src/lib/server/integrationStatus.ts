@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { hasSupabaseAdminConfig, hasSupabasePublicConfig } from '@/lib/supabase/config';
+import { hasGoogleSheetsConfig } from '@/lib/server/googleSheets';
 
 export interface IntegrationStatusItem {
   id: string;
@@ -44,6 +45,7 @@ export function getIntegrationStatuses(): IntegrationStatusItem[] {
   const googleSheetsMissing = getMissingEnvKeys(googleSheetsKeys);
   const neoCrmMissing = getMissingEnvKeys(neoCrmKeys);
   const restMissing = getMissingEnvKeys(restKeys);
+  const googleSheetsReady = hasGoogleSheetsConfig();
 
   return [
     {
@@ -62,13 +64,13 @@ export function getIntegrationStatuses(): IntegrationStatusItem[] {
       id: 'google_sheets',
       name: 'Google Sheets',
       category: 'spreadsheet',
-      ready: googleSheetsMissing.length === 0,
+      ready: googleSheetsReady,
       configuredWith: 'env',
-      summary: googleSheetsMissing.length === 0
+      summary: googleSheetsReady
         ? 'Ready for sheet-driven imports and sync jobs.'
         : 'Waiting for spreadsheet ID and service-account credentials.',
       requiredEnvKeys: googleSheetsKeys,
-      missingEnvKeys: googleSheetsMissing,
+      missingEnvKeys: googleSheetsReady ? [] : googleSheetsMissing,
     },
     {
       id: 'neo_crm',

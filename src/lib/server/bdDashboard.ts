@@ -25,7 +25,7 @@ import type {
 
 const SEG_RANGE = "2. SEG!A1:S40";
 const REV_RANGE = "3. REV!A1:CZ400";
-const KPI_RANGE = "4. L-KPI!A1:AZ60";
+const KPI_RANGE = "4. KPI!A1:AZ60";
 
 const LIVE_CACHE_TTL_MS = 5 * 60 * 1000;
 const FALLBACK_CACHE_TTL_MS = 60 * 1000;
