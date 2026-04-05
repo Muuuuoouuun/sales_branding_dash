@@ -1,0 +1,120 @@
+.mapContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.mapSvg {
+    width: 100%;
+    height: 100%;
+    max-width: 400px;
+}
+
+.regionGroup {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.regionGroup:hover .point {
+    stroke-width: 3px;
+    stroke: rgba(255, 255, 255, 0.8);
+}
+
+.point {
+    transition: all 0.3s ease;
+    stroke: rgba(255, 255, 255, 0.2);
+    stroke-width: 1px;
+}
+
+.good {
+    fill: var(--accent);
+    color: var(--accent);
+}
+
+.warning {
+    fill: #facc15;
+    color: #facc15;
+}
+
+/* Yellow */
+.critical {
+    fill: var(--danger);
+    color: var(--danger);
+}
+
+.regionLabel {
+    font-size: 10px;
+    fill: var(--text-muted);
+    font-weight: 500;
+    pointer-events: none;
+}
+
+.pulse {
+    fill: var(--danger);
+    opacity: 0.3;
+    transform-origin: center;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: scale(1.5);
+        opacity: 0.1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+}
+
+.tooltip {
+    position: absolute;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    pointer-events: none;
+    z-index: 10;
+    min-width: 140px;
+    transform: translateY(-50%);
+}
+
+.tooltipTitle {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--foreground);
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 0.25rem;
+}
+
+.tooltipRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.tooltipValue {
+    color: var(--foreground);
+    font-weight: 600;
+}
+
+.tooltipStatus {
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    text-align: right;
+    font-weight: 600;
+}

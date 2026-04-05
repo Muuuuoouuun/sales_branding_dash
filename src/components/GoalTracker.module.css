@@ -1,0 +1,163 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 0.5rem 0;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.titleArea {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.icon {
+    color: var(--accent);
+}
+
+.title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0;
+}
+
+.currentValueBox {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.currentLabel {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.currentValue {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.trackArea {
+    position: relative;
+    width: 100%;
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+    /* space for bottom labels */
+}
+
+.trackBackground {
+    position: relative;
+    height: 12px;
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    width: 100%;
+}
+
+.progressBar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #4f46e5 0%, #818cf8 100%);
+    border-radius: 6px;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+    transition: width 1s ease-out;
+    z-index: 1;
+}
+
+.targetLine {
+    position: absolute;
+    top: -10px;
+    bottom: -10px;
+    width: 2px;
+    background-color: rgba(255, 255, 255, 0.5);
+    z-index: 2;
+    border-left: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
+.quarterLine {
+    background-color: var(--accent);
+    box-shadow: 0 0 5px var(--accent);
+}
+
+.targetLabel {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--glass-border);
+    white-space: nowrap;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.targetLabel strong {
+    color: var(--foreground);
+    margin-left: 0.25rem;
+}
+
+.milestoneMarker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 3;
+}
+
+.milestoneDot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #3f3f46;
+    border: 2px solid #71717a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    transition: all 0.3s ease;
+}
+
+.milestoneAchieved .milestoneDot {
+    background-color: #10b981;
+    border-color: #059669;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.milestoneText {
+    position: absolute;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    white-space: nowrap;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.milestoneText strong {
+    color: var(--foreground);
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 1px 4px;
+    border-radius: 2px;
+    margin-top: 2px;
+}

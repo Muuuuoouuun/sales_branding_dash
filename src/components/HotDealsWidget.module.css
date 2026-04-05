@@ -1,0 +1,159 @@
+.viewAllBtn {
+  font-size: 0.75rem;
+  color: var(--primary-foreground);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0.35rem 0.8rem;
+  transition: all 0.2s;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.viewAllBtn:hover {
+  background: var(--primary-soft-strong);
+}
+
+.listContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  min-width: 0;
+}
+
+.dealRow {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+  cursor: pointer;
+  overflow: hidden;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.rowLink {
+  text-decoration: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.dealRow:hover {
+  background: var(--surface-hover);
+  border-color: var(--surface-border-strong);
+  transform: translateY(-1px);
+}
+
+.dealInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  z-index: 1;
+  min-width: 0;
+  flex: 1;
+}
+
+.clientName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.urgentIcon {
+  color: var(--danger);
+  flex-shrink: 0;
+}
+
+.dealMeta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dealSubMeta {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  line-height: 1.45;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dealRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.dealValue {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.dealRow:hover .chevron {
+  transform: translateX(2px);
+  color: var(--foreground);
+}
+
+.probBarWrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+  z-index: 0;
+}
+
+.probBarFill {
+  height: 100%;
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .dealRow {
+    padding: 0.85rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .dealRight {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dealValue {
+    text-align: left;
+    white-space: normal;
+  }
+}

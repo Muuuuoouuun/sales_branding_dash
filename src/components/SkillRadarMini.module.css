@@ -1,0 +1,91 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.hint {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.body {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex: 1;
+}
+
+.chartWrap {
+  flex: 1;
+  height: 200px;
+  min-width: 0;
+}
+
+.scoreList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 150px;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.methodDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.methodName {
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.btn:hover {
+  background: var(--card-border);
+  color: var(--foreground);
+}
+
+.score {
+  font-size: 0.9rem;
+  font-weight: 700;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}

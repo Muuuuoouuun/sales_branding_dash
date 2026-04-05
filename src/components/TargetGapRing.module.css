@@ -1,0 +1,161 @@
+.icon {
+  color: var(--text-muted);
+}
+
+.layout {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+  min-width: 0;
+}
+
+.ringContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.svg {
+  transform: rotate(-90deg);
+}
+
+.bgCircle {
+  fill: none;
+  stroke: var(--card-border);
+}
+
+.progressCircle {
+  fill: none;
+  stroke: var(--accent); /* usually indigo or primary */
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s ease-out;
+}
+
+.ringText {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.percentage {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+.label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.infoContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.infoLabel {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.currentValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.gapValue {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+}
+
+.divider {
+  height: 1px;
+  background: var(--card-border);
+  margin: 0.25rem 0;
+}
+
+.actionStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.actionStat {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.actionStat strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.actionIcon {
+  color: var(--text-muted);
+}
+
+.actionIconSuccess {
+  color: var(--accent);
+}
+
+@media (max-width: 720px) {
+  .layout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .ringContainer {
+    margin: 0 auto;
+  }
+
+  .infoRow {
+    flex-wrap: wrap;
+  }
+
+  .currentValue,
+  .gapValue {
+    width: 100%;
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .percentage {
+    font-size: 1.25rem;
+  }
+
+  .currentValue,
+  .gapValue {
+    font-size: 0.95rem;
+  }
+}

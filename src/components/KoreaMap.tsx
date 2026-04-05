@@ -1,0 +1,105 @@
+"use client";
+
+import React, { useState } from "react";
+import styles from "./KoreaMap.module.css";
+import clsx from "clsx";
+
+interface Region {
+    name: string;
+    revenue: number;
+    target: number;
+    velocity: number;
+    coordinates: [number, number];
+    status: "good" | "warning" | "critical";
+}
+
+interface KoreaMapProps {
+    data: Region[];
+}
+
+export default function KoreaMap({ data }: KoreaMapProps) {
+    const [hoveredRegion, setHoveredRegion] = useState<Region | null>(null);
+
+    return (
+        <div className={styles.mapContainer}>
+            <svg viewBox="0 0 300 400" className={styles.mapSvg}>
+                {/* Background Grid Pattern */}
+                <defs>
+                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--glass-border)" strokeWidth="1" />
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)" />
+
+                {/* Realistic-ish Korea Outline */}
+                <path
+                    d="M 110 38 C 130 35 160 40 185 85 C 200 95 220 100 230 110 C 240 140 250 180 260 210 C 265 240 260 270 240 280 C 210 285 160 300 130 310 C 110 315 90 300 80 270 C 70 240 85 190 90 150 C 95 120 90 80 110 38 Z"
+                    fill="var(--primary-soft)"
+                    stroke="var(--primary-border)"
+                    strokeWidth="2"
+                />
+                <path
+                    d="M 60 355 C 70 345 100 345 110 355 C 115 365 90 375 70 365 Z"
+                    fill="var(--primary-soft)"
+                    stroke="var(--primary-border)"
+                    strokeWidth="2"
+                />
+
+                {/* Regional Points */}
+                {data.map((region) => (
+                    <g
+                        key={region.name}
+                        className={styles.regionGroup}
+                        onMouseEnter={() => setHoveredRegion(region)}
+                        onMouseLeave={() => setHoveredRegion(null)}
+                    >
+                        {/* Pulsing Effect for Critical Regions */}
+                        {region.status === 'critical' && (
+                            <circle cx={region.coordinates[0]} cy={region.coordinates[1]} r="15" className={styles.pulse} />
+                        )}
+
+                        <circle
+                            cx={region.coordinates[0]}
+                            cy={region.coordinates[1]}
+                            r={region.name === "Seoul" ? 8 : 5}
+                            className={clsx(styles.point, styles[region.status])}
+                        />
+
+                        <text
+                            x={region.coordinates[0]}
+                            y={region.coordinates[1] + 15}
+                            textAnchor="middle"
+                            className={styles.regionLabel}
+                        >
+                            {region.name}
+                        </text>
+                    </g>
+                ))}
+            </svg>
+
+            {/* Tooltip Overlay */}
+            {hoveredRegion && (
+                <div
+                    className={clsx("glass", styles.tooltip)}
+                    style={{
+                        left: hoveredRegion.coordinates[0] + 20,
+                        top: hoveredRegion.coordinates[1] - 20
+                    }}
+                >
+                    <h4 className={styles.tooltipTitle}>{hoveredRegion.name}</h4>
+                    <div className={styles.tooltipRow}>
+                        <span>Revenue</span>
+                        <span className={styles.tooltipValue}>${hoveredRegion.revenue.toLocaleString()}</span>
+                    </div>
+                    <div className={styles.tooltipRow}>
+                        <span>Velocity</span>
+                        <span className={styles.tooltipValue}>{hoveredRegion.velocity}%</span>
+                    </div>
+                    <div className={styles.tooltipStatus}>
+                        Status: <span className={styles[hoveredRegion.status]}>{hoveredRegion.status.toUpperCase()}</span>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
