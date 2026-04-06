@@ -403,7 +403,6 @@ function KpiPanel({ person, period }: { person: IndividualData; period: "M" | "Q
                   style={{ width: `${kpiFill}%`, background: kpiColor }}
                 />
               </div>
-              <span className={styles.kpiPct} style={{ color: kpiColor }}>{scaledProgress}%</span>
             </div>
           );
         })}
