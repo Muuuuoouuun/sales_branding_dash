@@ -184,12 +184,21 @@
   grid-template-columns: 300px minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+  /* 두 패널이 뷰포트 높이 안에서 독립 스크롤하도록 고정 높이 */
+  max-height: calc(100vh - 10rem);
 }
 
 /* ── Library select list ───────────────────────────────────────────────── */
 .libraryList {
   display: grid;
   gap: 0.6rem;
+  max-height: calc(100vh - 10rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.libraryList::-webkit-scrollbar {
+  display: none;
 }
 
 .librarySelectCard {
@@ -1227,11 +1236,19 @@
   grid-template-columns: 300px minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+  max-height: calc(100vh - 10rem);
 }
 
 .resourcesLeft {
   display: grid;
   gap: 0.75rem;
+  max-height: calc(100vh - 10rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.resourcesLeft::-webkit-scrollbar {
+  display: none;
 }
 
 /* Weekly Spotlight */

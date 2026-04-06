@@ -116,11 +116,13 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "Open with a commercial insight, not product history.",
       "Use constructive tension to make the hidden cost visible.",
       "Lead the customer to a new way of thinking before proposing a solution.",
+      "Tailor the message to each stakeholder's role, priorities, and personal motivators before the meeting.",
     ],
     questions: [
       "What is the hidden cost of doing nothing?",
       "Which assumption is the buyer treating as fixed?",
       "What would change if the team accepted a different frame?",
+      "What insight could reorder the buyer's priorities and make our solution the obvious next step?",
     ],
   },
   SPIN: {
@@ -131,11 +133,13 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "Start with the current situation and keep the questions grounded.",
       "Move from problem to implication before introducing any payoff.",
       "Use need-payoff questions to let the buyer articulate the value.",
+      "Minimize feature explanations until the buyer has verbalized the full cost of inaction.",
     ],
     questions: [
       "What is the current process and where does it break down?",
       "What is the business impact if the issue continues?",
       "What changes if this is solved this quarter?",
+      "If you could quantify the annual cost of this problem, what number would surprise your CFO?",
     ],
   },
   MEDDIC: {
@@ -146,11 +150,13 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "Verify the economic buyer early.",
       "Write the decision criteria before the team assumes them.",
       "Track the paper process so the forecast does not stall late.",
+      "Build and test the champion — confirm they have both the power and the will to advocate internally.",
     ],
     questions: [
       "Who owns the budget and approval path?",
       "What criteria will decide the final choice?",
       "What proof is needed to move the deal forward?",
+      "If this deal stalled today, who inside the account would fight to revive it — and why?",
     ],
   },
   Sandler: {
@@ -161,11 +167,13 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "Set an upfront contract before the meeting ends.",
       "Treat pain and budget as separate questions.",
       "Use a clean no to reach a cleaner yes.",
+      "Deploy the Dummy Curve — ask naive questions to invite the buyer to explain, then listen for the real objection.",
     ],
     questions: [
       "What is the real pain behind the request?",
       "What happens if the team does nothing?",
       "Who is actually committed to the next step?",
+      "On a scale of 1–10, how serious is this pain — and what would make it a 10?",
     ],
   },
   General: {
@@ -176,11 +184,13 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "Keep the message simple enough for the field team to repeat.",
       "Use numbers that support the next action, not vanity metrics.",
       "Turn good patterns into shared operating rules.",
+      "Run a weekly deal review that focuses on what has changed, not what is already known.",
     ],
     questions: [
       "What is the one metric that changes the next move?",
       "What pattern is repeatable across accounts?",
       "What needs to be documented so the team can reuse it?",
+      "What assumption is the team making that has not been validated with the buyer this week?",
     ],
   },
   Outbound: {
@@ -191,11 +201,13 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "Separate roles: SDR owns prospecting, AE owns closing, CSM owns expansion.",
       "Lead with a cold email referral to the right contact — not a direct pitch.",
       "Track pipeline by lead source: Seeds (organic), Nets (marketing), Spears (outbound).",
+      "Niche down the ICP before scaling sequences — a tight target list outperforms volume every time.",
     ],
     questions: [
       "Who owns pipeline generation — a repeatable system or individual heroics?",
       "What is the current SDR-to-AE ratio and is it sustainable at scale?",
       "Which lead source is producing the highest-quality pipeline right now?",
+      "If the top SDR left tomorrow, how much pipeline would disappear — and what does that tell us about the system?",
     ],
   },
   Prospecting: {
@@ -206,11 +218,13 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "Time-block 1–2 hours daily for prospecting — treat it as non-negotiable.",
       "Mix phone, email, social, and in-person to maximize reach across channels.",
       "Apply the 30-day rule: what you do today shapes your pipeline in 30 days.",
+      "Track activity metrics weekly — dials, emails sent, connections made — and hold the numbers sacred.",
     ],
     questions: [
       "How many hours per week is each rep spending on active prospecting?",
       "What channels are generating the best response rates right now?",
       "What would the pipeline look like if the team stopped prospecting for 30 days?",
+      "Which rep has the strongest prospecting habit, and what can the rest of the team copy from their routine?",
     ],
   },
   Negotiation: {
@@ -221,11 +235,13 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "Open with a calibrated question: 'How am I supposed to make that work?'",
       "Use mirroring (repeat last 3 words) to keep the buyer talking and surface concerns.",
       "Name their emotion before they do — it builds trust faster than any argument.",
+      "Run an Accusation Audit before critical calls — list every negative the buyer might say and address them first.",
     ],
     questions: [
       "What emotion is actually driving the buyer's current position?",
       "What is the real 'no' underneath their hesitation?",
       "What calibrated question would make them think rather than react?",
+      "What is the Black Swan — the hidden constraint the buyer has not yet revealed — that would explain everything?",
     ],
   },
 };
