@@ -701,8 +701,30 @@ function buildPacingData(monthlyActuals: Map<number, number>, totalTarget: numbe
 
 function buildAgingData(revenueRows: RevenueRow[]): DealAgingPoint[] {
   const now = new Date();
-  const livePoints = revenueRows
-    .filter((row) => row.firstPayment)
+
+  // Show pipeline (non-confirmed) deals sorted by amount desc — these are the deals
+  // waiting to be closed. "Days" is estimated from the fiscal year start (April).
+  // For confirmed deals we show how long since activation (renewal / upsell tracking).
+  const fiscalYearStart = new Date(now.getFullYear(), 3, 1); // April 1
+  if (fiscalYearStart > now) {
+    fiscalYearStart.setFullYear(fiscalYearStart.getFullYear() - 1);
+  }
+
+  const pipelinePoints: DealAgingPoint[] = revenueRows
+    .filter((row) => !row.firstPayment)
+    .sort((left, right) => right.amount - left.amount)
+    .slice(0, 7)
+    .map((row) => ({
+      id: row.id,
+      name: row.account,
+      stage: row.status || "Pipeline",
+      days: Math.round((now.getTime() - fiscalYearStart.getTime()) / (1000 * 60 * 60 * 24)),
+      value: row.amount,
+      prob: row.probability,
+    }));
+
+  const activatedPoints: DealAgingPoint[] = revenueRows
+    .filter((row) => Boolean(row.firstPayment))
     .sort((left, right) => right.amount - left.amount)
     .slice(0, 7)
     .map((row) => ({
@@ -714,17 +736,9 @@ function buildAgingData(revenueRows: RevenueRow[]): DealAgingPoint[] {
       prob: row.probability,
     }));
 
-  if (livePoints.length >= 3) {
-    return livePoints;
-  }
-
-  const dummyPoints: DealAgingPoint[] = [
-    { id: "aging-dummy-1", name: "Activation slot 1", stage: "Lead", days: 16, value: 120, prob: 55, isDummy: true },
-    { id: "aging-dummy-2", name: "Activation slot 2", stage: "Proposal", days: 32, value: 180, prob: 62, isDummy: true },
-    { id: "aging-dummy-3", name: "Activation slot 3", stage: "Negotiation", days: 49, value: 260, prob: 78, isDummy: true },
-  ];
-
-  return [...livePoints, ...dummyPoints].slice(0, 3);
+  // Prefer pipeline deals; fall back to activated if pipeline is empty
+  const points = pipelinePoints.length > 0 ? pipelinePoints : activatedPoints;
+  return points.slice(0, 7);
 }
 
 function buildHotDeals(accounts: FocusAccount[]): HotDeal[] {
@@ -793,10 +807,13 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
       channelRevenue += row.amount;
     }
 
-    for (const [month, amount] of Object.entries(row.monthTotals)) {
-      const monthNumber = Number(month);
-      if (monthlyActuals.has(monthNumber)) {
-        monthlyActuals.set(monthNumber, (monthlyActuals.get(monthNumber) ?? 0) + amount);
+    // Only confirmed (firstPayment) rows contribute to monthly actuals
+    if (row.firstPayment) {
+      for (const [month, amount] of Object.entries(row.monthTotals)) {
+        const monthNumber = Number(month);
+        if (monthlyActuals.has(monthNumber)) {
+          monthlyActuals.set(monthNumber, (monthlyActuals.get(monthNumber) ?? 0) + amount);
+        }
       }
     }
 
@@ -1153,7 +1170,15 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     .map(buildFocusAccount);
 
   const quarterMonths = getCurrentFiscalQuarterMonths();
-  const quarterlyActuals = new Map(quarterMonths.map((m) => [m, revenueSummary.monthlyActuals.get(m) ?? 0]));
+
+  // Prefer DSH monthly actuals (Status Total rows) as the single source of truth.
+  // Fall back to REV confirmed-only monthly actuals when DSH monthly data is absent.
+  const hasDshMonthlyActuals = Object.keys(dshTargets.bdMonthlyActuals).length > 0;
+  const pacingActualsSource: Map<number, number> = hasDshMonthlyActuals
+    ? new Map(DSH_FISCAL_MONTHS.map((m) => [m, dshTargets.bdMonthlyActuals[m] ?? 0]))
+    : revenueSummary.monthlyActuals;
+
+  const quarterlyActuals = new Map(quarterMonths.map((m) => [m, pacingActualsSource.get(m) ?? 0]));
 
   return {
     stats: buildStats(teamSummary, activitySummary),
@@ -1165,7 +1190,7 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     hotDeals: buildHotDeals(focusAccounts),
     teamSummary,
     pacing: buildPacingData(quarterlyActuals, bdQuarterTarget),
-    yearlyPacing: buildYearlyPacingData(revenueSummary.monthlyActuals, dshTargets.bdMonthlyTargets),
+    yearlyPacing: buildYearlyPacingData(pacingActualsSource, dshTargets.bdMonthlyTargets),
     aging: buildAgingData(revenueRows),
     periodLabel: getPeriodLabel(),
     dataSource,
