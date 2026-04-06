@@ -308,6 +308,12 @@ export default function Dashboard() {
         ? formatRevenue(Math.round(dashboard.teamSummary.gapRevenue / daysRemaining))
         : "0";
 
+    const monthlyTarget = dashboard.teamSummary.monthlyTarget ?? 0;
+    const monthlyActual = dashboard.teamSummary.monthlyActual ?? 0;
+    const monthlyAttainment = monthlyTarget > 0 ? (monthlyActual / monthlyTarget) * 100 : 0;
+    const monthlyGap = Math.max(monthlyTarget - monthlyActual, 0);
+    const currentMonth = dashboard.teamSummary.currentMonth ?? new Date().getMonth() + 1;
+
     return [
       {
         label: language === "ko" ? "매출 달성도" : "Revenue",
@@ -333,6 +339,16 @@ export default function Dashboard() {
             ? (language === "ko" ? `일당 ${perDay} 필요` : `Need ${perDay}/day`)
             : (language === "ko" ? "목표 달성 안정권" : "Target coverage secured"),
         trendType: dashboard.teamSummary.gapRevenue > 0 ? "down" : "up",
+      },
+      {
+        label: language === "ko" ? `${currentMonth}월 목표` : `${currentMonth}月 target`,
+        value: formatCompactRevenue(monthlyTarget),
+        trend: monthlyGap > 0
+          ? (language === "ko"
+            ? `실적 ${formatRevenue(monthlyActual)} · 달성률 ${monthlyAttainment.toFixed(1)}%`
+            : `Actual ${formatRevenue(monthlyActual)} · ${monthlyAttainment.toFixed(1)}%`)
+          : (language === "ko" ? `월 목표 달성 (${formatRevenue(monthlyActual)})` : `Monthly target hit (${formatRevenue(monthlyActual)})`),
+        trendType: monthlyAttainment >= 100 ? "up" : monthlyAttainment >= 50 ? "down" : "critical",
       },
       {
         label: language === "ko" ? "활성 고객사" : "Activated accounts",

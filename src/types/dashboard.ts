@@ -122,6 +122,9 @@ export interface TeamSummary {
   criticalRegionCount: number;
   yearlyTarget?: number;
   yearlyActual?: number;
+  monthlyTarget?: number;
+  monthlyActual?: number;
+  currentMonth?: number;
 }
 
 export interface DashboardPayload {
