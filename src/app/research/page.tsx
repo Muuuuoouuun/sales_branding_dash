@@ -15,9 +15,10 @@ import {
 } from "lucide-react";
 import styles from "./page.module.css";
 import { SALES_LEGENDS, getContextualTip, type GuruTip, type SalesLegend } from "@/lib/salesTips";
+import { RESOURCES, RESOURCE_CATEGORY_LABEL, RESOURCE_CATEGORY_EMOJI, isNewResource, getWeeklyResource, type Resource, type ResourceCategory } from "@/lib/resources";
 import type { ActivityStage, DashboardPayload, HotDeal, IndividualData, RegionData } from "@/types/dashboard";
 
-type ResearchTab = "library" | "patterns" | "intel";
+type ResearchTab = "library" | "patterns" | "intel" | "resources";
 type MethodologyId = SalesLegend["id"];
 
 type MethodologyDetail = {
@@ -100,6 +101,7 @@ const EMPTY_DASHBOARD: DashboardSnapshot = {
 
 const TABS: Array<{ id: ResearchTab; label: string; icon: React.ReactNode }> = [
   { id: "library", label: "Library", icon: <BookOpen size={14} /> },
+  { id: "resources", label: "Resources", icon: <Brain size={14} /> },
   { id: "patterns", label: "Patterns", icon: <Star size={14} /> },
   { id: "intel", label: "Intel", icon: <ShieldAlert size={14} /> },
 ];
@@ -178,6 +180,51 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
       "What is the one metric that changes the next move?",
       "What pattern is repeatable across accounts?",
       "What needs to be documented so the team can reuse it?",
+    ],
+  },
+  Outbound: {
+    tagline: "Build a system that generates pipeline without depending on heroic individuals.",
+    bestFor: "Scaling an outbound motion with a dedicated SDR team and repeatable sequences.",
+    useWhen: "Use when the team needs to move from reactive to proactive pipeline generation.",
+    playbook: [
+      "Separate roles: SDR owns prospecting, AE owns closing, CSM owns expansion.",
+      "Lead with a cold email referral to the right contact — not a direct pitch.",
+      "Track pipeline by lead source: Seeds (organic), Nets (marketing), Spears (outbound).",
+    ],
+    questions: [
+      "Who owns pipeline generation — a repeatable system or individual heroics?",
+      "What is the current SDR-to-AE ratio and is it sustainable at scale?",
+      "Which lead source is producing the highest-quality pipeline right now?",
+    ],
+  },
+  Prospecting: {
+    tagline: "An empty pipeline is the root cause of every sales problem.",
+    bestFor: "Field sellers who need to rebuild pipeline discipline from scratch.",
+    useWhen: "Use when pipeline is thin, deal velocity is low, or the team avoids outreach.",
+    playbook: [
+      "Time-block 1–2 hours daily for prospecting — treat it as non-negotiable.",
+      "Mix phone, email, social, and in-person to maximize reach across channels.",
+      "Apply the 30-day rule: what you do today shapes your pipeline in 30 days.",
+    ],
+    questions: [
+      "How many hours per week is each rep spending on active prospecting?",
+      "What channels are generating the best response rates right now?",
+      "What would the pipeline look like if the team stopped prospecting for 30 days?",
+    ],
+  },
+  Negotiation: {
+    tagline: "Never split the difference — use empathy to reach the right outcome, not a compromise.",
+    bestFor: "Late-stage deals where price, terms, or commitment are being contested.",
+    useWhen: "Use when the buyer is stalling, anchoring low, or asking for concessions.",
+    playbook: [
+      "Open with a calibrated question: 'How am I supposed to make that work?'",
+      "Use mirroring (repeat last 3 words) to keep the buyer talking and surface concerns.",
+      "Name their emotion before they do — it builds trust faster than any argument.",
+    ],
+    questions: [
+      "What emotion is actually driving the buyer's current position?",
+      "What is the real 'no' underneath their hesitation?",
+      "What calibrated question would make them think rather than react?",
     ],
   },
 };
@@ -582,6 +629,9 @@ export default function ResearchPage() {
   const [activeTab, setActiveTab] = useState<ResearchTab>("library");
   const [query, setQuery] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<MethodologyId | "All">("All");
+  const [selectedLegendId, setSelectedLegendId] = useState<MethodologyId | null>(null);
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+  const [selectedResourceCategory, setSelectedResourceCategory] = useState<ResourceCategory | "All">("All");
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
   const [selectedIntelId, setSelectedIntelId] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(EMPTY_DASHBOARD);
@@ -681,6 +731,17 @@ export default function ResearchPage() {
   }, [liveIntel, query]);
 
   useEffect(() => {
+    if (filteredLegends.length === 0) {
+      setSelectedLegendId(null);
+      return;
+    }
+
+    if (!selectedLegendId || !filteredLegends.some((l) => l.id === selectedLegendId)) {
+      setSelectedLegendId(filteredLegends[0].id);
+    }
+  }, [filteredLegends, selectedLegendId]);
+
+  useEffect(() => {
     if (filteredPatterns.length === 0) {
       setSelectedPatternId(null);
       return;
@@ -702,8 +763,26 @@ export default function ResearchPage() {
     }
   }, [filteredIntel, selectedIntelId]);
 
+  const selectedLegend = filteredLegends.find((l) => l.id === selectedLegendId) ?? filteredLegends[0] ?? null;
   const selectedPattern = filteredPatterns.find((pattern) => pattern.id === selectedPatternId) ?? filteredPatterns[0] ?? null;
   const selectedIntel = filteredIntel.find((card) => card.id === selectedIntelId) ?? filteredIntel[0] ?? null;
+
+  const filteredResources = useMemo(() => {
+    return RESOURCES.filter((r) => {
+      const categoryHit = selectedResourceCategory === "All" || r.category === selectedResourceCategory;
+      const searchHit =
+        !query ||
+        r.title.toLowerCase().includes(query.toLowerCase()) ||
+        r.author.toLowerCase().includes(query.toLowerCase()) ||
+        r.description.toLowerCase().includes(query.toLowerCase()) ||
+        r.tags.some((t) => t.toLowerCase().includes(query.toLowerCase()));
+      return categoryHit && searchHit;
+    });
+  }, [selectedResourceCategory, query]);
+
+  const selectedResource = filteredResources.find((r) => r.id === selectedResourceId) ?? filteredResources[0] ?? null;
+
+  const weeklyResource = useMemo(() => getWeeklyResource(), []);
 
   const sourceLabel = hasLoaded ? (dashboard.dataSource === "google-sheets" ? "Live Sheet" : "Fallback") : "Loading";
   const activeSummary = useMemo(
@@ -780,7 +859,7 @@ export default function ResearchPage() {
 
       {activeTab === "library" && (
         <div className={styles.libraryLayout}>
-          <section className={styles.libraryGrid}>
+          <div className={styles.libraryList}>
             {filteredLegends.length === 0 ? (
               <EmptyState
                 title="No methods matched"
@@ -788,105 +867,107 @@ export default function ResearchPage() {
               />
             ) : (
               filteredLegends.map((legend) => {
-                const detail = METHODOLOGY_DETAILS[legend.id];
-                const isActive = selectedMethod === legend.id;
-
+                const isSelected = selectedLegend?.id === legend.id;
                 return (
-                  <article
+                  <button
                     key={legend.id}
-                    className={`${styles.methodCard} ${isActive ? styles.methodCardActive : ""}`}
-                    style={{ borderColor: isActive ? legend.color : undefined }}
+                    type="button"
+                    className={`${styles.librarySelectCard} ${isSelected ? styles.librarySelectCardActive : ""}`}
+                    style={isSelected ? { borderColor: legend.color } : undefined}
+                    onClick={() => setSelectedLegendId(legend.id)}
                   >
-                    <button
-                      type="button"
-                      className={`${styles.methodHeader} ${isActive ? styles.methodHeaderActive : ""}`}
-                      onClick={() => setSelectedMethod(isActive ? "All" : legend.id)}
-                    >
-                      <div className={styles.methodIdentity}>
-                        <span className={styles.methodEmoji}>
-                          {legend.emoji}
-                        </span>
-                        <div className={styles.methodTitleGroup}>
-                          <div className={styles.methodNameRow}>
-                            <span className={styles.methodName}>{legend.methodTitle}</span>
-                            <ChevronRight size={16} className={`${styles.methodArrow} ${isActive ? styles.methodArrowOpen : ""}`} />
-                          </div>
-                          <div className={styles.methodOwner}>
-                            <span className={styles.methodAuthor}>{legend.name}</span>
-                            <span className={styles.methodCredential}> · {legend.title}</span>
-                          </div>
-                        </div>
+                    <span className={styles.libraryCardEmoji}>{legend.emoji}</span>
+                    <div className={styles.libraryCardBody}>
+                      <div className={styles.libraryCardTop}>
+                        <span className={styles.libraryCardMethod}>{legend.methodTitle}</span>
+                        <span className={styles.libraryCardId} style={{ color: legend.color }}>{legend.id}</span>
                       </div>
-                      <span className={styles.methodId} style={{ color: legend.color }}>
-                        {legend.id}
-                      </span>
-                    </button>
-
-                    <p className={styles.methodTagline}>{detail.tagline}</p>
-                    <p className={styles.methodBio}>{legend.bio}</p>
-
-                    <div className={styles.methodPills}>
-                      <span className={styles.metaPill}>{detail.bestFor}</span>
-                      <span className={styles.metaPill}>Use when: {detail.useWhen}</span>
+                      <span className={styles.libraryCardAuthor}>{legend.name} · {legend.title}</span>
                     </div>
-
-                    {isActive ? (
-                      <div className={styles.methodDetail}>
-                        <div>
-                          <div className={styles.sectionLabel}>
-                            <Target size={12} /> Core questions
-                          </div>
-                          <ul className={styles.list}>
-                            {detail.questions.map((question) => (
-                              <li key={question}>{question}</li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div>
-                          <div className={styles.sectionLabel}>
-                            <Sparkles size={12} /> Playbook
-                          </div>
-                          <ul className={styles.list}>
-                            {detail.playbook.map((step) => (
-                              <li key={step}>{step}</li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className={styles.quoteBlock}>
-                          <div className={styles.sectionLabel}>
-                            <BadgeInfo size={12} /> Signature move
-                          </div>
-                          <p>{legend.signatureMove}</p>
-                          <blockquote>{legend.quotes[0]}</blockquote>
-                        </div>
-                      </div>
-                    ) : null}
-                  </article>
+                    <ChevronRight size={14} className={`${styles.libraryCardArrow} ${isSelected ? styles.libraryCardArrowActive : ""}`} />
+                  </button>
                 );
               })
             )}
-          </section>
+          </div>
 
-          <aside className={styles.sideRail}>
-            <div className={styles.sideCard}>
-              <div className={styles.sideHeader}>
-                <Brain size={15} />
-                <span>Current focus</span>
-              </div>
-              <h2>{focusMethod}</h2>
-              <p>{METHODOLOGY_DETAILS[focusMethod].useWhen}</p>
-            </div>
+          {selectedLegend ? (() => {
+            const detail = METHODOLOGY_DETAILS[selectedLegend.id];
+            return (
+              <article className={styles.legendArticle}>
+                <div className={styles.legendHero} style={{ borderColor: selectedLegend.color, background: selectedLegend.colorBg }}>
+                  <div className={styles.legendHeroTop}>
+                    <span className={styles.legendHeroEmoji}>{selectedLegend.emoji}</span>
+                    <div>
+                      <p className={styles.legendHeroKicker} style={{ color: selectedLegend.color }}>{selectedLegend.id}</p>
+                      <h2 className={styles.legendHeroTitle}>{selectedLegend.methodTitle}</h2>
+                      <p className={styles.legendHeroMeta}>{selectedLegend.name} · {selectedLegend.title}</p>
+                    </div>
+                  </div>
+                  <p className={styles.legendHeroBio}>{selectedLegend.bio}</p>
+                </div>
 
-            <div className={styles.sideCard}>
-              <div className={styles.sideHeader}>
-                <Award size={15} />
-                <span>Field rule</span>
-              </div>
-              <p>{METHODOLOGY_DETAILS[focusMethod].tagline}</p>
-            </div>
-          </aside>
+                <blockquote className={styles.legendPullQuote} style={{ borderColor: selectedLegend.color }}>
+                  {detail.tagline}
+                </blockquote>
+
+                <div className={styles.legendMetaRow}>
+                  <div className={styles.legendMetaBlock}>
+                    <span className={styles.sectionLabel}><Target size={12} /> Best for</span>
+                    <p className={styles.legendMetaText}>{detail.bestFor}</p>
+                  </div>
+                  <div className={styles.legendMetaBlock}>
+                    <span className={styles.sectionLabel}><Sparkles size={12} /> Use when</span>
+                    <p className={styles.legendMetaText}>{detail.useWhen}</p>
+                  </div>
+                </div>
+
+                <div className={styles.legendSection}>
+                  <div className={styles.sectionLabel}><Brain size={12} /> Core questions</div>
+                  <ol className={styles.legendOrderedList}>
+                    {detail.questions.map((q) => (
+                      <li key={q}>{q}</li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className={styles.legendSection}>
+                  <div className={styles.sectionLabel}><Sparkles size={12} /> Playbook</div>
+                  <ol className={styles.legendOrderedList}>
+                    {detail.playbook.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className={styles.legendSection}>
+                  <div className={styles.sectionLabel}><Award size={12} /> Principles</div>
+                  <ul className={styles.legendPrincipleList}>
+                    {selectedLegend.principles.map((p) => (
+                      <li key={p} className={styles.legendPrincipleItem}>
+                        <span className={styles.legendPrincipleDot} style={{ background: selectedLegend.color }} />
+                        {p}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className={styles.legendQuoteStack}>
+                  {selectedLegend.quotes.map((q) => (
+                    <blockquote key={q} className={styles.legendQuoteItem}>
+                      <BadgeInfo size={13} style={{ color: selectedLegend.color, flexShrink: 0 }} />
+                      <span>{q}</span>
+                    </blockquote>
+                  ))}
+                </div>
+
+                <div className={styles.legendSignatureBox} style={{ borderColor: selectedLegend.color }}>
+                  <div className={styles.sectionLabel}><Star size={12} /> Signature move</div>
+                  <p className={styles.legendSignatureText}>{selectedLegend.signatureMove}</p>
+                </div>
+              </article>
+            );
+          })() : null}
         </div>
       )}
 
@@ -1104,6 +1185,134 @@ export default function ResearchPage() {
             </>
           )}
         </section>
+      )}
+
+      {activeTab === "resources" && (
+        <div className={styles.resourcesLayout}>
+          <div className={styles.resourcesLeft}>
+            <div className={styles.resourceWeeklySpotlight}>
+              <div className={styles.resourceSpotlightBadge}>
+                <Star size={11} />
+                <span>Weekly Spotlight</span>
+              </div>
+              <div className={styles.resourceSpotlightBody}>
+                <span className={styles.resourceSpotlightEmoji}>{weeklyResource.emoji}</span>
+                <div>
+                  <p className={styles.resourceSpotlightCategory}>{RESOURCE_CATEGORY_LABEL[weeklyResource.category]}</p>
+                  <p className={styles.resourceSpotlightTitle}>{weeklyResource.title}</p>
+                  <p className={styles.resourceSpotlightAuthor}>{weeklyResource.author}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.resourceCategoryChips}>
+              {(["All", "book", "podcast", "blog", "newsletter"] as Array<"All" | ResourceCategory>).map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`${styles.resourceCategoryChip} ${selectedResourceCategory === cat ? styles.resourceCategoryChipActive : ""}`}
+                  onClick={() => setSelectedResourceCategory(cat)}
+                >
+                  {cat === "All" ? "All" : `${RESOURCE_CATEGORY_EMOJI[cat]} ${RESOURCE_CATEGORY_LABEL[cat]}`}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.resourceList}>
+              {filteredResources.length === 0 ? (
+                <EmptyState title="No resources matched" description="Try a different category or keyword." />
+              ) : (
+                filteredResources.map((r) => {
+                  const isSelected = selectedResource?.id === r.id;
+                  const isNew = isNewResource(r.addedAt);
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={`${styles.resourceSelectCard} ${isSelected ? styles.resourceSelectCardActive : ""}`}
+                      style={isSelected ? { borderColor: r.color } : undefined}
+                      onClick={() => setSelectedResourceId(r.id)}
+                    >
+                      <div className={styles.resourceCardLeft}>
+                        <span className={styles.resourceCardEmoji}>{r.emoji}</span>
+                      </div>
+                      <div className={styles.resourceCardBody}>
+                        <div className={styles.resourceCardTopRow}>
+                          <span className={styles.resourceCardCategory} style={{ color: r.color }}>
+                            {RESOURCE_CATEGORY_EMOJI[r.category]} {RESOURCE_CATEGORY_LABEL[r.category]}
+                          </span>
+                          {isNew && <span className={styles.resourceNewBadge}>NEW</span>}
+                        </div>
+                        <p className={styles.resourceCardTitle}>{r.title}</p>
+                        <p className={styles.resourceCardAuthor}>{r.author}</p>
+                        <p className={styles.resourceCardDuration}>{r.duration}</p>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {selectedResource ? (
+            <article className={styles.resourceArticle}>
+              <div className={styles.resourceArticleHero} style={{ borderColor: selectedResource.color, background: selectedResource.colorBg }}>
+                <div className={styles.resourceArticleHeroTop}>
+                  <div>
+                    <div className={styles.resourceArticleMetaRow}>
+                      <span className={styles.resourceArticleCategoryTag} style={{ color: selectedResource.color }}>
+                        {RESOURCE_CATEGORY_EMOJI[selectedResource.category]} {RESOURCE_CATEGORY_LABEL[selectedResource.category]}
+                      </span>
+                      {isNewResource(selectedResource.addedAt) && (
+                        <span className={styles.resourceNewBadge}>NEW</span>
+                      )}
+                      <span className={styles.resourceArticleDuration}>{selectedResource.duration}</span>
+                    </div>
+                    <h2 className={styles.resourceArticleTitle}>{selectedResource.title}</h2>
+                    <p className={styles.resourceArticleAuthor}>{selectedResource.author}</p>
+                    <p className={styles.resourceArticleAuthorTitle}>{selectedResource.authorTitle}</p>
+                  </div>
+                  <span className={styles.resourceArticleHeroEmoji}>{selectedResource.emoji}</span>
+                </div>
+              </div>
+
+              <blockquote className={styles.resourcePullQuote} style={{ borderColor: selectedResource.color }}>
+                {selectedResource.tagline}
+              </blockquote>
+
+              <div className={styles.resourceSection}>
+                <div className={styles.sectionLabel}><BookOpen size={12} /> Overview</div>
+                <p className={styles.resourceSectionText}>{selectedResource.description}</p>
+              </div>
+
+              <div className={styles.resourceSection}>
+                <div className={styles.sectionLabel}><Sparkles size={12} /> Key Takeaways</div>
+                <ol className={styles.resourceOrderedList}>
+                  {selectedResource.keyTakeaways.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className={styles.resourceMetaGrid}>
+                <div className={styles.resourceMetaBlock}>
+                  <div className={styles.sectionLabel}><Target size={12} /> Best for</div>
+                  <p className={styles.resourceSectionText}>{selectedResource.bestFor}</p>
+                </div>
+                <div className={styles.resourceMetaBlock}>
+                  <div className={styles.sectionLabel}><Brain size={12} /> Why it matters</div>
+                  <p className={styles.resourceSectionText}>{selectedResource.whyItMatters}</p>
+                </div>
+              </div>
+
+              <div className={styles.resourceTagRow}>
+                {selectedResource.tags.map((tag) => (
+                  <span key={tag} className={styles.resourceTag}>{tag}</span>
+                ))}
+              </div>
+            </article>
+          ) : null}
+        </div>
       )}
     </div>
   );
