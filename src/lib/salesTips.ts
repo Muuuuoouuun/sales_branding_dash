@@ -1,7 +1,7 @@
 // ── Sales Tips Database ─────────────────────────────────────────────────────
 // Rotates daily. Use getDailyTip() to get today's tip.
 
-export type MethodologyId = "Challenger" | "SPIN" | "MEDDIC" | "Sandler" | "General";
+export type MethodologyId = "Challenger" | "SPIN" | "MEDDIC" | "Sandler" | "General" | "Outbound" | "Prospecting" | "Negotiation";
 
 export interface SalesTipEntry {
   id: number;
@@ -168,6 +168,84 @@ export const SALES_TIPS: SalesTipEntry[] = [
     tip: "좋은 영업사원은 듣고, 위대한 영업사원은 질문한다. 최고의 질문이 최고의 인사이트를 만든다.",
     source: "Active Listening",
   },
+  // ── Predictable Revenue (Outbound) ───────────────────────────────────────
+  {
+    id: 31, methodology: "Outbound", methodologyKr: "Predictable Revenue", color: "#0ea5e9",
+    tip: "CEO가 직접 콜드콜을 하면 안 된다. 시스템이 파이프라인을 만들어야 한다.",
+    source: "Aaron Ross",
+  },
+  {
+    id: 32, methodology: "Outbound", methodologyKr: "Predictable Revenue", color: "#0ea5e9",
+    tip: "Cold Calling 2.0: 전화 없이 콜드 이메일로 C레벨에게 적합한 담당자를 소개받아라.",
+    source: "Predictable Revenue",
+  },
+  {
+    id: 33, methodology: "Outbound", methodologyKr: "Predictable Revenue", color: "#0ea5e9",
+    tip: "Seeds·Nets·Spears — 리드 소스를 3가지로 분류하고 각각 다른 전략을 적용하라.",
+    source: "Aaron Ross",
+  },
+  {
+    id: 34, methodology: "Outbound", methodologyKr: "Predictable Revenue", color: "#0ea5e9",
+    tip: "SDR 없이 AE가 아웃바운드까지 맡으면 두 가지 모두 제대로 할 수 없다.",
+    source: "Predictable Revenue",
+  },
+  {
+    id: 35, methodology: "Outbound", methodologyKr: "Predictable Revenue", color: "#0ea5e9",
+    tip: "예측 가능한 매출의 핵심은 인바운드가 아니라 반복 가능한 아웃바운드 시스템이다.",
+    source: "Aaron Ross",
+  },
+  // ── Fanatical Prospecting ─────────────────────────────────────────────────
+  {
+    id: 36, methodology: "Prospecting", methodologyKr: "Fanatical Prospecting", color: "#8b5cf6",
+    tip: "빈 파이프라인이 모든 영업 문제의 근원이다. 프로스펙팅을 멈추는 순간 30일 후 파이프라인이 말라버린다.",
+    source: "Jeb Blount",
+  },
+  {
+    id: 37, methodology: "Prospecting", methodologyKr: "Fanatical Prospecting", color: "#8b5cf6",
+    tip: "하루 1~2시간을 프로스펙팅 전용 타임블록으로 달력에 고정하라. 비상사태 외에는 절대 건드리지 마라.",
+    source: "Fanatical Prospecting",
+  },
+  {
+    id: 38, methodology: "Prospecting", methodologyKr: "Fanatical Prospecting", color: "#8b5cf6",
+    tip: "전화·이메일·소셜·대면을 섞어라. 한 채널에 의존하는 순간 파이프라인이 취약해진다.",
+    source: "Jeb Blount",
+  },
+  {
+    id: 39, methodology: "Prospecting", methodologyKr: "Fanatical Prospecting", color: "#8b5cf6",
+    tip: "프로스펙팅은 미래의 자신에게 보내는 선물이다. 지금의 고통이 다음 분기의 파이프라인이 된다.",
+    source: "Fanatical Prospecting",
+  },
+  {
+    id: 40, methodology: "Prospecting", methodologyKr: "Fanatical Prospecting", color: "#8b5cf6",
+    tip: "최고의 영업사원은 프로스펙팅을 좋아하지 않는다 — 그냥 한다. 감정은 행동 다음에 온다.",
+    source: "Jeb Blount",
+  },
+  // ── Never Split the Difference (Negotiation) ─────────────────────────────
+  {
+    id: 41, methodology: "Negotiation", methodologyKr: "Never Split the Difference", color: "#ec4899",
+    tip: "타협은 나쁜 결과를 두 번 얻는 것이다. 절대 차이를 나누지 마라.",
+    source: "Chris Voss",
+  },
+  {
+    id: 42, methodology: "Negotiation", methodologyKr: "Never Split the Difference", color: "#ec4899",
+    tip: "Tactical Empathy: 상대방이 듣고 싶은 말이 아닌, 느끼는 감정을 먼저 명명하라.",
+    source: "Never Split the Difference",
+  },
+  {
+    id: 43, methodology: "Negotiation", methodologyKr: "Never Split the Difference", color: "#ec4899",
+    tip: "'No'는 대화의 끝이 아니라 진짜 협상의 시작이다. 'No'를 유도해서 안전감을 줘라.",
+    source: "Chris Voss",
+  },
+  {
+    id: 44, methodology: "Negotiation", methodologyKr: "Never Split the Difference", color: "#ec4899",
+    tip: "Mirroring: 상대의 마지막 3단어를 그대로 반복하면 상대는 더 많이 말하게 된다.",
+    source: "Never Split the Difference",
+  },
+  {
+    id: 45, methodology: "Negotiation", methodologyKr: "Never Split the Difference", color: "#ec4899",
+    tip: "Calibrated Question: '어떻게 해야 할까요?'는 협박 없이 상대가 스스로 해법을 찾게 만드는 가장 강력한 질문이다.",
+    source: "Chris Voss",
+  },
 ];
 
 /** 오늘 날짜 기반 팁 반환 (하루 단위 로테이션) */
@@ -295,6 +373,69 @@ export const SALES_LEGENDS: SalesLegend[] = [
     ],
     signatureMove: "Negative Reverse — '어쩌면 이게 지금 맞지 않을 수 있겠네요.' (역설적 참여 유도)",
   },
+  {
+    id: "Outbound",
+    name: "Aaron Ross",
+    methodTitle: "Predictable Revenue",
+    title: "Salesforce 아웃바운드 혁신가",
+    emoji: "🚀",
+    color: "#0ea5e9",
+    colorBg: "rgba(14,165,233,0.1)",
+    bio: "Salesforce에서 Outbound 2.0 모델을 개발해 연간 1억 달러 파이프라인을 만들어낸 창시자. SDR 역할의 아버지로 불리며 현대 아웃바운드 세일즈의 표준을 세웠다. '예측 가능한 매출'이라는 개념을 B2B 세일즈의 핵심 철학으로 정착시켰다.",
+    quotes: [
+      "CEO가 직접 콜드콜을 해서는 안 된다. 시스템이 해야 한다.",
+      "세일즈를 예측 가능하게 만드는 것이 가장 강력한 성장 엔진이다.",
+      "Cold Calling 2.0: 전화보다 먼저 이메일로 레퍼럴을 요청하라.",
+    ],
+    principles: [
+      "Specialization — AE·SDR·CSM 역할 분리로 효율 극대화",
+      "Systems First — 개인 영웅에 의존하지 말고 반복 가능한 시스템을 구축하라",
+      "Seeds·Nets·Spears — 리드 소스를 3가지로 분류하고 각각 전략을 달리하라",
+    ],
+    signatureMove: "Cold Calling 2.0 — 전화 없이 콜드 이메일로 C레벨에게 적합한 담당자를 소개받는 방식",
+  },
+  {
+    id: "Prospecting",
+    name: "Jeb Blount",
+    methodTitle: "Fanatical Prospecting",
+    title: "파이프라인 집착의 철학자",
+    emoji: "📞",
+    color: "#8b5cf6",
+    colorBg: "rgba(139,92,246,0.1)",
+    bio: "Sales Gravy 창립자이자 세계 최고 세일즈 팟캐스트 운영자. '파이프라인 집착'이야말로 세일즈 성공의 가장 확실한 공식임을 수백만 명의 영업사원에게 증명해 온 현장 중심 코치. 7권의 세일즈 베스트셀러를 집필했다.",
+    quotes: [
+      "파이프라인의 공백은 모든 영업 문제의 근원이다.",
+      "프로스펙팅은 미래의 자신에게 보내는 선물이다.",
+      "30일 규칙: 지금 당장 프로스펙팅을 멈추면 30일 후 파이프라인이 말라버린다.",
+    ],
+    principles: [
+      "Fanatical Mindset — 프로스펙팅은 선택이 아니라 생존 본능이다",
+      "Multi-channel — 전화·이메일·소셜·대면을 섞어 접점을 다양화하라",
+      "30-Day Rule — 오늘의 프로스펙팅이 30일 후 파이프라인을 결정한다",
+    ],
+    signatureMove: "Time Blocking — 하루 최소 1~2시간을 프로스펙팅 전용 블록으로 달력에 고정하라",
+  },
+  {
+    id: "Negotiation",
+    name: "Chris Voss",
+    methodTitle: "Never Split the Difference",
+    title: "FBI 수석 인질 협상가 출신",
+    emoji: "🧠",
+    color: "#ec4899",
+    colorBg: "rgba(236,72,153,0.1)",
+    bio: "FBI 수석 인질 협상가 출신. 극한 상황에서 검증된 심리 협상 기술을 B2B 세일즈에 적용해 '절충'이 아닌 '공감 기반 설득'의 새 패러다임을 제시했다. Black Swan Group 창립자로 현재 전 세계 기업들에게 협상 전략을 코칭하고 있다.",
+    quotes: [
+      "타협은 나쁜 결과를 두 번 얻는 것이다. 절대 차이를 나누지 마라.",
+      "'No'는 대화의 끝이 아니라 진짜 협상의 시작이다.",
+      "Tactical Empathy: 상대방이 듣고 싶은 말이 아닌, 느끼는 감정을 먼저 명명하라.",
+    ],
+    principles: [
+      "Tactical Empathy — 상대의 감정을 명명해 심리적 안전감을 먼저 확보하라",
+      "Mirroring — 마지막 3단어를 반복해 상대가 스스로 더 말하게 하라",
+      "Calibrated Questions — '어떻게' '무엇이' 질문으로 상대가 해법을 직접 찾게 하라",
+    ],
+    signatureMove: "Late Night FM DJ Voice — 낮고 차분한 목소리로 긴장을 낮추고 협상 주도권을 가져와라",
+  },
 ];
 
 /** 오늘의 레전드 (주 단위 로테이션, 4명 순환) */
@@ -325,6 +466,12 @@ const RESEARCH_GURU_TIPS: GuruTip[] = [
   { text: "Up-Front Contract: 기대와 결과를 미팅 전에 먼저 합의하라.", guru: "David Sandler", methodology: "Sandler", color: "#ef4444" },
   { text: "좋은 패턴은 팀의 공통 언어가 된다. 문서화하라.", guru: "Sales Ops", methodology: "General", color: "#818cf8" },
   { text: "Velocity > Volume. 검증된 딜 1개가 유령 딜 10개보다 낫다.", guru: "Pipeline Wisdom", methodology: "General", color: "#818cf8" },
+  { text: "CEO가 직접 콜드콜을 해서는 안 된다. 시스템이 파이프라인을 만들어야 한다.", guru: "Aaron Ross", methodology: "Outbound", color: "#0ea5e9" },
+  { text: "SDR·AE·CSM 역할 분리 없이는 예측 가능한 매출도 없다.", guru: "Predictable Revenue", methodology: "Outbound", color: "#0ea5e9" },
+  { text: "파이프라인의 공백이 모든 영업 문제의 근원이다. 지금 당장 프로스펙팅하라.", guru: "Jeb Blount", methodology: "Prospecting", color: "#8b5cf6" },
+  { text: "30일 규칙: 오늘 멈추면 30일 후 파이프라인이 말라버린다.", guru: "Fanatical Prospecting", methodology: "Prospecting", color: "#8b5cf6" },
+  { text: "타협은 나쁜 결과를 두 번 얻는 것이다. 절대 차이를 나누지 마라.", guru: "Chris Voss", methodology: "Negotiation", color: "#ec4899" },
+  { text: "Tactical Empathy: 상대의 감정을 명명해 심리적 안전감을 만들어라.", guru: "Never Split the Difference", methodology: "Negotiation", color: "#ec4899" },
 ];
 
 /** Report 페이지 전용 — 분석·실행 맥락 팁 */
