@@ -26,7 +26,7 @@ import type {
 } from "@/types/dashboard";
 
 const TARGET_MANAGERS = ["han", "wangchan", "junhyuk"] as const;
-const DSH_RANGE = "1. DSH!A1:W115";
+const DSH_RANGE = "1. DSH!A1:V200";
 const SEG_RANGE = "2. SEG!A1:S40";
 const REV_RANGE = "3. REV!A1:CZ400";
 const KPI_RANGE = "4. KPI!A1:AZ60";
@@ -112,11 +112,19 @@ interface DshManagerTarget {
   monthlyTargets: Record<number, number>;
 }
 
+interface DshManagerActual {
+  yearlyActual: number;
+  quarterlyActual: number;
+}
+
 interface DshTargets {
   bdYearlyTarget: number;
   bdQuarterlyTarget: number;
   bdMonthlyTargets: Record<number, number>;
   managerTargets: Record<string, DshManagerTarget>;
+  bdYearlyActual: number;
+  bdQuarterlyActual: number;
+  managerActuals: Record<string, DshManagerActual>;
 }
 
 interface SheetRanges {
@@ -167,37 +175,131 @@ function parseDshSheet(rows: string[][], fiscalQuarter: FiscalQuarter): DshTarge
     bdQuarterlyTarget: 0,
     bdMonthlyTargets: {},
     managerTargets: {},
+    bdYearlyActual: 0,
+    bdQuarterlyActual: 0,
+    managerActuals: {},
   };
 
-  for (const sourceRow of rows) {
-    const row = padRow(sourceRow, 22);
-    const cell0 = row[0]?.trim();
-    const cell1 = row[1]?.trim();
-    const cell3 = row[3]?.trim();
-    const cell4 = row[4]?.trim();
+  // ── Upper summary section (rows 0-24) ──────────────────────────
+  // The DSH sheet has three side-by-side sections in the top rows:
+  //   Goal (A-F) | Fixed Goal (H-P) | Status (R-Z)
+  // Column I (8) = Fixed Goal Sum, Column S (18) = Status Sum
+  // Row labels are in col A: "Sum", "Han", "Wangchan", "Junhyuk", etc.
+  const FIXED_GOAL_SUM_COL = 8;   // col I
+  const STATUS_SUM_COL = 18;       // col S
 
-    // BD team Total row (Goal)
-    if (cell0 === "BD" && cell1 === "Total") {
-      result.bdYearlyTarget = parseNumber(row[DSH_YEAR_COL]);
-      result.bdQuarterlyTarget = parseNumber(row[qCol]);
-      DSH_FISCAL_MONTHS.forEach((month, i) => {
-        result.bdMonthlyTargets[month] = parseNumber(row[10 + i]);
-      });
+  for (let i = 0; i < Math.min(rows.length, 25); i++) {
+    const row = padRow(rows[i], 22);
+    const label = row[0]?.trim().toLowerCase();
+
+    if (!label || label === "fy26-27" || label === "fy25-26" || label === "goal") {
       continue;
     }
 
-    // Individual manager Goal rows (col3 = name, col4 = "Goal")
-    const normalizedName = cell3?.toLowerCase();
-    if ((TARGET_MANAGERS as readonly string[]).includes(normalizedName) && cell4 === "Goal") {
-      const monthlyTargets: Record<number, number> = {};
-      DSH_FISCAL_MONTHS.forEach((month, i) => {
-        monthlyTargets[month] = parseNumber(row[10 + i]);
+    // Quarter-specific rows start with a digit ("4" for Q4)
+    if (/^\d$/.test(row[0]?.trim())) {
+      continue;
+    }
+
+    const fixedGoalSum = parseNumber(row[FIXED_GOAL_SUM_COL]);
+    const statusSum = parseNumber(row[STATUS_SUM_COL]);
+
+    if (label === "sum") {
+      // Team-level Status (actual revenue) from upper section
+      if (result.bdYearlyActual === 0 && statusSum > 0) {
+        result.bdYearlyActual = statusSum;
+        result.bdQuarterlyActual = statusSum;
+      }
+      continue;
+    }
+
+    // Individual manager Status from upper section
+    if ((TARGET_MANAGERS as readonly string[]).includes(label)) {
+      if (!result.managerActuals[label]) {
+        result.managerActuals[label] = { yearlyActual: statusSum, quarterlyActual: statusSum };
+      }
+    }
+  }
+
+  // ── Detailed section (rows 25+) ────────────────────────────────
+  // Each manager has a block with two "Total" rows in col B:
+  //   1st Total = Goal Total (F=Year, G-J=Q1-Q4, K-V=Monthly)
+  //   2nd Total = Status Total
+  // Manager name appears in col A at the start of each block.
+  let currentManager = "";
+  let totalCountForManager = 0;
+
+  for (let i = 25; i < rows.length; i++) {
+    const row = padRow(rows[i], 22);
+    const colA = row[0]?.trim();
+    const colB = row[1]?.trim();
+
+    // Detect new manager section (non-empty col A with a recognized name)
+    if (colA) {
+      const normalized = colA.toLowerCase();
+      if ((TARGET_MANAGERS as readonly string[]).includes(normalized)) {
+        currentManager = normalized;
+        totalCountForManager = 0;
+      } else if (normalized === "bd" || normalized === "sum" || normalized === "total") {
+        // BD team-level section
+        currentManager = "__bd__";
+        totalCountForManager = 0;
+      }
+    }
+
+    // Process "Total" rows
+    if (colB === "Total") {
+      totalCountForManager++;
+      const yearValue = parseNumber(row[DSH_YEAR_COL]);
+      const quarterValue = parseNumber(row[qCol]);
+
+      if (currentManager === "__bd__") {
+        if (totalCountForManager === 1) {
+          result.bdYearlyTarget = yearValue;
+          result.bdQuarterlyTarget = quarterValue;
+          DSH_FISCAL_MONTHS.forEach((month, idx) => {
+            result.bdMonthlyTargets[month] = parseNumber(row[10 + idx]);
+          });
+        } else if (totalCountForManager === 2) {
+          result.bdYearlyActual = yearValue;
+          result.bdQuarterlyActual = quarterValue;
+        }
+      } else if ((TARGET_MANAGERS as readonly string[]).includes(currentManager)) {
+        if (totalCountForManager === 1) {
+          const monthlyTargets: Record<number, number> = {};
+          DSH_FISCAL_MONTHS.forEach((month, idx) => {
+            monthlyTargets[month] = parseNumber(row[10 + idx]);
+          });
+          result.managerTargets[currentManager] = {
+            yearlyTarget: yearValue,
+            quarterlyTarget: quarterValue,
+            monthlyTargets,
+          };
+        } else if (totalCountForManager === 2) {
+          result.managerActuals[currentManager] = {
+            yearlyActual: yearValue,
+            quarterlyActual: quarterValue,
+          };
+        }
+      }
+    }
+  }
+
+  // If no BD-level row was found, sum manager targets/actuals
+  if (result.bdQuarterlyTarget === 0) {
+    for (const mgr of Object.values(result.managerTargets)) {
+      result.bdYearlyTarget += mgr.yearlyTarget;
+      result.bdQuarterlyTarget += mgr.quarterlyTarget;
+      DSH_FISCAL_MONTHS.forEach((month) => {
+        result.bdMonthlyTargets[month] = (result.bdMonthlyTargets[month] ?? 0) + (mgr.monthlyTargets[month] ?? 0);
       });
-      result.managerTargets[normalizedName] = {
-        yearlyTarget: parseNumber(row[DSH_YEAR_COL]),
-        quarterlyTarget: parseNumber(row[qCol]),
-        monthlyTargets,
-      };
+    }
+  }
+
+  if (result.bdQuarterlyActual === 0) {
+    for (const mgr of Object.values(result.managerActuals)) {
+      result.bdYearlyActual += mgr.yearlyActual;
+      result.bdQuarterlyActual += mgr.quarterlyActual;
     }
   }
 
@@ -234,11 +336,7 @@ function getRegionStatus(progress: number): RegionData["status"] {
 }
 
 function formatCompactRevenue(amount: number): string {
-  if (amount >= 1000) {
-    return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ (amount / 1000).toFixed(1) }B`;
-  }
-
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(amount).toLocaleString() }M`;
+  return `¥${Math.round(amount).toLocaleString()}`;
 }
 
 function getImportanceWeight(value: string): number {
@@ -647,12 +745,12 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
     regionCounts.set(row.location, currentRegion);
 
     const currentManager = managerBuckets.get(row.manager) ?? createEmptyManagerBucket();
-    currentManager.wonRevenue += row.amount;
     currentManager.dealsTotal += 1;
 
     if (row.firstPayment) {
-      activatedCount += 1;
+      currentManager.wonRevenue += row.amount;
       currentManager.dealsWon += 1;
+      activatedCount += 1;
     } else {
       currentManager.pipelineRevenue += Math.round(row.amount * (row.probability / 100));
     }
@@ -868,7 +966,7 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
 function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardDataSource): DashboardPayload {
   const { fiscalQuarter } = getFiscalCalendarInfo();
   const dshTargets = parseDshSheet(sheetRows[DSH_RANGE], fiscalQuarter);
-  const { totalRevenue, regional } = parseSegRows(sheetRows[SEG_RANGE]);
+  const { regional } = parseSegRows(sheetRows[SEG_RANGE]);
   const revenueRows = parseRevenueRows(sheetRows[REV_RANGE]);
   const kpiByMember = parseKpiRows(sheetRows[KPI_RANGE]);
 
@@ -876,9 +974,11 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     return buildMinimalFallbackDashboard();
   }
 
-  // Use DSH targets; fall back to SEG totals if DSH not available
+  // ── Revenue source: DSH Status (confirmed revenue) ──
+  // Fall back to SEG totals only if DSH parsing found nothing.
   const bdQuarterTarget = dshTargets.bdQuarterlyTarget || regional.reduce((s, r) => s + r.target, 0);
   const bdYearlyTarget = dshTargets.bdYearlyTarget || bdQuarterTarget * 4;
+  const totalRevenue = dshTargets.bdQuarterlyActual || regional.reduce((s, r) => s + r.revenue, 0);
 
   const revenueSummary = summarizeRevenueRows(revenueRows);
   const regionalWithCounts = regional.map((row) => {
@@ -932,12 +1032,16 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
       const activityGoal = kpis.reduce((sum, item) => sum + item.goal, 0);
       const activityActual = kpis.reduce((sum, item) => sum + item.actual, 0);
 
+      // Use DSH Status actual as wonRevenue when available; fall back to REV confirmed deals
+      const dshActual = dshTargets.managerActuals[manager.toLowerCase()]?.quarterlyActual;
+      const managerWonRevenue = dshActual != null && dshActual > 0 ? dshActual : bucket.wonRevenue;
+
       return {
         name: manager,
-        wonRevenue: bucket.wonRevenue,
+        wonRevenue: managerWonRevenue,
         pipelineRevenue: bucket.pipelineRevenue,
         target: managerTarget,
-        progress: managerTarget > 0 ? Math.round((bucket.wonRevenue / managerTarget) * 100) : 0,
+        progress: managerTarget > 0 ? Math.round((managerWonRevenue / managerTarget) * 100) : 0,
         deals_total: bucket.dealsTotal,
         deals_won: bucket.dealsWon,
         newRevenue: bucket.newRevenue,
@@ -981,7 +1085,7 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     topManager: individuals[0]?.name ?? "BD",
     criticalRegionCount: regionalWithCounts.filter((row) => row.progress < 80).length,
     yearlyTarget: bdYearlyTarget,
-    yearlyActual: revenueSummary.yearlyActual,
+    yearlyActual: dshTargets.bdYearlyActual || revenueSummary.yearlyActual,
   };
 
   const focusAccounts = revenueRows

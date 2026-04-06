@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { User, Users } from "lucide-react";
+import { formatRevenue, formatCompactRevenue } from "@/lib/formatCurrency";
 import { getHeatColor } from "@/lib/heatUtils";
-import type { IndividualData, RegionData } from "@/types/dashboard";
+import type { IndividualData, RegionData, TeamSummary } from "@/types/dashboard";
 import styles from "./QuarterlyTracker.module.css";
 
 const MILESTONES = [
@@ -20,23 +21,20 @@ interface Props {
   data: RegionData[];
   individuals: IndividualData[];
   periodLabel: string;
-  yearlyTarget?: number;
-  yearlyActual?: number;
+  teamSummary: TeamSummary;
 }
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
-
-export default function QuarterlyTracker({ data, individuals, periodLabel, yearlyTarget, yearlyActual }: Props) {
+export default function QuarterlyTracker({ data, individuals, periodLabel, teamSummary }: Props) {
   const [view, setView] = useState<"team" | "individual">("team");
   const [period, setPeriod] = useState<"Q" | "Y">("Q");
 
-  const quarterRevenue = data.reduce((sum, region) => sum + region.revenue, 0);
-  const quarterTarget = data.reduce((sum, region) => sum + region.target, 0);
-
-  const displayRevenue = period === "Y" ? (yearlyActual ?? quarterRevenue) : quarterRevenue;
-  const displayTarget = period === "Y" ? (yearlyTarget ?? quarterTarget) : quarterTarget;
+  // Use DSH-based teamSummary as the single source of truth
+  const displayRevenue = period === "Y"
+    ? (teamSummary.yearlyActual ?? teamSummary.actualRevenue)
+    : teamSummary.actualRevenue;
+  const displayTarget = period === "Y"
+    ? (teamSummary.yearlyTarget ?? teamSummary.targetRevenue)
+    : teamSummary.targetRevenue;
   const progress = displayTarget > 0 ? (displayRevenue / displayTarget) * 100 : 0;
   const remaining = Math.max(0, displayTarget - displayRevenue);
   const barFillPct = Math.min((progress / BAR_MAX) * 100, 100);

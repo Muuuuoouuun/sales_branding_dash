@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { formatRevenue } from "@/lib/formatCurrency";
 import type { RevenuePacingPoint } from "@/types/dashboard";
 import Card from "./Card";
 
@@ -16,9 +17,6 @@ interface Props {
   periodLabel: string;
 }
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 export default function RevenuePacingChart({ data, periodLabel }: Props) {
   const hasDummy = data.some((point) => point.isDummy);

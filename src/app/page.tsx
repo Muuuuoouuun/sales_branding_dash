@@ -31,6 +31,7 @@ import QuarterlyTracker from "@/components/QuarterlyTracker";
 import RegionDrilldown from "@/components/RegionDrilldown";
 import RevenuePacingChart from "@/components/RevenuePacingChart";
 import TargetGapRing from "@/components/TargetGapRing";
+import { formatRevenue, formatCompactRevenue } from "@/lib/formatCurrency";
 import { getHeatColor } from "@/lib/heatUtils";
 import type {
   ActivityStage,
@@ -92,17 +93,6 @@ const FILTER_COLORS: Record<StatusFilter, string> = {
   critical: "#ef4444",
 };
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
-
-function formatCompactRevenue(value: number): string {
-  if (value >= 1000) {
-    return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ (value / 1000).toFixed(1) }B`;
-  }
-
-  return formatRevenue(value);
-}
 
 function getDaysRemainingInMonth(): number {
   const now = new Date();
@@ -527,8 +517,7 @@ export default function Dashboard() {
           data={dashboard.regional}
           individuals={dashboard.individuals}
           periodLabel={dashboard.periodLabel}
-          yearlyTarget={dashboard.teamSummary.yearlyTarget}
-          yearlyActual={dashboard.teamSummary.yearlyActual}
+          teamSummary={dashboard.teamSummary}
         />
       ) : null}
 
