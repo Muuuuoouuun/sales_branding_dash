@@ -1068,6 +1068,11 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
   const activityActual = activitySummary.reduce((sum, item) => sum + (item.actual ?? item.value), 0);
   const attainment = bdQuarterTarget > 0 ? (totalRevenue / bdQuarterTarget) * 100 : 0;
 
+  // Current month target/actual from DSH monthly breakdown
+  const { calendarMonth } = getFiscalCalendarInfo();
+  const currentMonthTarget = dshTargets.bdMonthlyTargets[calendarMonth] ?? 0;
+  const currentMonthActual = revenueSummary.monthlyActuals.get(calendarMonth) ?? 0;
+
   const teamSummary: TeamSummary = {
     targetRevenue: bdQuarterTarget,
     actualRevenue: totalRevenue,
@@ -1086,6 +1091,9 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     criticalRegionCount: regionalWithCounts.filter((row) => row.progress < 80).length,
     yearlyTarget: bdYearlyTarget,
     yearlyActual: dshTargets.bdYearlyActual || revenueSummary.yearlyActual,
+    monthlyTarget: currentMonthTarget,
+    monthlyActual: currentMonthActual,
+    currentMonth: calendarMonth,
   };
 
   const focusAccounts = revenueRows
