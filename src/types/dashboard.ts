@@ -38,6 +38,10 @@ export interface IndividualData {
   progress: number;
   deals_total: number;
   deals_won: number;
+  monthlyWon?: number;
+  monthlyTarget?: number;
+  yearlyWon?: number;
+  yearlyTarget?: number;
   newRevenue?: number;
   renewRevenue?: number;
   activityGoal?: number;

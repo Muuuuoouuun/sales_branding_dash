@@ -124,7 +124,7 @@ export default function QuarterlyTracker({ data, individuals, periodLabel, teamS
           topRep={individuals[0]?.name ?? "TBD"}
         />
       ) : (
-        <IndividualPanel individuals={individuals} />
+        <IndividualPanel individuals={individuals} period={period} />
       )}
     </div>
   );
@@ -248,7 +248,7 @@ function TeamPanel({
   );
 }
 
-function IndividualPanel({ individuals }: { individuals: IndividualData[] }) {
+function IndividualPanel({ individuals, period }: { individuals: IndividualData[]; period: "M" | "Q" | "Y" }) {
   if (individuals.length === 0) {
     return (
       <div className={styles.indivList}>
@@ -272,16 +272,26 @@ function IndividualPanel({ individuals }: { individuals: IndividualData[] }) {
       </div>
 
       {individuals.map((person, index) => {
-        const color = getHeatColor(person.progress);
-        const fillWidth = Math.min((person.progress / BAR_MAX) * 100, 100);
+        const won =
+          period === "M" ? (person.monthlyWon ?? 0)
+          : period === "Y" ? (person.yearlyWon ?? person.wonRevenue)
+          : person.wonRevenue;
+        const target =
+          period === "M" ? (person.monthlyTarget ?? 0)
+          : period === "Y" ? (person.yearlyTarget ?? person.target)
+          : person.target;
+        const progress = target > 0 ? Math.round((won / target) * 100) : 0;
+
+        const color = getHeatColor(progress);
+        const fillWidth = Math.min((progress / BAR_MAX) * 100, 100);
         const milestone =
-          [...MILESTONES].reverse().find((item) => person.progress >= item.pct) ?? null;
+          [...MILESTONES].reverse().find((item) => progress >= item.pct) ?? null;
 
         return (
-          <div 
-            key={person.name} 
+          <div
+            key={person.name}
             className={styles.indivRow}
-            data-tooltip={`목표: ${formatRevenue(person.target)} | 달성: ${formatRevenue(person.wonRevenue)} | 남은 격차: ${formatRevenue(Math.max(0, person.target - person.wonRevenue))}`}
+            data-tooltip={`목표: ${formatRevenue(target)} | 달성: ${formatRevenue(won)} | 남은 격차: ${formatRevenue(Math.max(0, target - won))}`}
           >
             <span className={styles.indivRank}>#{index + 1}</span>
             <span className={styles.indivName}>
@@ -308,11 +318,11 @@ function IndividualPanel({ individuals }: { individuals: IndividualData[] }) {
               />
             </div>
             <span className={styles.indivPct} style={{ color }}>
-              {person.progress}%
+              {progress}%
             </span>
             <span className={styles.indivRev} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2, gap: '2px' }}>
-              <span>{formatRevenue(person.wonRevenue)}</span>
-              <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>/ {formatRevenue(person.target)}</span>
+              <span>{formatRevenue(won)}</span>
+              <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>/ {formatRevenue(target)}</span>
             </span>
             <span className={styles.indivPipe} style={{ color: "var(--primary)" }}>
               {formatRevenue(person.pipelineRevenue)}
