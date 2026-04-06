@@ -1,6 +1,7 @@
 import React from "react";
 import { CalendarDays, Target, TrendingUp } from "lucide-react";
 import { getFiscalCalendarInfo } from "@/lib/fiscalCalendar";
+import { formatRevenue } from "@/lib/formatCurrency";
 import type { TeamSummary } from "@/types/dashboard";
 import Card from "./Card";
 import styles from "./TargetGapRing.module.css";
@@ -10,9 +11,6 @@ interface Props {
   periodLabel: string;
 }
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 function getDaysRemainingInMonth(): number {
   const info = getFiscalCalendarInfo();

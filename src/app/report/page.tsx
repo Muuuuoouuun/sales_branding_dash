@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Card from "@/components/Card";
 import styles from "./page.module.css";
+import { formatRevenue } from "@/lib/formatCurrency";
 import { getContextualTip } from "@/lib/salesTips";
 
 interface Anomaly {
@@ -87,9 +88,6 @@ const EMPTY_ANALYTICS: AnalyticsSummary = {
   anomalies: [],
 };
 
-function formatRevenue(value: number): string {
-  return `${Math.round(value).toLocaleString()}M`;
-}
 
 function parseReportSections(text: string): ReportSection[] {
   const sections: ReportSection[] = [];

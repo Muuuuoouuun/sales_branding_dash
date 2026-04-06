@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { AlertCircle, GripVertical, RefreshCw } from "lucide-react";
+import { formatRevenue } from "@/lib/formatCurrency";
 import Card from "./Card";
 import styles from "./PipelineKanban.module.css";
 
@@ -50,9 +51,6 @@ interface Props {
 
 const STAGES: DealStage[] = ["Lead", "Proposal", "Negotiation", "Contract"];
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 export default function PipelineKanban({ leads, scores, actions, onMoveLead }: Props) {
   const [draggingId, setDraggingId] = useState<number | null>(null);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import React from "react";
 import { AlertCircle, ChevronRight } from "lucide-react";
+import { formatRevenue } from "@/lib/formatCurrency";
 import type { HotDeal } from "@/types/dashboard";
 import Card from "./Card";
 import styles from "./HotDealsWidget.module.css";
@@ -9,9 +10,6 @@ interface Props {
   deals: HotDeal[];
 }
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 export default function HotDealsWidget({ deals }: Props) {
   return (

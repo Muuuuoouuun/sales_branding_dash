@@ -9,6 +9,7 @@ import {
   YAxis,
   ZAxis,
 } from "recharts";
+import { formatRevenue } from "@/lib/formatCurrency";
 import type { DealAgingPoint } from "@/types/dashboard";
 import Card from "./Card";
 
@@ -16,9 +17,6 @@ interface Props {
   data: DealAgingPoint[];
 }
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 export default function DealAgingChart({ data }: Props) {
   const staleCount = data.filter((point) => point.days > 40 && !point.isDummy).length;

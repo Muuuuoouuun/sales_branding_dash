@@ -14,6 +14,7 @@ import {
   Target,
 } from "lucide-react";
 import styles from "./page.module.css";
+import { formatRevenue } from "@/lib/formatCurrency";
 import { SALES_LEGENDS, getContextualTip, type GuruTip, type SalesLegend } from "@/lib/salesTips";
 import { RESOURCES, RESOURCE_CATEGORY_LABEL, RESOURCE_CATEGORY_EMOJI, isNewResource, getWeeklyResource, type Resource, type ResourceCategory } from "@/lib/resources";
 import type { ActivityStage, DashboardPayload, HotDeal, IndividualData, RegionData } from "@/types/dashboard";
@@ -233,13 +234,6 @@ function matchesQuery(value: string, query: string): boolean {
   return value.toLowerCase().includes(query.toLowerCase());
 }
 
-function formatRevenue(value: number): string {
-  if (value >= 1000) {
-    return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ (value / 1000).toFixed(1) }B`;
-  }
-
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 function formatDateStamp(value?: string): string {
   if (!value) {

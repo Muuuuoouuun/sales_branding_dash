@@ -19,6 +19,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import Card from "@/components/Card";
+import { formatRevenue } from "@/lib/formatCurrency";
 import clsx from "clsx";
 import styles from "./page.module.css";
 
@@ -170,9 +171,6 @@ const newRow = (): RegionRow => ({
   deals_closed: "",
 });
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 function formatDateTime(value?: string): string {
   if (!value) {

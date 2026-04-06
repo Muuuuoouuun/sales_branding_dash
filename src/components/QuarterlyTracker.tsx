@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import { User, Users } from "lucide-react";
+import { formatRevenue, formatCompactRevenue } from "@/lib/formatCurrency";
 import { getHeatColor } from "@/lib/heatUtils";
-import type { IndividualData, RegionData } from "@/types/dashboard";
+import type { IndividualData, RegionData, TeamSummary } from "@/types/dashboard";
 import styles from "./QuarterlyTracker.module.css";
 
 const MILESTONES = [
-  { pct: 25,  label: "Discovery",   marker: "P1",  color: "var(--danger)",             desc: "타겟 25% 달성" },
-  { pct: 50,  label: "Proposal",    marker: "P2",  color: "var(--warning)",            desc: "타겟 50% 달성" },
-  { pct: 75,  label: "Commit",      marker: "P3",  color: "var(--primary)",            desc: "타겟 75% 달성" },
-  { pct: 100, label: "Quota",       marker: "TGT", color: "var(--accent)",             desc: "Quota 100% 달성" },
-  { pct: 115, label: "Overachieve", marker: "STR", color: "var(--success-foreground)", desc: "115% 초과 달성" },
+  { pct: 25, label: "Discovery", marker: "P1", color: "var(--danger)", desc: "타겟 25% 달성 지점" },
+  { pct: 50, label: "Proposal", marker: "P2", color: "var(--warning)", desc: "타겟 50% 달성 지점" },
+  { pct: 75, label: "Commit", marker: "P3", color: "var(--primary)", desc: "타겟 75% 달성 지점" },
+  { pct: 100, label: "Quota", marker: "TGT", color: "var(--accent)", desc: "타겟 100% (Quota) 달성" },
+  { pct: 115, label: "Overachieve", marker: "STR", color: "var(--success-foreground)", desc: "타겟 115% 초과 달성" },
 ] as const;
 
 const BAR_MAX = 115;
@@ -20,83 +21,92 @@ interface Props {
   data: RegionData[];
   individuals: IndividualData[];
   periodLabel: string;
-  yearlyTarget?: number;
-  yearlyActual?: number;
+  teamSummary: TeamSummary;
 }
 
-function fmt(value: number): string {
-  const symbol = typeof window !== "undefined" && localStorage.getItem("app-currency") === "USD" ? "$" : "¥";
-  return `${symbol}${Math.round(value).toLocaleString()}M`;
-}
-
-export default function QuarterlyTracker({ data, individuals, periodLabel, yearlyTarget, yearlyActual }: Props) {
-  const [view, setView]     = useState<"team" | "individual">("team");
+export default function QuarterlyTracker({ data, individuals, periodLabel, teamSummary }: Props) {
+  const [view, setView] = useState<"team" | "individual">("team");
   const [period, setPeriod] = useState<"Q" | "Y">("Q");
 
-  const quarterRevenue = data.reduce((s, r) => s + r.revenue, 0);
-  const quarterTarget  = data.reduce((s, r) => s + r.target,  0);
-
-  const displayRevenue = period === "Y" ? (yearlyActual  ?? quarterRevenue) : quarterRevenue;
-  const displayTarget  = period === "Y" ? (yearlyTarget  ?? quarterTarget)  : quarterTarget;
-
-  const progress      = displayTarget > 0 ? (displayRevenue / displayTarget) * 100 : 0;
-  const remaining     = Math.max(0, displayTarget - displayRevenue);
-  const barFillPct    = Math.min((progress / BAR_MAX) * 100, 100);
-  const currentMs     = [...MILESTONES].reverse().find(m => progress >= m.pct) ?? null;
+  // Use DSH-based teamSummary as the single source of truth
+  const displayRevenue = period === "Y"
+    ? (teamSummary.yearlyActual ?? teamSummary.actualRevenue)
+    : teamSummary.actualRevenue;
+  const displayTarget = period === "Y"
+    ? (teamSummary.yearlyTarget ?? teamSummary.targetRevenue)
+    : teamSummary.targetRevenue;
+  const progress = displayTarget > 0 ? (displayRevenue / displayTarget) * 100 : 0;
+  const remaining = Math.max(0, displayTarget - displayRevenue);
+  const barFillPct = Math.min((progress / BAR_MAX) * 100, 100);
+  const currentMilestone =
+    [...MILESTONES].reverse().find((item) => progress >= item.pct) ?? null;
 
   const periodBadge = period === "Y"
-    ? periodLabel.replace(/Q\d/, "FY")
+    ? periodLabel.replace(/Q\d$/, "FY")
     : periodLabel;
-
-  // 팀 KPI 완료율 (individuals 집계)
-  const totalKpiGoal   = individuals.reduce((s, p) => s + (p.activityGoal   ?? 0), 0);
-  const totalKpiActual = individuals.reduce((s, p) => s + (p.activityActual ?? 0), 0);
-  const teamKpiPct     = totalKpiGoal > 0 ? (totalKpiActual / totalKpiGoal) * 100 : 0;
 
   return (
     <div className={styles.card}>
-      {/* ── Header ── */}
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <span className={styles.qBadge}>{periodBadge}</span>
           <div>
-            <h3 className={styles.title}>BD Target Tracker</h3>
+            <h3 className={styles.title}>BD target tracker</h3>
             <p className={styles.sub}>
-              성과&nbsp;<strong>{fmt(displayRevenue)}</strong>
-              &nbsp;/&nbsp;목표&nbsp;{fmt(displayTarget)}
+              {formatRevenue(displayRevenue)} / {formatRevenue(displayTarget)}
             </p>
           </div>
         </div>
-
-        <div className={styles.controls}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           <div className={styles.toggleGroup}>
-            <button className={`${styles.toggle} ${period === "Q" ? styles.toggleOn : ""}`} onClick={() => setPeriod("Q")} type="button">Q</button>
-            <button className={`${styles.toggle} ${period === "Y" ? styles.toggleOn : ""}`} onClick={() => setPeriod("Y")} type="button">Y</button>
+            <button
+              className={`${styles.toggle} ${period === "Q" ? styles.toggleOn : ""}`}
+              onClick={() => setPeriod("Q")}
+              type="button"
+            >
+              Q
+            </button>
+            <button
+              className={`${styles.toggle} ${period === "Y" ? styles.toggleOn : ""}`}
+              onClick={() => setPeriod("Y")}
+              type="button"
+            >
+              Y
+            </button>
           </div>
           <div className={styles.toggleGroup}>
-            <button className={`${styles.toggle} ${view === "team" ? styles.toggleOn : ""}`} onClick={() => setView("team")} type="button">
+            <button
+              className={`${styles.toggle} ${view === "team" ? styles.toggleOn : ""}`}
+              onClick={() => setView("team")}
+              type="button"
+            >
               <Users size={12} /> Team
             </button>
-            <button className={`${styles.toggle} ${view === "individual" ? styles.toggleOn : ""}`} onClick={() => setView("individual")} type="button">
+            <button
+              className={`${styles.toggle} ${view === "individual" ? styles.toggleOn : ""}`}
+              onClick={() => setView("individual")}
+              type="button"
+            >
               <User size={12} /> Rep
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Progress Bar ── */}
-      <ProgressTrack progress={progress} barFillPct={barFillPct} currentMilestone={currentMs} />
+      <ProgressTrack
+        progress={progress}
+        barFillPct={barFillPct}
+        currentMilestone={currentMilestone}
+      />
 
-      {/* ── Panel ── */}
       {view === "team" ? (
         <TeamPanel
           totalRevenue={displayRevenue}
           totalTarget={displayTarget}
           remaining={remaining}
           progress={progress}
-          currentMilestone={currentMs}
+          currentMilestone={currentMilestone}
           topRep={individuals[0]?.name ?? "TBD"}
-          teamKpiPct={teamKpiPct}
         />
       ) : (
         <IndividualPanel individuals={individuals} />
@@ -105,9 +115,10 @@ export default function QuarterlyTracker({ data, individuals, periodLabel, yearl
   );
 }
 
-/* ─────────────────────────── Progress Track ─────────────────────────── */
 function ProgressTrack({
-  progress, barFillPct, currentMilestone,
+  progress,
+  barFillPct,
+  currentMilestone,
 }: {
   progress: number;
   barFillPct: number;
@@ -116,22 +127,33 @@ function ProgressTrack({
   return (
     <div className={styles.trackArea}>
       <div className={styles.milestoneRow}>
-        {MILESTONES.map(m => (
-          <div key={m.pct} className={styles.milestone} style={{ left: `${(m.pct / BAR_MAX) * 100}%` }} data-tooltip={m.desc}>
-            <span className={styles.msEmoji}>{m.marker}</span>
-            <span className={styles.msLabel} style={{ color: progress >= m.pct ? m.color : "var(--text-muted)" }}>
-              {m.label}
+        {MILESTONES.map((milestone) => (
+          <div
+            key={milestone.pct}
+            className={styles.milestone}
+            style={{ left: `${(milestone.pct / BAR_MAX) * 100}%` }}
+            data-tooltip={milestone.desc}
+          >
+            <span className={styles.msEmoji}>{milestone.marker}</span>
+            <span
+              className={styles.msLabel}
+              style={{ color: progress >= milestone.pct ? milestone.color : "var(--text-muted)" }}
+            >
+              {milestone.label}
             </span>
           </div>
         ))}
       </div>
 
       <div className={styles.trackOuter}>
-        {MILESTONES.map(m => (
+        {MILESTONES.map((milestone) => (
           <div
-            key={m.pct}
-            className={`${styles.tick} ${progress >= m.pct ? styles.tickReached : ""}`}
-            style={{ left: `${(m.pct / BAR_MAX) * 100}%`, color: progress >= m.pct ? m.color : undefined }}
+            key={milestone.pct}
+            className={`${styles.tick} ${progress >= milestone.pct ? styles.tickReached : ""}`}
+            style={{
+              left: `${(milestone.pct / BAR_MAX) * 100}%`,
+              color: progress >= milestone.pct ? milestone.color : undefined,
+            }}
           />
         ))}
         <div className={styles.track}>
@@ -140,7 +162,7 @@ function ProgressTrack({
           </div>
           <div className={styles.cursor} style={{ left: `${barFillPct}%` }}>
             <div className={styles.cursorPill}>
-              {currentMilestone?.marker ?? "—"}&nbsp;{progress.toFixed(1)}%
+              {currentMilestone?.marker ?? "P0"} {progress.toFixed(1)}%
             </div>
             <div className={styles.cursorLine} />
           </div>
@@ -148,13 +170,16 @@ function ProgressTrack({
       </div>
 
       <div className={styles.pctRow}>
-        {MILESTONES.map(m => (
+        {MILESTONES.map((milestone) => (
           <span
-            key={m.pct}
+            key={milestone.pct}
             className={styles.pctLabel}
-            style={{ left: `${(m.pct / BAR_MAX) * 100}%`, color: progress >= m.pct ? m.color : "var(--text-muted)" }}
+            style={{
+              left: `${(milestone.pct / BAR_MAX) * 100}%`,
+              color: progress >= milestone.pct ? milestone.color : "var(--text-muted)",
+            }}
           >
-            {m.pct}%
+            {milestone.pct}%
           </span>
         ))}
       </div>
@@ -162,9 +187,13 @@ function ProgressTrack({
   );
 }
 
-/* ─────────────────────────── Team Panel ─────────────────────────── */
 function TeamPanel({
-  totalRevenue, totalTarget, remaining, progress, currentMilestone, topRep, teamKpiPct,
+  totalRevenue,
+  totalTarget,
+  remaining,
+  progress,
+  currentMilestone,
+  topRep,
 }: {
   totalRevenue: number;
   totalTarget: number;
@@ -172,41 +201,39 @@ function TeamPanel({
   progress: number;
   currentMilestone: (typeof MILESTONES)[number] | null;
   topRep: string;
-  teamKpiPct: number;
 }) {
-  const nextMs = MILESTONES.find(m => progress < m.pct);
-  const revenueNeeded = nextMs ? Math.max(Math.round((nextMs.pct / 100) * totalTarget - totalRevenue), 0) : 0;
-
-  const attColor = progress >= 100 ? "var(--accent)" : progress >= 75 ? "var(--primary)" : "var(--warning)";
-  const kpiColor = teamKpiPct >= 80 ? "var(--accent)" : teamKpiPct >= 50 ? "var(--primary)" : "var(--warning)";
+  const nextMilestone = MILESTONES.find((milestone) => progress < milestone.pct);
+  const revenueNeeded = nextMilestone
+    ? Math.max(Math.round((nextMilestone.pct / 100) * totalTarget - totalRevenue), 0)
+    : 0;
 
   return (
-    <div className={styles.teamPanel}>
-      <div className={styles.teamGrid}>
-        <Stat label="성과 (Won)"   value={fmt(totalRevenue)} color="var(--foreground)" />
-        <Stat label="목표"         value={fmt(totalTarget)}  color="var(--text-muted)" />
-        <Stat label="잔여 Gap"     value={remaining > 0 ? fmt(remaining) : "목표 달성"} color={remaining > 0 ? "var(--warning)" : "var(--accent)"} />
-        <Stat label="달성률"       value={`${progress.toFixed(1)}%`}    color={attColor} />
-        <Stat label="Activity KPI" value={`${teamKpiPct.toFixed(1)}%`}  color={kpiColor} />
-        <Stat label="Top rep"      value={topRep}                        color="var(--primary)" />
+    <div className={styles.teamRow}>
+      <Stat label="Current revenue" value={formatRevenue(totalRevenue)} color="var(--foreground)" />
+      <Stat
+        label="Remaining gap"
+        value={remaining > 0 ? formatRevenue(remaining) : "Target hit"}
+        color={remaining > 0 ? "var(--warning)" : "var(--accent)"}
+      />
+      <Stat
+        label="Attainment"
+        value={`${progress.toFixed(1)}%`}
+        color={progress >= 100 ? "var(--accent)" : progress >= 75 ? "var(--primary)" : "var(--warning)"}
+      />
+      <Stat label="Top rep" value={topRep} color="var(--primary)" />
+      <div className={styles.statItem}>
+        <span className={styles.statLbl}>Next milestone</span>
+        <span className={styles.statVal} style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>
+          {nextMilestone
+            ? `다음 단계(${nextMilestone.label})까지 ${formatRevenue(revenueNeeded)} 추가 확보 필요`
+            : `Quota 달성 완료. Overachieve 구간 진입!`}
+        </span>
       </div>
-
-      {nextMs || currentMilestone?.pct === 115 ? (
-        <div className={styles.nextMsBar}>
-          {nextMs
-            ? <><span className={styles.nextMsTag}>{nextMs.marker}</span><span>다음 단계까지&nbsp;<strong>{fmt(revenueNeeded)}</strong>&nbsp;추가 필요</span></>
-            : <><span className={styles.nextMsTag} style={{ background: "var(--accent)", color: "#000" }}>STR</span><span>Quota 달성 완료 — Overachieve 구간!</span></>
-          }
-        </div>
-      ) : null}
     </div>
   );
 }
 
-/* ─────────────────────────── Individual Panel ─────────────────────────── */
 function IndividualPanel({ individuals }: { individuals: IndividualData[] }) {
-  const [expanded, setExpanded] = useState<string | null>(null);
-
   if (individuals.length === 0) {
     return (
       <div className={styles.indivList}>
@@ -222,105 +249,80 @@ function IndividualPanel({ individuals }: { individuals: IndividualData[] }) {
       <div className={styles.indivHeader}>
         <span />
         <span>Rep</span>
-        <span>달성률 바</span>
-        <span style={{ textAlign: "right" }}>달성률</span>
-        <span style={{ textAlign: "right" }}>성과 / 목표</span>
+        <span>Progress</span>
+        <span style={{ textAlign: "right" }}>Att.</span>
+        <span style={{ textAlign: "right" }}>Won</span>
         <span style={{ textAlign: "right" }}>Pipeline</span>
-        <span style={{ textAlign: "right" }}>KPI</span>
-        <span style={{ textAlign: "right" }}>딜</span>
+        <span style={{ textAlign: "right" }}>Deals</span>
       </div>
 
-      {individuals.map((person, idx) => {
-        const color     = getHeatColor(person.progress);
+      {individuals.map((person, index) => {
+        const color = getHeatColor(person.progress);
         const fillWidth = Math.min((person.progress / BAR_MAX) * 100, 100);
-        const ms        = [...MILESTONES].reverse().find(m => person.progress >= m.pct) ?? null;
-        const kpiPct    = person.activityGoal && person.activityGoal > 0
-          ? Math.round((person.activityActual ?? 0) / person.activityGoal * 100)
-          : null;
-        const kpiColor  = kpiPct == null ? "var(--text-muted)" : kpiPct >= 80 ? "var(--accent)" : kpiPct >= 50 ? "var(--primary)" : "var(--warning)";
-        const kpiTip    = person.kpis?.map(k => `${k.key} ${k.actual}/${k.goal}`).join("  ") ?? "";
-        const isOpen    = expanded === person.name;
+        const milestone =
+          [...MILESTONES].reverse().find((item) => person.progress >= item.pct) ?? null;
 
         return (
-          <div key={person.name}>
-            <div
-              className={styles.indivRow}
-              data-tooltip={`목표: ${fmt(person.target)} | 성과: ${fmt(person.wonRevenue)} | Gap: ${fmt(Math.max(0, person.target - person.wonRevenue))}`}
-              onClick={() => setExpanded(isOpen ? null : person.name)}
-              style={{ cursor: "pointer" }}
-            >
-              <span className={styles.indivRank}>#{idx + 1}</span>
-
-              <span className={styles.indivName}>
-                {person.name}
-                {ms ? <span className={styles.indivMs}>{ms.marker}</span> : null}
-              </span>
-
-              <div className={styles.indivBarWrap}>
-                {MILESTONES.map(m => (
-                  <div key={m.pct} className={styles.indivTick} style={{ left: `${(m.pct / BAR_MAX) * 100}%` }} />
-                ))}
-                <div style={{ width: `${fillWidth}%`, background: color, height: "100%", borderRadius: 3, transition: "width 0.6s ease" }} />
-              </div>
-
-              <span className={styles.indivPct} style={{ color }}>{person.progress}%</span>
-
-              <span className={styles.indivRev}>
-                <span>{fmt(person.wonRevenue)}</span>
-                <span style={{ fontSize: "0.55rem", color: "var(--text-muted)" }}>/ {fmt(person.target)}</span>
-              </span>
-
-              <span className={styles.indivPipe} style={{ color: "var(--primary)" }}>
-                {fmt(person.pipelineRevenue)}
-              </span>
-
-              <span
-                className={styles.indivKpi}
-                style={{ color: kpiColor }}
-                data-tooltip={kpiTip || undefined}
-              >
-                {kpiPct != null ? `${kpiPct}%` : "—"}
-              </span>
-
-              <span className={styles.indivDeals} style={{ color: "var(--text-muted)" }}>
-                {person.deals_won}/{person.deals_total}
-              </span>
+          <div 
+            key={person.name} 
+            className={styles.indivRow}
+            data-tooltip={`목표: ${formatRevenue(person.target)} | 달성: ${formatRevenue(person.wonRevenue)} | 남은 격차: ${formatRevenue(Math.max(0, person.target - person.wonRevenue))}`}
+          >
+            <span className={styles.indivRank}>#{index + 1}</span>
+            <span className={styles.indivName}>
+              {person.name}
+              {milestone ? <span className={styles.indivMs}>{milestone.marker}</span> : null}
+            </span>
+            <div className={styles.indivBarWrap}>
+              {MILESTONES.map((item) => (
+                <div
+                  key={item.pct}
+                  className={styles.indivTick}
+                  style={{ left: `${(item.pct / BAR_MAX) * 100}%` }}
+                />
+              ))}
+              <div
+                style={{
+                  width: `${fillWidth}%`,
+                  background: color,
+                  height: "100%",
+                  borderRadius: 3,
+                  transition: "width 0.6s ease",
+                  position: "relative",
+                }}
+              />
             </div>
-
-            {/* KPI 드릴다운 */}
-            {isOpen && person.kpis && person.kpis.length > 0 && (
-              <div className={styles.kpiRow}>
-                {person.kpis.map(k => {
-                  const kc = k.progress >= 80 ? "var(--accent)" : k.progress >= 50 ? "var(--primary)" : "var(--warning)";
-                  return (
-                    <div key={k.key} className={styles.kpiItem}>
-                      <span className={styles.kpiKey}>{k.key}</span>
-                      <div className={styles.kpiBar}>
-                        <div style={{ width: `${Math.min(k.progress, 100)}%`, background: kc, height: "100%", borderRadius: 2 }} />
-                      </div>
-                      <span className={styles.kpiVal} style={{ color: kc }}>{k.actual}/{k.goal}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <span className={styles.indivPct} style={{ color }}>
+              {person.progress}%
+            </span>
+            <span className={styles.indivRev} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2, gap: '2px' }}>
+              <span>{formatRevenue(person.wonRevenue)}</span>
+              <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>/ {formatRevenue(person.target)}</span>
+            </span>
+            <span className={styles.indivPipe} style={{ color: "var(--primary)" }}>
+              {formatRevenue(person.pipelineRevenue)}
+            </span>
+            <span className={styles.indivDeals} style={{ color: "var(--text-muted)" }}>
+              {person.deals_won}/{person.deals_total}
+            </span>
           </div>
         );
       })}
 
       <p className={styles.indivNote}>
-        Won = 계약 완료 매출 · Pipeline = 가중 진행 매출 · KPI 클릭 시 활동 지표 표시
+        Won = closed revenue. Pipeline = weighted open revenue.
       </p>
     </div>
   );
 }
 
-/* ─────────────────────────── Stat ─────────────────────────── */
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className={styles.statItem}>
       <span className={styles.statLbl}>{label}</span>
-      <span className={styles.statVal} style={{ color }}>{value}</span>
+      <span className={styles.statVal} style={{ color }}>
+        {value}
+      </span>
     </div>
   );
 }

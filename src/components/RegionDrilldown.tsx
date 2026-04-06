@@ -11,6 +11,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
+import { formatRevenue } from "@/lib/formatCurrency";
 import { getHeatColor, getStatusLabel } from "@/lib/heatUtils";
 import type { FocusAccount, HotDeal, RegionData as DashboardRegionData } from "@/types/dashboard";
 import type { RegionData } from "./KoreaProvinceMap";
@@ -50,9 +51,6 @@ interface Props {
   onClose: () => void;
 }
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 function getPriorityMoves(regionData: RegionData | null, accounts: FocusAccount[], hotDeals: HotDeal[]) {
   const items: string[] = [];

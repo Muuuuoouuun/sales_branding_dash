@@ -12,6 +12,7 @@ import {
   Waypoints,
 } from "lucide-react";
 import Card from "@/components/Card";
+import { formatRevenue } from "@/lib/formatCurrency";
 import PipelineKanban from "@/components/PipelineKanban";
 import type { DashboardPayload, IndividualData, RegionData } from "@/types/dashboard";
 import styles from "./page.module.css";
@@ -309,9 +310,6 @@ function normalizeCrm(payload: Partial<CrmPayload> | null | undefined): CrmPaylo
   };
 }
 
-function formatRevenue(value: number): string {
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
-}
 
 function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
