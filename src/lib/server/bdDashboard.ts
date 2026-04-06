@@ -115,12 +115,14 @@ interface DshManagerTarget {
 interface DshManagerActual {
   yearlyActual: number;
   quarterlyActual: number;
+  monthlyActuals: Record<number, number>;
 }
 
 interface DshTargets {
   bdYearlyTarget: number;
   bdQuarterlyTarget: number;
   bdMonthlyTargets: Record<number, number>;
+  bdMonthlyActuals: Record<number, number>;
   managerTargets: Record<string, DshManagerTarget>;
   bdYearlyActual: number;
   bdQuarterlyActual: number;
@@ -174,6 +176,7 @@ function parseDshSheet(rows: string[][], fiscalQuarter: FiscalQuarter): DshTarge
     bdYearlyTarget: 0,
     bdQuarterlyTarget: 0,
     bdMonthlyTargets: {},
+    bdMonthlyActuals: {},
     managerTargets: {},
     bdYearlyActual: 0,
     bdQuarterlyActual: 0,
@@ -216,7 +219,7 @@ function parseDshSheet(rows: string[][], fiscalQuarter: FiscalQuarter): DshTarge
     // Individual manager Status from upper section
     if ((TARGET_MANAGERS as readonly string[]).includes(label)) {
       if (!result.managerActuals[label]) {
-        result.managerActuals[label] = { yearlyActual: statusSum, quarterlyActual: statusSum };
+        result.managerActuals[label] = { yearlyActual: statusSum, quarterlyActual: statusSum, monthlyActuals: {} };
       }
     }
   }
@@ -263,6 +266,9 @@ function parseDshSheet(rows: string[][], fiscalQuarter: FiscalQuarter): DshTarge
         } else if (totalCountForManager === 2) {
           result.bdYearlyActual = yearValue;
           result.bdQuarterlyActual = quarterValue;
+          DSH_FISCAL_MONTHS.forEach((month, idx) => {
+            result.bdMonthlyActuals[month] = parseNumber(row[10 + idx]);
+          });
         }
       } else if ((TARGET_MANAGERS as readonly string[]).includes(currentManager)) {
         if (totalCountForManager === 1) {
@@ -276,9 +282,14 @@ function parseDshSheet(rows: string[][], fiscalQuarter: FiscalQuarter): DshTarge
             monthlyTargets,
           };
         } else if (totalCountForManager === 2) {
+          const monthlyActuals: Record<number, number> = {};
+          DSH_FISCAL_MONTHS.forEach((month, idx) => {
+            monthlyActuals[month] = parseNumber(row[10 + idx]);
+          });
           result.managerActuals[currentManager] = {
             yearlyActual: yearValue,
             quarterlyActual: quarterValue,
+            monthlyActuals,
           };
         }
       }
@@ -300,6 +311,15 @@ function parseDshSheet(rows: string[][], fiscalQuarter: FiscalQuarter): DshTarge
     for (const mgr of Object.values(result.managerActuals)) {
       result.bdYearlyActual += mgr.yearlyActual;
       result.bdQuarterlyActual += mgr.quarterlyActual;
+    }
+  }
+
+  // Sum manager monthly actuals into bdMonthlyActuals if not directly parsed
+  if (Object.keys(result.bdMonthlyActuals).length === 0) {
+    for (const mgr of Object.values(result.managerActuals)) {
+      DSH_FISCAL_MONTHS.forEach((month) => {
+        result.bdMonthlyActuals[month] = (result.bdMonthlyActuals[month] ?? 0) + (mgr.monthlyActuals[month] ?? 0);
+      });
     }
   }
 
@@ -1071,7 +1091,11 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
   // Current month target/actual from DSH monthly breakdown
   const { calendarMonth } = getFiscalCalendarInfo();
   const currentMonthTarget = dshTargets.bdMonthlyTargets[calendarMonth] ?? 0;
-  const currentMonthActual = revenueSummary.monthlyActuals.get(calendarMonth) ?? 0;
+  // Prefer DSH Status monthly actual; fall back to REV sheet month column sum
+  const currentMonthActual =
+    dshTargets.bdMonthlyActuals[calendarMonth] ??
+    revenueSummary.monthlyActuals.get(calendarMonth) ??
+    0;
 
   const teamSummary: TeamSummary = {
     targetRevenue: bdQuarterTarget,
