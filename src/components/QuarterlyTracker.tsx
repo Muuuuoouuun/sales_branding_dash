@@ -340,46 +340,7 @@ function IndividualPanel({ individuals, period }: { individuals: IndividualData[
             </div>
 
             {isExpanded && person.kpis && person.kpis.length > 0 && (
-              <div className={styles.kpiPanel}>
-                <div className={styles.kpiPanelTitle}>
-                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>{person.name}</span>
-                  &nbsp;— 활동 KPI
-                </div>
-                <div className={styles.kpiGrid}>
-                  {person.kpis.map((kpi) => {
-                    const kpiColor = getHeatColor(kpi.progress);
-                    const kpiFill = Math.min(kpi.goal > 0 ? (kpi.actual / kpi.goal) * 100 : 0, 100);
-                    return (
-                      <div key={kpi.key} className={styles.kpiItem}>
-                        <div className={styles.kpiLabelRow}>
-                          <span className={styles.kpiLabel}>{kpi.label}</span>
-                          <span className={styles.kpiStat} style={{ color: kpiColor }}>
-                            {kpi.actual}<span style={{ color: "var(--text-muted)", fontWeight: 400 }}>/{kpi.goal}</span>
-                          </span>
-                        </div>
-                        <div className={styles.kpiBarOuter}>
-                          <div
-                            className={styles.kpiBarFill}
-                            style={{ width: `${kpiFill}%`, background: kpiColor }}
-                          />
-                        </div>
-                        <span className={styles.kpiPct} style={{ color: kpiColor }}>{kpi.progress}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className={styles.kpiSummaryRow}>
-                  <span style={{ color: "var(--text-muted)" }}>총 활동</span>
-                  <span style={{ fontWeight: 700, color: "var(--foreground)" }}>
-                    {person.activityActual ?? 0}
-                    <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> / {person.activityGoal ?? 0}</span>
-                  </span>
-                  <span style={{ color: "var(--text-muted)" }}>전환율</span>
-                  <span style={{ fontWeight: 700, color: person.deals_total > 0 ? getHeatColor(Math.round((person.deals_won / person.deals_total) * 100)) : "var(--text-muted)" }}>
-                    {person.deals_total > 0 ? Math.round((person.deals_won / person.deals_total) * 100) : 0}%
-                  </span>
-                </div>
-              </div>
+              <KpiPanel person={person} period={period} />
             )}
           </div>
         );
@@ -388,6 +349,82 @@ function IndividualPanel({ individuals, period }: { individuals: IndividualData[
       <p className={styles.indivNote}>
         클릭하면 개인 KPI를 확인할 수 있습니다. Won = 확정 매출. Pipeline = 가중 기대 매출.
       </p>
+    </div>
+  );
+}
+
+// Period divisor: Y=1, Q=4, M=12
+const PERIOD_DIVISOR: Record<"M" | "Q" | "Y", number> = { Y: 1, Q: 4, M: 12 };
+const PERIOD_LABEL: Record<"M" | "Q" | "Y", string> = { Y: "연간", Q: "분기", M: "월간" };
+
+function KpiPanel({ person, period }: { person: IndividualData; period: "M" | "Q" | "Y" }) {
+  const div = PERIOD_DIVISOR[period];
+  const totalGoal = Math.round((person.activityGoal ?? 0) / div);
+  const totalActual = Math.round((person.activityActual ?? 0) / div);
+
+  return (
+    <div className={styles.kpiPanel}>
+      <div className={styles.kpiPanelTitle}>
+        <span style={{ color: "var(--primary)", fontWeight: 700 }}>{person.name}</span>
+        &nbsp;— 활동 KPI&nbsp;
+        <span style={{
+          fontSize: "0.6rem",
+          background: "var(--primary-soft)",
+          color: "var(--primary-foreground)",
+          borderRadius: "4px",
+          padding: "1px 5px",
+          fontWeight: 600,
+          letterSpacing: "0.03em",
+        }}>
+          {PERIOD_LABEL[period]}
+        </span>
+      </div>
+
+      <div className={styles.kpiGrid}>
+        {person.kpis!.map((kpi) => {
+          const scaledGoal = Math.round(kpi.goal / div);
+          const scaledActual = Math.round(kpi.actual / div);
+          const scaledProgress = scaledGoal > 0 ? Math.round((scaledActual / scaledGoal) * 100) : 0;
+          const kpiColor = getHeatColor(scaledProgress);
+          const kpiFill = Math.min(scaledGoal > 0 ? (scaledActual / scaledGoal) * 100 : 0, 100);
+
+          return (
+            <div key={kpi.key} className={styles.kpiItem}>
+              <div className={styles.kpiLabelRow}>
+                <span className={styles.kpiLabel}>{kpi.label}</span>
+                <span className={styles.kpiStat} style={{ color: kpiColor }}>
+                  {scaledActual}
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>/{scaledGoal}</span>
+                </span>
+              </div>
+              <div className={styles.kpiBarOuter}>
+                <div
+                  className={styles.kpiBarFill}
+                  style={{ width: `${kpiFill}%`, background: kpiColor }}
+                />
+              </div>
+              <span className={styles.kpiPct} style={{ color: kpiColor }}>{scaledProgress}%</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className={styles.kpiSummaryRow}>
+        <span style={{ color: "var(--text-muted)" }}>총 활동</span>
+        <span style={{ fontWeight: 700, color: "var(--foreground)" }}>
+          {totalActual}
+          <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> / {totalGoal}</span>
+        </span>
+        <span style={{ color: "var(--text-muted)" }}>딜 전환율</span>
+        <span style={{ fontWeight: 700, color: person.deals_total > 0 ? getHeatColor(Math.round((person.deals_won / person.deals_total) * 100)) : "var(--text-muted)" }}>
+          {person.deals_total > 0 ? Math.round((person.deals_won / person.deals_total) * 100) : 0}%
+        </span>
+        {period !== "Y" && (
+          <span style={{ color: "var(--text-muted)", fontSize: "0.6rem", gridColumn: "1 / -1", marginTop: "2px" }}>
+            * 연간 KPI를 {div}등분한 비례 환산값입니다.
+          </span>
+        )}
+      </div>
     </div>
   );
 }
