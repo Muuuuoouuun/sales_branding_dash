@@ -984,7 +984,7 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
 }
 
 function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardDataSource): DashboardPayload {
-  const { fiscalQuarter } = getFiscalCalendarInfo();
+  const { fiscalQuarter, calendarMonth } = getFiscalCalendarInfo();
   const dshTargets = parseDshSheet(sheetRows[DSH_RANGE], fiscalQuarter);
   const { regional } = parseSegRows(sheetRows[SEG_RANGE]);
   const revenueRows = parseRevenueRows(sheetRows[REV_RANGE]);
@@ -1099,7 +1099,6 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
   const attainment = bdQuarterTarget > 0 ? (totalRevenue / bdQuarterTarget) * 100 : 0;
 
   // Current month target/actual from DSH monthly breakdown
-  const { calendarMonth } = getFiscalCalendarInfo();
   const currentMonthTarget = dshTargets.bdMonthlyTargets[calendarMonth] ?? 0;
   // Prefer DSH Status monthly actual; fall back to REV sheet month column sum
   const currentMonthActual =
