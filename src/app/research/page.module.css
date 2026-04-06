@@ -280,6 +280,15 @@
   display: grid;
   gap: 1rem;
   animation: fadeIn 0.25s ease-out;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.legendArticle::-webkit-scrollbar {
+  display: none;
 }
 
 .legendHero {
@@ -763,6 +772,16 @@
 .intelDetailPanel {
   display: grid;
   gap: 1rem;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.patternDetailPanel::-webkit-scrollbar,
+.intelDetailPanel::-webkit-scrollbar {
+  display: none;
 }
 
 .detailHero,
@@ -1409,6 +1428,15 @@
   display: grid;
   gap: 1rem;
   animation: fadeIn 0.25s ease-out;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.resourceArticle::-webkit-scrollbar {
+  display: none;
 }
 
 .resourceArticleHero {
