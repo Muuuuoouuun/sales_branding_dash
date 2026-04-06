@@ -784,26 +784,26 @@ export default function ResearchPage() {
 
   const weeklyResource = useMemo(() => getWeeklyResource(), []);
 
-  const sourceLabel = hasLoaded ? (dashboard.dataSource === "google-sheets" ? "Live Sheet" : "Fallback") : "Loading";
+  const sourceLabel = hasLoaded ? (dashboard.dataSource === "google-sheets" ? (language === "ko" ? "라이브 시트" : "Live Sheet") : (language === "ko" ? "폴백" : "Fallback")) : (language === "ko" ? "로딩 중" : "Loading");
   const activeSummary = useMemo(
     () => [
-      { label: "Source", value: sourceLabel },
-      { label: "Patterns", value: hasLoaded ? `${filteredPatterns.length} plays` : "Loading" },
-      { label: "Intel", value: hasLoaded ? `${filteredIntel.length} signals` : "Loading" },
+      { label: language === "ko" ? "소스" : "Source", value: sourceLabel },
+      { label: language === "ko" ? "패턴" : "Patterns", value: hasLoaded ? `${filteredPatterns.length} ${language === "ko" ? "개 플레이" : "plays"}` : (language === "ko" ? "로딩 중" : "Loading") },
+      { label: language === "ko" ? "인텔" : "Intel", value: hasLoaded ? `${filteredIntel.length} ${language === "ko" ? "개 신호" : "signals"}` : (language === "ko" ? "로딩 중" : "Loading") },
     ],
-    [filteredIntel.length, filteredPatterns.length, hasLoaded, sourceLabel],
+    [filteredIntel.length, filteredPatterns.length, hasLoaded, sourceLabel, language],
   );
 
   const subtitle = hasLoaded
-    ? `Board source: ${sourceLabel}. Updated ${formatDateStamp(dashboard.lastUpdated)}. Research cards are generated from the current BD dashboard payload.`
-    : "Pulling the current BD dashboard payload before generating patterns and intel.";
+    ? (language === "ko" ? `보드 소스: ${sourceLabel}. 업데이트: ${formatDateStamp(dashboard.lastUpdated)}. 리서치 카드는 현재 BD 대시보드 데이터에서 생성됩니다.` : `Board source: ${sourceLabel}. Updated ${formatDateStamp(dashboard.lastUpdated)}. Research cards are generated from the current BD dashboard payload.`)
+    : (language === "ko" ? "패턴과 인텔을 생성하기 전에 현재 BD 대시보드 데이터를 가져오는 중입니다." : "Pulling the current BD dashboard payload before generating patterns and intel.");
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <div>
-          <p className={styles.kicker}>Research Hub</p>
-          <h1 className={styles.title}>BD enablement library, winning patterns, and field intel</h1>
+          <p className={styles.kicker}>{language === "ko" ? "리서치 허브" : "Research Hub"}</p>
+          <h1 className={styles.title}>{language === "ko" ? "BD 지원 라이브러리, 성공 패턴 및 현장 인텔" : "BD enablement library, winning patterns, and field intel"}</h1>
           <p className={styles.subtitle}>{subtitle}</p>
         </div>
         <div className={styles.summaryRow}>
@@ -824,8 +824,8 @@ export default function ResearchPage() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search methods, patterns, or intel..."
-            aria-label="Search research content"
+            placeholder={language === "ko" ? "방법론, 패턴 또는 인텔 검색..." : "Search methods, patterns, or intel..."}
+            aria-label={language === "ko" ? "리서치 콘텐츠 검색" : "Search research content"}
           />
         </label>
 
@@ -843,18 +843,23 @@ export default function ResearchPage() {
         </div>
       </section>
 
-      <nav className={styles.tabBar} aria-label="Research tabs">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabBtnActive : ""}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      <nav className={styles.tabBar} aria-label={language === "ko" ? "리서치 탭" : "Research tabs"}>
+        {TABS.map((tab) => {
+          const tabLabel = language === "ko"
+            ? tab.id === "library" ? "라이브러리" : tab.id === "patterns" ? "패턴" : "인텔"
+            : tab.label;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`${styles.tabBtn} ${activeTab === tab.id ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.icon}
+              {tabLabel}
+            </button>
+          );
+        })}
       </nav>
 
       {activeTab === "library" && (
@@ -862,8 +867,8 @@ export default function ResearchPage() {
           <div className={styles.libraryList}>
             {filteredLegends.length === 0 ? (
               <EmptyState
-                title="No methods matched"
-                description="Try a shorter search term or switch focus to a different playbook."
+                title={language === "ko" ? "일치하는 방법론 없음" : "No methods matched"}
+                description={language === "ko" ? "더 짧은 검색어를 사용하거나 다른 플레이북으로 전환해 보세요." : "Try a shorter search term or switch focus to a different playbook."}
               />
             ) : (
               filteredLegends.map((legend) => {
@@ -975,20 +980,20 @@ export default function ResearchPage() {
         <section className={styles.patternWorkbench}>
           {!hasLoaded ? (
             <EmptyState
-              title="Loading live board"
-              description="Waiting for the current BD dashboard payload before generating patterns."
+              title={language === "ko" ? "라이브 보드 로딩 중" : "Loading live board"}
+              description={language === "ko" ? "패턴을 생성하기 전에 현재 BD 대시보드 데이터를 기다리는 중입니다." : "Waiting for the current BD dashboard payload before generating patterns."}
             />
           ) : filteredPatterns.length === 0 ? (
             <EmptyState
-              title="No patterns matched"
-              description="Try a different method or keyword to surface a live board pattern."
+              title={language === "ko" ? "일치하는 패턴 없음" : "No patterns matched"}
+              description={language === "ko" ? "라이브 보드 패턴을 찾으려면 다른 방법론이나 키워드를 시도해 보세요." : "Try a different method or keyword to surface a live board pattern."}
             />
           ) : (
             <>
               <div className={styles.patternList}>
                 {dashboard.dataSource !== "google-sheets" ? (
                   <div className={styles.sourceBanner}>
-                    Demo mode is active. These pattern cards are using the fallback board payload as a visual mockup.
+                    {language === "ko" ? "데모 모드가 활성화되어 있습니다. 이 패턴 카드는 폴백 보드 데이터를 시각적 목업으로 사용하고 있습니다." : "Demo mode is active. These pattern cards are using the fallback board payload as a visual mockup."}
                   </div>
                 ) : null}
 
@@ -1029,7 +1034,7 @@ export default function ResearchPage() {
                   <div className={styles.detailGrid}>
                     <div className={styles.detailBlock}>
                       <div className={styles.sectionLabel}>
-                        <Sparkles size={12} /> Evidence
+                        <Sparkles size={12} /> {language === "ko" ? "근거" : "Evidence"}
                       </div>
                       <ul className={styles.list}>
                         {selectedPattern.evidence.map((item) => (
@@ -1040,7 +1045,7 @@ export default function ResearchPage() {
 
                     <div className={styles.detailBlock}>
                       <div className={styles.sectionLabel}>
-                        <Target size={12} /> Recommended play
+                        <Target size={12} /> {language === "ko" ? "추천 플레이" : "Recommended play"}
                       </div>
                       <ul className={styles.list}>
                         {selectedPattern.recommendedPlay.map((item) => (
@@ -1051,7 +1056,7 @@ export default function ResearchPage() {
 
                     <div className={styles.detailBlock}>
                       <div className={styles.sectionLabel}>
-                        <Award size={12} /> Replication targets
+                        <Award size={12} /> {language === "ko" ? "복제 대상" : "Replication targets"}
                       </div>
                       <ul className={styles.list}>
                         {selectedPattern.replicationTargets.map((item) => (
@@ -1062,12 +1067,12 @@ export default function ResearchPage() {
 
                     <div className={styles.detailBlock}>
                       <div className={styles.sectionLabel}>
-                        <BadgeInfo size={12} /> Experiment tracker
+                        <BadgeInfo size={12} /> {language === "ko" ? "실험 트래커" : "Experiment tracker"}
                       </div>
                       <p className={styles.detailCopy}>{selectedPattern.experiment}</p>
                       <div className={styles.detailMetricRow}>
                         <span className={styles.patternMetric}>{selectedPattern.winRate}%</span>
-                        <span className={styles.patternMetricLabel}>board fit score</span>
+                        <span className={styles.patternMetricLabel}>{language === "ko" ? "보드 적합도" : "board fit score"}</span>
                       </div>
                     </div>
                   </div>
@@ -1082,13 +1087,13 @@ export default function ResearchPage() {
         <section className={styles.intelWorkbench}>
           {!hasLoaded ? (
             <EmptyState
-              title="Loading live board"
-              description="Waiting for the current BD dashboard payload before generating intel."
+              title={language === "ko" ? "라이브 보드 로딩 중" : "Loading live board"}
+              description={language === "ko" ? "인텔을 생성하기 전에 현재 BD 대시보드 데이터를 기다리는 중입니다." : "Waiting for the current BD dashboard payload before generating intel."}
             />
           ) : filteredIntel.length === 0 ? (
             <EmptyState
-              title="No intel matched"
-              description="Try another keyword to surface the current watchlist."
+              title={language === "ko" ? "일치하는 인텔 없음" : "No intel matched"}
+              description={language === "ko" ? "현재 감시 목록을 찾으려면 다른 키워드를 시도해 보세요." : "Try another keyword to surface the current watchlist."}
             />
           ) : (
             <>
@@ -1096,17 +1101,17 @@ export default function ResearchPage() {
                 <div className={styles.intelLead}>
                   <div className={styles.sideHeader}>
                     <ShieldAlert size={15} />
-                    <span>Market watchlist</span>
+                    <span>{language === "ko" ? "시장 감시 목록" : "Market watchlist"}</span>
                   </div>
-                  <h2>Signals that should shape the next BD move</h2>
+                  <h2>{language === "ko" ? "다음 BD 움직임을 형성해야 할 신호들" : "Signals that should shape the next BD move"}</h2>
                   <p>
-                    These notes are generated from the current BD dashboard payload so the team stays tied to the live board, not a separate research theater.
+                    {language === "ko" ? "이 메모들은 현재 BD 대시보드 데이터에서 생성되므로 팀이 별도의 리서치 채널이 아닌 라이브 보드에 연결됩니다." : "These notes are generated from the current BD dashboard payload so the team stays tied to the live board, not a separate research theater."}
                   </p>
                 </div>
 
                 {dashboard.dataSource !== "google-sheets" ? (
                   <div className={styles.sourceBanner}>
-                    Demo mode is active. Intel entries are using fallback board signals until the live sheet is connected.
+                    {language === "ko" ? "데모 모드가 활성화되어 있습니다. 라이브 시트가 연결될 때까지 인텔 항목은 폴백 보드 신호를 사용합니다." : "Demo mode is active. Intel entries are using fallback board signals until the live sheet is connected."}
                   </div>
                 ) : null}
 
@@ -1145,7 +1150,7 @@ export default function ResearchPage() {
                     <h3 className={styles.detailTitle}>{selectedIntel.title}</h3>
                     <p className={styles.intelDesc}>{selectedIntel.summary}</p>
                     <div className={styles.counterBox}>
-                      <span className={styles.counterLabel}>Next move</span>
+                      <span className={styles.counterLabel}>{language === "ko" ? "다음 움직임" : "Next move"}</span>
                       <span className={styles.counterText}>{selectedIntel.countermove}</span>
                     </div>
                   </div>
@@ -1153,7 +1158,7 @@ export default function ResearchPage() {
                   <div className={styles.detailGrid}>
                     <div className={styles.detailBlock}>
                       <div className={styles.sectionLabel}>
-                        <BadgeInfo size={12} /> Drivers
+                        <BadgeInfo size={12} /> {language === "ko" ? "동인" : "Drivers"}
                       </div>
                       <ul className={styles.list}>
                         {selectedIntel.drivers.map((item) => (
@@ -1164,7 +1169,7 @@ export default function ResearchPage() {
 
                     <div className={styles.detailBlock}>
                       <div className={styles.sectionLabel}>
-                        <Target size={12} /> Next-move checklist
+                        <Target size={12} /> {language === "ko" ? "다음 움직임 체크리스트" : "Next-move checklist"}
                       </div>
                       <ul className={styles.list}>
                         {selectedIntel.checklist.map((item) => (
@@ -1175,7 +1180,7 @@ export default function ResearchPage() {
 
                     <div className={styles.detailBlock}>
                       <div className={styles.sectionLabel}>
-                        <Brain size={12} /> Scenario impact
+                        <Brain size={12} /> {language === "ko" ? "시나리오 영향" : "Scenario impact"}
                       </div>
                       <p className={styles.detailCopy}>{selectedIntel.scenarioImpact}</p>
                     </div>
