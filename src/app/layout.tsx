@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Noto_Sans_KR, Outfit } from "next/font/google";
+import { Outfit } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -9,10 +10,11 @@ const headingFont = Outfit({
   variable: "--font-heading",
 });
 
-const bodyFont = Noto_Sans_KR({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const bodyFont = localFont({
+  src: "../../node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2",
   variable: "--font-body",
+  display: "swap",
+  weight: "45 920",
 });
 
 export const metadata: Metadata = {

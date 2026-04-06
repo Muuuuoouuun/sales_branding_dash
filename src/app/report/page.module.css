@@ -21,7 +21,7 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.35rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--primary-border);
   background: var(--primary-soft);
   color: var(--primary-foreground);
@@ -57,7 +57,7 @@
   display: inline-flex;
   align-items: center;
   padding: 0.4rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--surface-border);
   background: var(--surface-1);
   color: var(--text-soft);
@@ -78,16 +78,16 @@
   align-items: center;
   gap: 0.45rem;
   padding: 0.8rem 1rem;
-  border-radius: 0.85rem;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   font-size: 0.82rem;
   font-weight: 800;
   cursor: pointer;
   transition:
-    transform 0.15s ease,
-    opacity 0.15s ease,
-    border-color 0.15s ease,
-    background 0.15s ease;
+    opacity var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
   white-space: nowrap;
 }
 
@@ -102,9 +102,20 @@
   border-color: var(--surface-border);
 }
 
-.generateBtn:hover,
+.generateBtn:hover {
+  box-shadow: var(--shadow-md);
+  opacity: 0.92;
+}
+
 .dlBtn:hover {
-  transform: translateY(-1px);
+  border-color: var(--surface-border-strong);
+  background: var(--surface-2);
+}
+
+.generateBtn:focus-visible,
+.dlBtn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .generateBtn:disabled,
@@ -243,7 +254,7 @@
   gap: 0.75rem;
   align-items: start;
   padding: 0.8rem 0.9rem;
-  border-radius: 0.85rem;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
 }
 
@@ -291,7 +302,7 @@
   display: inline-flex;
   align-items: center;
   padding: 0.3rem 0.65rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -317,7 +328,7 @@
   place-items: center;
   text-align: center;
   min-height: 320px;
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--surface-1), transparent);
   border: 1px dashed var(--surface-border);
   padding: 2rem;
@@ -372,7 +383,7 @@
 }
 
 .sectionCard {
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--surface-border);
   background: var(--surface-1);
   padding: 1rem 1rem 1.05rem;
@@ -417,7 +428,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.8rem;
+  border-radius: var(--radius-md);
   background: var(--tone-accent, #6366f1);
   color: #fff;
   flex-shrink: 0;
@@ -474,7 +485,7 @@
   color: var(--text-soft);
   background: var(--surface-1);
   border: 1px solid var(--surface-border);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   padding: 1rem 1.05rem;
 }
 
@@ -515,7 +526,7 @@
   display: grid;
   gap: 0.25rem;
   padding: 0.85rem;
-  border-radius: 0.85rem;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   border: 1px solid var(--surface-border);
 }
@@ -560,7 +571,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--primary-soft);
   border: 1px solid var(--primary-border);
   color: var(--primary-foreground);
@@ -702,7 +713,7 @@
 /* ── Guru Tip Card (Mentor's Edge) ──────────────────────────────────────── */
 .guruTipCard {
   padding: 0.9rem 1rem;
-  border-radius: 0.95rem;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   border: 1px solid var(--surface-border);
   border-left-width: 3px;
@@ -727,7 +738,7 @@
   display: inline-block;
   width: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   margin-left: 0.2rem;
   vertical-align: middle;
   opacity: 0.85;

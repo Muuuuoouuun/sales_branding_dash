@@ -34,7 +34,7 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.3rem 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--surface-border);
   background: var(--surface-1);
   color: var(--text-muted);
@@ -68,7 +68,7 @@
   display: inline-flex;
   align-items: center;
   padding: 0.45rem 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 0.72rem;
   font-weight: 700;
   border: 1px solid var(--surface-border);
@@ -105,7 +105,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--primary-soft);
   color: var(--primary-foreground);
 }
@@ -146,7 +146,7 @@
   display: inline-flex;
   gap: 0.35rem;
   padding: 0.35rem;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--surface-border);
   background: var(--surface-1);
   margin-bottom: 1rem;
@@ -155,7 +155,7 @@
 
 .tabBtn {
   border: 0;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
   padding: 0.65rem 1rem;
@@ -213,7 +213,7 @@
 .heroAside,
 .methodAside {
   border: 1px solid var(--surface-border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   padding: 1rem;
 }
@@ -279,7 +279,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 0.25rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
 }
 
 .krList,
@@ -329,7 +329,7 @@
 
 .repRow {
   border: 1px solid var(--surface-border);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   padding: 0.85rem;
   background: var(--surface-1);
 }
@@ -337,7 +337,7 @@
 .repRank {
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -405,7 +405,7 @@
   background: var(--surface-1);
   color: var(--text-muted);
   padding: 0.55rem 0.9rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
@@ -431,7 +431,7 @@
 .timelineIndex {
   width: 24px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--primary-soft);
   color: var(--primary-foreground);
   display: flex;
@@ -487,10 +487,20 @@
   border: 1px solid var(--primary-border);
   background: var(--primary-soft);
   color: var(--primary-foreground);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 0.7rem 1rem;
   font-weight: 800;
   cursor: pointer;
+  transition: box-shadow var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+}
+
+.aiButton:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.aiButton:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .aiButton:disabled {
@@ -501,7 +511,7 @@
 .aiAnchor {
   border: 1px solid var(--surface-border);
   background: var(--surface-1);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   padding: 0.75rem 0.85rem;
   align-items: center;
 }
@@ -515,7 +525,7 @@
 .aiPreview {
   margin: 1rem 0 0;
   padding: 1rem;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   border: 1px solid var(--surface-border);
   color: var(--text-soft);
@@ -527,7 +537,7 @@
 .aiEmpty,
 .aiError {
   border: 1px dashed var(--surface-border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   min-height: 220px;
   display: grid;
@@ -553,7 +563,7 @@
 
 .aiSection {
   border: 1px solid var(--surface-border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   padding: 0.9rem 1rem;
 }

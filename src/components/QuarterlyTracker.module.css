@@ -257,19 +257,28 @@
   transition: color 0.3s;
 }
 
-/* ── Team stats row ── */
-.teamRow {
+/* ── Controls ── */
+.controls {
   display: flex;
-  gap: 0;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* ── Team panel ── */
+.teamPanel {
   border-top: 1px solid var(--surface-border);
   padding-top: 1rem;
-  flex-wrap: wrap;
-  min-width: 0;
+}
+
+.teamGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem 0;
 }
 
 .statItem {
-  flex: 1;
-  min-width: 120px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -277,8 +286,14 @@
   border-right: 1px solid var(--surface-border);
   min-width: 0;
 }
-.statItem:first-child { padding-left: 0; }
-.statItem:last-child  { border-right: none; }
+.statItem:nth-child(3n) { border-right: none; }
+.statItem:nth-child(1),
+.statItem:nth-child(2),
+.statItem:nth-child(3) { padding-top: 0; }
+.statItem:nth-child(4),
+.statItem:nth-child(5),
+.statItem:nth-child(6) { padding-top: 0.75rem; border-top: 1px solid var(--surface-border); }
+.statItem:nth-child(3n+1) { padding-left: 0; }
 
 .statLbl {
   font-size: 0.67rem;
@@ -293,6 +308,31 @@
   font-weight: 700;
 }
 
+/* Next milestone bar */
+.nextMsBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-1);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.nextMsTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--primary-soft);
+  color: var(--primary-foreground);
+  flex-shrink: 0;
+}
+
 /* ── Individual list ── */
 .indivList {
   display: flex;
@@ -303,10 +343,10 @@
   min-width: 0;
 }
 
-/* col: rank | name | bar | pct | won | pipeline | deals */
+/* col: rank | name | bar | pct | won | pipeline | kpi | deals */
 .indivHeader {
   display: grid;
-  grid-template-columns: 26px 76px 1fr 44px 88px 80px 36px;
+  grid-template-columns: 26px 76px 1fr 44px 90px 76px 40px 36px;
   gap: 8px;
   align-items: center;
   font-size: 0.6rem;
@@ -321,20 +361,19 @@
 
 .indivRow {
   display: grid;
-  grid-template-columns: 26px 76px 1fr 44px 88px 80px 36px;
+  grid-template-columns: 26px 76px 1fr 44px 90px 76px 40px 36px;
   align-items: center;
   gap: 8px;
-  padding: 5px 4px;
-  border-radius: 5px;
+  padding: 6px 4px;
+  border-radius: 6px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   min-width: 0;
   position: relative;
-  cursor: pointer;
 }
 .indivRow:hover {
   background: var(--surface-hover);
-  transform: scale(1.02) translateX(2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: scale(1.01) translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 10;
 }
 
@@ -431,6 +470,65 @@
   min-width: 0;
 }
 
+.indivKpi {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* KPI drill-down row */
+.kpiRow {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.5rem 2rem;
+  background: var(--surface-1);
+  border-radius: 0 0 6px 6px;
+  margin-top: -2px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.kpiItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 90px;
+}
+
+.kpiKey {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  width: 26px;
+  flex-shrink: 0;
+}
+
+.kpiBar {
+  flex: 1;
+  height: 5px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.kpiVal {
+  font-size: 0.62rem;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 32px;
+  text-align: right;
+}
+
 .indivNote {
   font-size: 0.6rem;
   color: var(--text-muted);
@@ -445,8 +543,12 @@
     align-items: flex-start;
   }
 
-  .toggleGroup {
+  .controls {
     width: 100%;
+  }
+
+  .toggleGroup {
+    flex: 1;
   }
 
   .toggle {
@@ -454,24 +556,22 @@
     justify-content: center;
   }
 
-  .teamRow {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
+  .teamGrid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .statItem {
     min-width: 0;
-    padding: 0.85rem 0.9rem;
-    border-right: none;
-    border-top: 1px solid var(--surface-border);
+    padding: 0.85rem 0.9rem !important;
+    border-right: none !important;
+    border-top: 1px solid var(--surface-border) !important;
     border-radius: 0.8rem;
     background: var(--surface-1);
   }
 
   .statItem:first-child,
   .statItem:nth-child(2) {
-    border-top: none;
+    border-top: none !important;
   }
 
   .indivHeader {
@@ -482,8 +582,9 @@
     grid-template-columns: 34px minmax(0, 1fr) auto;
     grid-template-areas:
       "rank name pct"
-      "bar bar bar"
-      "rev pipe deals";
+      "bar  bar  bar"
+      "rev  pipe kpi"
+      "deals deals deals";
     gap: 0.45rem 0.7rem;
     padding: 0.8rem;
     border: 1px solid var(--surface-border);
@@ -491,41 +592,27 @@
     background: var(--surface-1);
   }
 
-  .indivRow > :nth-child(1) {
-    grid-area: rank;
-  }
-
-  .indivRow > :nth-child(2) {
-    grid-area: name;
-  }
-
-  .indivRow > :nth-child(3) {
-    grid-area: bar;
-  }
-
-  .indivRow > :nth-child(4) {
-    grid-area: pct;
-  }
-
-  .indivRow > :nth-child(5) {
-    grid-area: rev;
-  }
-
-  .indivRow > :nth-child(6) {
-    grid-area: pipe;
-  }
-
-  .indivRow > :nth-child(7) {
-    grid-area: deals;
-  }
+  .indivRow > :nth-child(1) { grid-area: rank; }
+  .indivRow > :nth-child(2) { grid-area: name; }
+  .indivRow > :nth-child(3) { grid-area: bar; }
+  .indivRow > :nth-child(4) { grid-area: pct; }
+  .indivRow > :nth-child(5) { grid-area: rev; }
+  .indivRow > :nth-child(6) { grid-area: pipe; }
+  .indivRow > :nth-child(7) { grid-area: kpi; }
+  .indivRow > :nth-child(8) { grid-area: deals; }
 
   .indivRank,
   .indivPct,
   .indivRev,
   .indivPipe,
+  .indivKpi,
   .indivDeals {
     text-align: left;
     white-space: normal;
+  }
+
+  .kpiRow {
+    padding-left: 1rem;
   }
 }
 
