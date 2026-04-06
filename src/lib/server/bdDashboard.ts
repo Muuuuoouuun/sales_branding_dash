@@ -1053,8 +1053,14 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
       const activityActual = kpis.reduce((sum, item) => sum + item.actual, 0);
 
       // Use DSH Status actual as wonRevenue when available; fall back to REV confirmed deals
-      const dshActual = dshTargets.managerActuals[manager.toLowerCase()]?.quarterlyActual;
+      const mgrKey = manager.toLowerCase();
+      const dshActual = dshTargets.managerActuals[mgrKey]?.quarterlyActual;
       const managerWonRevenue = dshActual != null && dshActual > 0 ? dshActual : bucket.wonRevenue;
+
+      const monthlyWon = dshTargets.managerActuals[mgrKey]?.monthlyActuals[calendarMonth] ?? 0;
+      const monthlyTarget = dshTargets.managerTargets[mgrKey]?.monthlyTargets[calendarMonth] ?? 0;
+      const yearlyWon = dshTargets.managerActuals[mgrKey]?.yearlyActual ?? 0;
+      const yearlyTarget = dshTargets.managerTargets[mgrKey]?.yearlyTarget ?? 0;
 
       return {
         name: manager,
@@ -1064,6 +1070,10 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
         progress: managerTarget > 0 ? Math.round((managerWonRevenue / managerTarget) * 100) : 0,
         deals_total: bucket.dealsTotal,
         deals_won: bucket.dealsWon,
+        monthlyWon,
+        monthlyTarget,
+        yearlyWon,
+        yearlyTarget,
         newRevenue: bucket.newRevenue,
         renewRevenue: bucket.renewRevenue,
         activityGoal,
