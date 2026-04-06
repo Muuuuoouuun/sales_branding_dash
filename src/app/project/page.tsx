@@ -282,7 +282,7 @@ const PROJECT_METHOD_COPY: Record<MethodologyId, MethodologyCardCopy> = {
   },
 };
 
-void METHOD_COPY;
+// METHOD_COPY used for Korean mode; PROJECT_METHOD_COPY used for English mode
 
 function normalizeDashboard(payload: Partial<DashboardPayload> | null | undefined): DashboardPayload {
   return {
@@ -453,6 +453,8 @@ function buildAiPreview(dashboard: DashboardPayload, crm: CrmPayload, methodolog
 }
 
 export default function ProjectPage() {
+  const { language } = require("@/components/SettingsProvider").useSettings();
+  const methodCopy = language === "ko" ? METHOD_COPY : PROJECT_METHOD_COPY;
   const [tab, setTab] = useState<Tab>("okr");
   const [methodology, setMethodology] = useState<MethodologyId>("Challenger");
   const [loading, setLoading] = useState(true);
@@ -567,29 +569,29 @@ export default function ProjectPage() {
     <div className={styles.container}>
       <header className={styles.header}>
         <div>
-          <div className={styles.kicker}>Project Strategy</div>
-          <h1 className={styles.title}>BD execution cockpit</h1>
-          <p className={styles.subtitle}>Live sheet data, CRM pipeline, and operating methodology in one place.</p>
+          <div className={styles.kicker}>{language === "ko" ? "프로젝트 전략" : "Project Strategy"}</div>
+          <h1 className={styles.title}>{language === "ko" ? "BD 실행 조종석" : "BD execution cockpit"}</h1>
+          <p className={styles.subtitle}>{language === "ko" ? "라이브 시트 데이터, CRM 파이프라인, 운영 방법론을 한 곳에서 확인하세요." : "Live sheet data, CRM pipeline, and operating methodology in one place."}</p>
         </div>
         <div className={styles.headerMeta}>
-          <span className={styles.liveBadge}>{dashboard.dataSource === "google-sheets" ? "Live Sheet" : "Fallback"}</span>
+          <span className={styles.liveBadge}>{dashboard.dataSource === "google-sheets" ? (language === "ko" ? "라이브 시트" : "Live Sheet") : (language === "ko" ? "폴백" : "Fallback")}</span>
           <span className={styles.quarterBadge}>{dashboard.periodLabel}</span>
         </div>
       </header>
 
       <div className={styles.metricGrid}>
-        <MetricCard label="Revenue attainment" value={formatPercent(dashboard.teamSummary.attainment)} hint={`${formatRevenue(dashboard.teamSummary.actualRevenue)} of ${formatRevenue(dashboard.teamSummary.targetRevenue)}`} icon={<TrendingUp size={16} />} tone={dashboard.teamSummary.attainment >= 100 ? "good" : dashboard.teamSummary.attainment >= 80 ? "warn" : "bad"} />
-        <MetricCard label="Target gap" value={dashboard.teamSummary.gapRevenue > 0 ? formatRevenue(dashboard.teamSummary.gapRevenue) : "On plan"} hint="Quarter remainder" icon={<Target size={16} />} tone={dashboard.teamSummary.gapRevenue > 0 ? "warn" : "good"} />
-        <MetricCard label="Open leads" value={String(openLeads.length)} hint={`${crm.actions.length} priority actions`} icon={<Users size={16} />} tone="neutral" />
-        <MetricCard label="Execution completion" value={formatPercent(dashboard.teamSummary.activityCompletion)} hint={executionWeakest ? `${executionWeakest.stage} is the bottleneck` : "KPI data not ready"} icon={<Waypoints size={16} />} tone={dashboard.teamSummary.activityCompletion >= 60 ? "good" : dashboard.teamSummary.activityCompletion >= 30 ? "warn" : "bad"} />
+        <MetricCard label={language === "ko" ? "매출 달성도" : "Revenue attainment"} value={formatPercent(dashboard.teamSummary.attainment)} hint={`${formatRevenue(dashboard.teamSummary.actualRevenue)} ${language === "ko" ? "/" : "of"} ${formatRevenue(dashboard.teamSummary.targetRevenue)}`} icon={<TrendingUp size={16} />} tone={dashboard.teamSummary.attainment >= 100 ? "good" : dashboard.teamSummary.attainment >= 80 ? "warn" : "bad"} />
+        <MetricCard label={language === "ko" ? "목표 격차" : "Target gap"} value={dashboard.teamSummary.gapRevenue > 0 ? formatRevenue(dashboard.teamSummary.gapRevenue) : (language === "ko" ? "목표 달성" : "On plan")} hint={language === "ko" ? "분기 잔여 목표" : "Quarter remainder"} icon={<Target size={16} />} tone={dashboard.teamSummary.gapRevenue > 0 ? "warn" : "good"} />
+        <MetricCard label={language === "ko" ? "진행 중인 리드" : "Open leads"} value={String(openLeads.length)} hint={`${crm.actions.length} ${language === "ko" ? "개 우선 액션" : "priority actions"}`} icon={<Users size={16} />} tone="neutral" />
+        <MetricCard label={language === "ko" ? "실행 완료율" : "Execution completion"} value={formatPercent(dashboard.teamSummary.activityCompletion)} hint={executionWeakest ? `${executionWeakest.stage} ${language === "ko" ? "이 병목 구간입니다" : "is the bottleneck"}` : (language === "ko" ? "KPI 데이터 대기 중" : "KPI data not ready")} icon={<Waypoints size={16} />} tone={dashboard.teamSummary.activityCompletion >= 60 ? "good" : dashboard.teamSummary.activityCompletion >= 30 ? "warn" : "bad"} />
       </div>
 
       <div className={styles.tabBar}>
         {[
           { id: "okr", label: "OKR / KPI" },
-          { id: "pipeline", label: "Pipeline" },
-          { id: "methodology", label: "Methodology" },
-          { id: "ai", label: "AI Readout" },
+          { id: "pipeline", label: language === "ko" ? "파이프라인" : "Pipeline" },
+          { id: "methodology", label: language === "ko" ? "세일즈 방법론" : "Methodology" },
+          { id: "ai", label: language === "ko" ? "AI 분석" : "AI Readout" },
         ].map((item) => (
           <button key={item.id} className={`${styles.tabBtn} ${tab === item.id ? styles.tabBtnActive : ""}`} onClick={() => setTab(item.id as Tab)} type="button">
             {item.label}
@@ -600,17 +602,17 @@ export default function ProjectPage() {
       {tab === "okr" ? (
         <div className={styles.layout}>
           <div className={styles.mainCol}>
-            <Card title="Quarter control" action={<span className={styles.cardPill}>Live sheet</span>}>
+            <Card title={language === "ko" ? "분기 현황" : "Quarter control"} action={<span className={styles.cardPill}>{language === "ko" ? "라이브 시트" : "Live sheet"}</span>}>
               <div className={styles.heroBlock}>
                 <div>
-                  <div className={styles.sectionLabel}>Current operating objective</div>
+                  <div className={styles.sectionLabel}>{language === "ko" ? "현재 운영 목표" : "Current operating objective"}</div>
                   <div className={styles.heroTitle}>{dashboard.periodLabel}</div>
-                  <p className={styles.heroCopy}>Close the revenue gap, stabilize weak regions, and keep the next stage handoff tight.</p>
+                  <p className={styles.heroCopy}>{language === "ko" ? "매출 격차를 줄이고, 취약 지역을 안정화하며, 다음 스테이지 핸드오프를 긴밀하게 유지하세요." : "Close the revenue gap, stabilize weak regions, and keep the next stage handoff tight."}</p>
                 </div>
                 <div className={styles.heroAside}>
-                  <div className={styles.asideLabel}>Top region</div>
+                  <div className={styles.asideLabel}>{language === "ko" ? "최고 지역" : "Top region"}</div>
                   <div className={styles.asideValue}>{strongest?.name ?? "TBD"}</div>
-                  <div className={styles.asideMeta}>{strongest ? `${strongest.progress}% attainment` : "No regional data"}</div>
+                  <div className={styles.asideMeta}>{strongest ? `${strongest.progress}% ${language === "ko" ? "달성" : "attainment"}` : (language === "ko" ? "지역 데이터 없음" : "No regional data")}</div>
                 </div>
               </div>
             </Card>
@@ -618,42 +620,42 @@ export default function ProjectPage() {
             <div className={styles.objectiveGrid}>
               <ObjectiveCard
                 accent="#6366f1"
-                title="Revenue coverage"
-                summary={`Protect the quarter while closing the ${formatRevenue(dashboard.teamSummary.gapRevenue)} gap.`}
+                title={language === "ko" ? "매출 확보" : "Revenue coverage"}
+                summary={language === "ko" ? `분기를 지키면서 ${formatRevenue(dashboard.teamSummary.gapRevenue)} 격차를 줄이세요.` : `Protect the quarter while closing the ${formatRevenue(dashboard.teamSummary.gapRevenue)} gap.`}
                 keyResults={[
-                  { label: "Attainment", value: formatPercent(dashboard.teamSummary.attainment), target: "100%" },
-                  { label: "Top rep", value: topRep?.name ?? "TBD", target: topRep ? formatRevenue(topRep.wonRevenue) : "n/a" },
-                  { label: "Risk region", value: weakest?.name ?? "n/a", target: weakest ? `${weakest.progress}%` : "n/a" },
-                  { label: "Critical regions", value: String(dashboard.teamSummary.criticalRegionCount), target: "< 2" },
+                  { label: language === "ko" ? "달성률" : "Attainment", value: formatPercent(dashboard.teamSummary.attainment), target: "100%" },
+                  { label: language === "ko" ? "최고 담당자" : "Top rep", value: topRep?.name ?? "TBD", target: topRep ? formatRevenue(topRep.wonRevenue) : "n/a" },
+                  { label: language === "ko" ? "위험 지역" : "Risk region", value: weakest?.name ?? "n/a", target: weakest ? `${weakest.progress}%` : "n/a" },
+                  { label: language === "ko" ? "위험 지역 수" : "Critical regions", value: String(dashboard.teamSummary.criticalRegionCount), target: "< 2" },
                 ]}
               />
               <ObjectiveCard
                 accent="#22c55e"
-                title="Execution discipline"
-                summary="Keep stage conversion and activity completion from leaking on the way to contract."
+                title={language === "ko" ? "실행 규율" : "Execution discipline"}
+                summary={language === "ko" ? "계약까지 가는 과정에서 스테이지 전환율과 활동 완료율이 누수되지 않도록 하세요." : "Keep stage conversion and activity completion from leaking on the way to contract."}
                 keyResults={[
-                  { label: "Activity completion", value: formatPercent(dashboard.teamSummary.activityCompletion), target: "70%" },
-                  { label: "Weakest stage", value: executionWeakest?.stage ?? "n/a", target: executionWeakest ? `${executionWeakest.progress ?? 0}%` : "n/a" },
-                  { label: "Active accounts", value: String(dashboard.teamSummary.accountCount), target: "steady" },
-                  { label: "Activated accounts", value: String(dashboard.teamSummary.activatedCount), target: "up" },
+                  { label: language === "ko" ? "활동 완료율" : "Activity completion", value: formatPercent(dashboard.teamSummary.activityCompletion), target: "70%" },
+                  { label: language === "ko" ? "최약 스테이지" : "Weakest stage", value: executionWeakest?.stage ?? "n/a", target: executionWeakest ? `${executionWeakest.progress ?? 0}%` : "n/a" },
+                  { label: language === "ko" ? "활성 고객사" : "Active accounts", value: String(dashboard.teamSummary.accountCount), target: language === "ko" ? "유지" : "steady" },
+                  { label: language === "ko" ? "전환된 고객사" : "Activated accounts", value: String(dashboard.teamSummary.activatedCount), target: language === "ko" ? "증가" : "up" },
                 ]}
               />
               <ObjectiveCard
                 accent="#f59e0b"
-                title="Pipeline momentum"
-                summary="Keep the next 7 days warm with visible actions, not just probability."
+                title={language === "ko" ? "파이프라인 모멘텀" : "Pipeline momentum"}
+                summary={language === "ko" ? "확률만이 아니라 눈에 보이는 액션으로 향후 7일을 채우세요." : "Keep the next 7 days warm with visible actions, not just probability."}
                 keyResults={[
-                  { label: "Open leads", value: String(openLeads.length), target: "sorted" },
-                  { label: "Weighted pipeline", value: formatRevenue(weightedPipeline), target: "growing" },
-                  { label: "Next action", value: crm.actions[0]?.target ?? "n/a", target: crm.actions[0]?.due ?? "n/a" },
-                  { label: "High-priority", value: crm.actions[0]?.prob ?? "n/a", target: "Urgent" },
+                  { label: language === "ko" ? "진행 중인 리드" : "Open leads", value: String(openLeads.length), target: language === "ko" ? "정렬됨" : "sorted" },
+                  { label: language === "ko" ? "가중 파이프라인" : "Weighted pipeline", value: formatRevenue(weightedPipeline), target: language === "ko" ? "성장 중" : "growing" },
+                  { label: language === "ko" ? "다음 액션" : "Next action", value: crm.actions[0]?.target ?? "n/a", target: crm.actions[0]?.due ?? "n/a" },
+                  { label: language === "ko" ? "고우선순위" : "High-priority", value: crm.actions[0]?.prob ?? "n/a", target: language === "ko" ? "긴급" : "Urgent" },
                 ]}
               />
             </div>
           </div>
 
           <div className={styles.sideCol}>
-            <Card title="Rep scoreboard" action={<span className={styles.cardPill}>Live</span>}>
+            <Card title={language === "ko" ? "담당자 순위" : "Rep scoreboard"} action={<span className={styles.cardPill}>{language === "ko" ? "라이브" : "Live"}</span>}>
               <div className={styles.repList}>
                 {dashboard.individuals.slice(0, 5).map((rep, index) => (
                   <RepRow key={rep.name} rep={rep} rank={index + 1} />
@@ -661,13 +663,13 @@ export default function ProjectPage() {
               </div>
             </Card>
 
-            <Card title="Region watchlist">
+            <Card title={language === "ko" ? "지역 감시 목록" : "Region watchlist"}>
               <div className={styles.regionList}>
                 {[...dashboard.regional].sort((a, b) => b.progress - a.progress).slice(0, 5).map((region) => (
                   <div key={region.name} className={styles.regionRow}>
                     <div>
                       <div className={styles.regionName}>{region.name}</div>
-                      <div className={styles.regionMeta}>{formatRevenue(region.revenue)} of {formatRevenue(region.target)}</div>
+                      <div className={styles.regionMeta}>{formatRevenue(region.revenue)} {language === "ko" ? "/" : "of"} {formatRevenue(region.target)}</div>
                     </div>
                     <div className={styles.regionProgress}>{region.progress}%</div>
                   </div>
@@ -681,9 +683,9 @@ export default function ProjectPage() {
       {tab === "pipeline" ? (
         <div className={styles.pipelineShell}>
           <div className={styles.pipelineTopRow}>
-            <Card title="Pipeline pressure" className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{openLeads.length}</div><div className={styles.pipelineMetricHint}>open leads in motion</div></Card>
-            <Card title="Weighted value" className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{formatRevenue(weightedPipeline)}</div><div className={styles.pipelineMetricHint}>probability-adjusted</div></Card>
-            <Card title="Priority actions" className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{crm.actions.length}</div><div className={styles.pipelineMetricHint}>{highPriorityLeads[0]?.company ?? "No urgent leads"}</div></Card>
+            <Card title={language === "ko" ? "파이프라인 압박" : "Pipeline pressure"} className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{openLeads.length}</div><div className={styles.pipelineMetricHint}>{language === "ko" ? "진행 중인 리드" : "open leads in motion"}</div></Card>
+            <Card title={language === "ko" ? "가중 가치" : "Weighted value"} className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{formatRevenue(weightedPipeline)}</div><div className={styles.pipelineMetricHint}>{language === "ko" ? "확률 조정 금액" : "probability-adjusted"}</div></Card>
+            <Card title={language === "ko" ? "우선 액션" : "Priority actions"} className={styles.pipelineMetric}><div className={styles.pipelineMetricValue}>{crm.actions.length}</div><div className={styles.pipelineMetricHint}>{highPriorityLeads[0]?.company ?? (language === "ko" ? "긴급 리드 없음" : "No urgent leads")}</div></Card>
           </div>
 
           <PipelineKanban leads={crm.leads} scores={crm.scores} actions={crm.actions} onMoveLead={moveLead} />
@@ -695,28 +697,28 @@ export default function ProjectPage() {
           <div className={styles.methodPicker}>
             {(Object.keys(PROJECT_METHOD_COPY) as MethodologyId[]).map((id) => (
               <button key={id} className={`${styles.methodBtn} ${methodology === id ? styles.methodBtnActive : ""}`} onClick={() => setMethodology(id)} type="button">
-                {PROJECT_METHOD_COPY[id].label}
+                {methodCopy[id].label}
               </button>
             ))}
           </div>
 
-          <div className={styles.methodHero} style={{ borderColor: `${PROJECT_METHOD_COPY[methodology].color}33` }}>
+          <div className={styles.methodHero} style={{ borderColor: `${methodCopy[methodology].color}33` }}>
             <div>
-              <div className={styles.sectionLabel}>Playbook</div>
-              <div className={styles.methodTitle}>{PROJECT_METHOD_COPY[methodology].label}</div>
-              <p className={styles.methodSummary}>{PROJECT_METHOD_COPY[methodology].summary}</p>
+              <div className={styles.sectionLabel}>{language === "ko" ? "플레이북" : "Playbook"}</div>
+              <div className={styles.methodTitle}>{methodCopy[methodology].label}</div>
+              <p className={styles.methodSummary}>{methodCopy[methodology].summary}</p>
             </div>
             <div className={styles.methodAside}>
-              <div className={styles.asideLabel}>Best for</div>
-              <div className={styles.asideValue}>{PROJECT_METHOD_COPY[methodology].bestFor}</div>
-              <div className={styles.asideMeta}>{PROJECT_METHOD_COPY[methodology].whenToUse}</div>
+              <div className={styles.asideLabel}>{language === "ko" ? "적합한 상황" : "Best for"}</div>
+              <div className={styles.asideValue}>{methodCopy[methodology].bestFor}</div>
+              <div className={styles.asideMeta}>{methodCopy[methodology].whenToUse}</div>
             </div>
           </div>
 
           <div className={styles.methodGrid}>
-            <Card title="Stage flow">
+            <Card title={language === "ko" ? "스테이지 흐름" : "Stage flow"}>
               <div className={styles.timeline}>
-                {PROJECT_METHOD_COPY[methodology].stages.map((stage, index) => (
+                {methodCopy[methodology].stages.map((stage, index) => (
                   <div key={stage.label} className={styles.timelineItem}>
                     <div className={styles.timelineIndex}>{index + 1}</div>
                     <div>
@@ -728,9 +730,9 @@ export default function ProjectPage() {
               </div>
             </Card>
 
-            <Card title="Operating principles">
+            <Card title={language === "ko" ? "운영 원칙" : "Operating principles"}>
               <div className={styles.principleList}>
-                {PROJECT_METHOD_COPY[methodology].principles.map((principle) => (
+                {methodCopy[methodology].principles.map((principle) => (
                   <div key={principle} className={styles.principleRow}>
                     <Sparkles size={13} />
                     <span>{principle}</span>
@@ -740,11 +742,11 @@ export default function ProjectPage() {
             </Card>
           </div>
 
-          <Card title="Coach note" className={styles.quoteCard}>
-            <div className={styles.quoteText}>&ldquo;{PROJECT_METHOD_COPY[methodology].quote}&rdquo;</div>
+          <Card title={language === "ko" ? "코치 노트" : "Coach note"} className={styles.quoteCard}>
+            <div className={styles.quoteText}>&ldquo;{methodCopy[methodology].quote}&rdquo;</div>
             <div className={styles.quoteTip}>
               <AlertTriangle size={13} />
-              <span>{PROJECT_METHOD_COPY[methodology].tip}</span>
+              <span>{methodCopy[methodology].tip}</span>
             </div>
           </Card>
         </div>
@@ -754,42 +756,42 @@ export default function ProjectPage() {
         <div className={styles.aiLayout}>
           <div className={styles.aiHeader}>
             <div>
-              <div className={styles.sectionLabel}>AI readout</div>
-              <div className={styles.aiTitle}>Live BD commentary</div>
-              <p className={styles.aiSubtitle}>The model reads the current BD sheet, regional pressure, and rep execution signals.</p>
+              <div className={styles.sectionLabel}>{language === "ko" ? "AI 분석" : "AI readout"}</div>
+              <div className={styles.aiTitle}>{language === "ko" ? "라이브 BD 해설" : "Live BD commentary"}</div>
+              <p className={styles.aiSubtitle}>{language === "ko" ? "현재 BD 시트, 지역 압박, 담당자 실행 신호를 기반으로 분석합니다." : "The model reads the current BD sheet, regional pressure, and rep execution signals."}</p>
             </div>
             <button className={styles.aiButton} onClick={generateAI} disabled={aiLoading} type="button">
               {aiLoading ? <Loader2 size={14} className={styles.spinner} /> : <Brain size={14} />}
-              Generate
+              {language === "ko" ? "생성" : "Generate"}
             </button>
           </div>
 
           <div className={styles.aiGrid}>
-            <Card title="What the AI sees">
+            <Card title={language === "ko" ? "AI가 보는 데이터" : "What the AI sees"}>
               <div className={styles.aiAnchorList}>
-                <div className={styles.aiAnchor}><span>Data source</span><strong>{dashboard.dataSource === "google-sheets" ? "Live sheet" : "Fallback"}</strong></div>
-                <div className={styles.aiAnchor}><span>Period</span><strong>{dashboard.periodLabel}</strong></div>
-                <div className={styles.aiAnchor}><span>Attainment</span><strong>{formatPercent(dashboard.teamSummary.attainment)}</strong></div>
-                <div className={styles.aiAnchor}><span>Risk region</span><strong>{weakest ? `${weakest.name} (${weakest.progress}%)` : "n/a"}</strong></div>
-                <div className={styles.aiAnchor}><span>Weakest stage</span><strong>{executionWeakest ? `${executionWeakest.stage} (${executionWeakest.progress ?? 0}%)` : "n/a"}</strong></div>
-                <div className={styles.aiAnchor}><span>Top lead</span><strong>{crm.leads[0]?.company ?? "n/a"}</strong></div>
-                <div className={styles.aiAnchor}><span>Priority action</span><strong>{crm.actions[0]?.action ?? "n/a"}</strong></div>
+                <div className={styles.aiAnchor}><span>{language === "ko" ? "데이터 소스" : "Data source"}</span><strong>{dashboard.dataSource === "google-sheets" ? (language === "ko" ? "라이브 시트" : "Live sheet") : (language === "ko" ? "폴백" : "Fallback")}</strong></div>
+                <div className={styles.aiAnchor}><span>{language === "ko" ? "기간" : "Period"}</span><strong>{dashboard.periodLabel}</strong></div>
+                <div className={styles.aiAnchor}><span>{language === "ko" ? "달성률" : "Attainment"}</span><strong>{formatPercent(dashboard.teamSummary.attainment)}</strong></div>
+                <div className={styles.aiAnchor}><span>{language === "ko" ? "위험 지역" : "Risk region"}</span><strong>{weakest ? `${weakest.name} (${weakest.progress}%)` : "n/a"}</strong></div>
+                <div className={styles.aiAnchor}><span>{language === "ko" ? "최약 스테이지" : "Weakest stage"}</span><strong>{executionWeakest ? `${executionWeakest.stage} (${executionWeakest.progress ?? 0}%)` : "n/a"}</strong></div>
+                <div className={styles.aiAnchor}><span>{language === "ko" ? "주요 리드" : "Top lead"}</span><strong>{crm.leads[0]?.company ?? "n/a"}</strong></div>
+                <div className={styles.aiAnchor}><span>{language === "ko" ? "우선 액션" : "Priority action"}</span><strong>{crm.actions[0]?.action ?? "n/a"}</strong></div>
               </div>
               <pre className={styles.aiPreview}>{buildAiPreview(dashboard, crm, methodology)}</pre>
             </Card>
 
-            <Card title="Generated response">
-              {aiError ? <div className={styles.aiError}>{aiError}</div> : null}
+            <Card title={language === "ko" ? "AI 생성 결과" : "Generated response"}>
+              {aiError ? <div className={styles.aiError}>{language === "ko" ? "AI 인사이트를 생성할 수 없습니다. Gemini 및 시트 연결을 확인하세요." : aiError}</div> : null}
               {!aiInsight && !aiLoading ? (
                 <div className={styles.aiEmpty}>
                   <Brain size={40} />
-                  <p>Press Generate to produce a live operating summary.</p>
+                  <p>{language === "ko" ? "생성 버튼을 눌러 라이브 운영 요약을 확인하세요." : "Press Generate to produce a live operating summary."}</p>
                 </div>
               ) : null}
               {aiLoading ? (
                 <div className={styles.aiEmpty}>
                   <Loader2 size={32} className={styles.spinner} />
-                  <p>Building the summary from live sheet signals...</p>
+                  <p>{language === "ko" ? "라이브 시트 신호에서 요약을 작성 중입니다..." : "Building the summary from live sheet signals..."}</p>
                 </div>
               ) : null}
               {aiInsight ? (

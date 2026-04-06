@@ -26,7 +26,7 @@ import type {
 } from "@/types/dashboard";
 
 const TARGET_MANAGERS = ["han", "wangchan", "junhyuk"] as const;
-const DSH_RANGE = "1. DSH!A1:W115";
+const DSH_RANGE = "1. DSH!A1:W175";
 const SEG_RANGE = "2. SEG!A1:S40";
 const REV_RANGE = "3. REV!A1:CZ400";
 const KPI_RANGE = "4. KPI!A1:AZ60";
@@ -112,11 +112,21 @@ interface DshManagerTarget {
   monthlyTargets: Record<number, number>;
 }
 
+interface DshManagerActual {
+  yearlyActual: number;
+  quarterlyActual: number;
+  monthlyActuals: Record<number, number>;
+}
+
 interface DshTargets {
   bdYearlyTarget: number;
   bdQuarterlyTarget: number;
   bdMonthlyTargets: Record<number, number>;
+  bdYearlyActual: number;
+  bdQuarterlyActual: number;
+  bdMonthlyActuals: Record<number, number>;
   managerTargets: Record<string, DshManagerTarget>;
+  managerActuals: Record<string, DshManagerActual>;
 }
 
 interface SheetRanges {
@@ -166,38 +176,71 @@ function parseDshSheet(rows: string[][], fiscalQuarter: FiscalQuarter): DshTarge
     bdYearlyTarget: 0,
     bdQuarterlyTarget: 0,
     bdMonthlyTargets: {},
+    bdYearlyActual: 0,
+    bdQuarterlyActual: 0,
+    bdMonthlyActuals: {},
     managerTargets: {},
+    managerActuals: {},
   };
+
+  // B열이 두 merged range로 나뉘어 둘 다 "Total"로 표시됨
+  // → 동일 이름+Total 첫 번째 매칭 = 목표(Goal), 두 번째 = 실적(Status)
+  let bdGoalSeen = false;
+  let bdActualSeen = false;
+  const managerGoalSeen = new Set<string>();
 
   for (const sourceRow of rows) {
     const row = padRow(sourceRow, 22);
     const cell0 = row[0]?.trim();
     const cell1 = row[1]?.trim();
-    const cell3 = row[3]?.trim();
-    const cell4 = row[4]?.trim();
 
-    // BD team Total row (Goal)
+    // BD Total — 첫 번째 = 목표(Goal), 두 번째 = 실적(Status)
     if (cell0 === "BD" && cell1 === "Total") {
-      result.bdYearlyTarget = parseNumber(row[DSH_YEAR_COL]);
-      result.bdQuarterlyTarget = parseNumber(row[qCol]);
-      DSH_FISCAL_MONTHS.forEach((month, i) => {
-        result.bdMonthlyTargets[month] = parseNumber(row[10 + i]);
-      });
+      if (!bdGoalSeen) {
+        bdGoalSeen = true;
+        result.bdYearlyTarget = parseNumber(row[DSH_YEAR_COL]);
+        result.bdQuarterlyTarget = parseNumber(row[qCol]);
+        DSH_FISCAL_MONTHS.forEach((month, i) => {
+          result.bdMonthlyTargets[month] = parseNumber(row[10 + i]);
+        });
+      } else if (!bdActualSeen) {
+        bdActualSeen = true;
+        result.bdYearlyActual = parseNumber(row[DSH_YEAR_COL]);
+        result.bdQuarterlyActual = parseNumber(row[qCol]);
+        DSH_FISCAL_MONTHS.forEach((month, i) => {
+          result.bdMonthlyActuals[month] = parseNumber(row[10 + i]);
+        });
+      }
       continue;
     }
 
-    // Individual manager Goal rows (col3 = name, col4 = "Goal")
-    const normalizedName = cell3?.toLowerCase();
-    if ((TARGET_MANAGERS as readonly string[]).includes(normalizedName) && cell4 === "Goal") {
-      const monthlyTargets: Record<number, number> = {};
-      DSH_FISCAL_MONTHS.forEach((month, i) => {
-        monthlyTargets[month] = parseNumber(row[10 + i]);
-      });
-      result.managerTargets[normalizedName] = {
-        yearlyTarget: parseNumber(row[DSH_YEAR_COL]),
-        quarterlyTarget: parseNumber(row[qCol]),
-        monthlyTargets,
-      };
+    // 개인 매니저 — col A 이름, 첫 번째 = 목표, 두 번째 = 실적
+    const normalizedName = cell0?.toLowerCase();
+    if ((TARGET_MANAGERS as readonly string[]).includes(normalizedName) && cell1 === "Total") {
+      if (!managerGoalSeen.has(normalizedName)) {
+        // 첫 번째 행 = 목표
+        managerGoalSeen.add(normalizedName);
+        const monthlyTargets: Record<number, number> = {};
+        DSH_FISCAL_MONTHS.forEach((month, i) => {
+          monthlyTargets[month] = parseNumber(row[10 + i]);
+        });
+        result.managerTargets[normalizedName] = {
+          yearlyTarget: parseNumber(row[DSH_YEAR_COL]),
+          quarterlyTarget: parseNumber(row[qCol]),
+          monthlyTargets,
+        };
+      } else if (!result.managerActuals[normalizedName]) {
+        // 두 번째 행 = 실적(현재)
+        const monthlyActuals: Record<number, number> = {};
+        DSH_FISCAL_MONTHS.forEach((month, i) => {
+          monthlyActuals[month] = parseNumber(row[10 + i]);
+        });
+        result.managerActuals[normalizedName] = {
+          yearlyActual: parseNumber(row[DSH_YEAR_COL]),
+          quarterlyActual: parseNumber(row[qCol]),
+          monthlyActuals,
+        };
+      }
     }
   }
 
@@ -235,10 +278,10 @@ function getRegionStatus(progress: number): RegionData["status"] {
 
 function formatCompactRevenue(amount: number): string {
   if (amount >= 1000) {
-    return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ (amount / 1000).toFixed(1) }B`;
+    return `¥${(amount / 1000).toFixed(1)}B`;
   }
 
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(amount).toLocaleString() }M`;
+  return `¥${Math.round(amount).toLocaleString()}M`;
 }
 
 function getImportanceWeight(value: string): number {
@@ -429,18 +472,18 @@ function parseKpiRows(rows: string[][]): Record<string, ActivitySnapshot> {
 
     members[name] = {
       goal: {
-        LD: parseNumber(row[1]),
-        ACC: parseNumber(row[2]),
-        OPP: parseNumber(row[3]),
-        SOL: parseNumber(row[4]),
-        VST: parseNumber(row[5]),
+        LD: parseNumber(row[11]),  // L열
+        ACC: parseNumber(row[12]), // M열
+        OPP: parseNumber(row[13]), // N열
+        SOL: parseNumber(row[14]), // O열
+        VST: parseNumber(row[15]), // P열
       },
       actual: {
-        LD: parseNumber(row[21]),
-        ACC: parseNumber(row[22]),
-        OPP: parseNumber(row[23]),
-        SOL: parseNumber(row[24]),
-        VST: parseNumber(row[25]),
+        LD: parseNumber(row[21]),  // V열
+        ACC: parseNumber(row[22]), // W열
+        OPP: parseNumber(row[23]), // X열
+        SOL: parseNumber(row[24]), // Y열
+        VST: parseNumber(row[25]), // Z열
       },
     };
   }
@@ -647,10 +690,10 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
     regionCounts.set(row.location, currentRegion);
 
     const currentManager = managerBuckets.get(row.manager) ?? createEmptyManagerBucket();
-    currentManager.wonRevenue += row.amount;
     currentManager.dealsTotal += 1;
 
     if (row.firstPayment) {
+      currentManager.wonRevenue += row.amount;  // 계약 완료(firstPayment) 딜만 집계
       activatedCount += 1;
       currentManager.dealsWon += 1;
     } else {
@@ -876,9 +919,11 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     return buildMinimalFallbackDashboard();
   }
 
-  // Use DSH targets; fall back to SEG totals if DSH not available
+  // DSH 단일 소스 — SEG/REV 합산 사용 안 함
   const bdQuarterTarget = dshTargets.bdQuarterlyTarget || regional.reduce((s, r) => s + r.target, 0);
-  const bdYearlyTarget = dshTargets.bdYearlyTarget || bdQuarterTarget * 4;
+  const bdQuarterActual = dshTargets.bdQuarterlyActual;
+  const bdYearlyTarget  = dshTargets.bdYearlyTarget || bdQuarterTarget * 4;
+  const bdYearlyActual  = dshTargets.bdYearlyActual;
 
   const revenueSummary = summarizeRevenueRows(revenueRows);
   const regionalWithCounts = regional.map((row) => {
@@ -900,10 +945,13 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     ]),
   ).filter(name => (TARGET_MANAGERS as readonly string[]).includes(name.toLowerCase()));
 
-  // Per-manager quarterly target from DSH; fall back to equal split
+  // Per-manager quarterly target & actual from DSH
   const fallbackEqualTarget = managerNames.length > 0 ? Math.round(bdQuarterTarget / managerNames.length) : 0;
   const getManagerTarget = (name: string): number =>
     dshTargets.managerTargets[name.toLowerCase()]?.quarterlyTarget ?? fallbackEqualTarget;
+  // DSH 실적(Status 행) 단일 소스 — REV 합산 혼용 안 함
+  const getManagerActual = (name: string): number =>
+    dshTargets.managerActuals[name.toLowerCase()]?.quarterlyActual ?? 0;
 
   const activityTotals = Object.fromEntries(
     ACTIVITY_KEYS.map((key) => [key, { goal: 0, actual: 0 }]),
@@ -932,12 +980,15 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
       const activityGoal = kpis.reduce((sum, item) => sum + item.goal, 0);
       const activityActual = kpis.reduce((sum, item) => sum + item.actual, 0);
 
+      // DSH Status 행 실적 단일 소스
+      const wonRevenue = getManagerActual(manager);
+
       return {
         name: manager,
-        wonRevenue: bucket.wonRevenue,
+        wonRevenue,
         pipelineRevenue: bucket.pipelineRevenue,
         target: managerTarget,
-        progress: managerTarget > 0 ? Math.round((bucket.wonRevenue / managerTarget) * 100) : 0,
+        progress: managerTarget > 0 ? Math.round((wonRevenue / managerTarget) * 100) : 0,
         deals_total: bucket.dealsTotal,
         deals_won: bucket.dealsWon,
         newRevenue: bucket.newRevenue,
@@ -962,12 +1013,12 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
 
   const activityGoal = activitySummary.reduce((sum, item) => sum + (item.goal ?? item.fullMark), 0);
   const activityActual = activitySummary.reduce((sum, item) => sum + (item.actual ?? item.value), 0);
-  const attainment = bdQuarterTarget > 0 ? (totalRevenue / bdQuarterTarget) * 100 : 0;
+  const attainment = bdQuarterTarget > 0 ? (bdQuarterActual / bdQuarterTarget) * 100 : 0;
 
   const teamSummary: TeamSummary = {
     targetRevenue: bdQuarterTarget,
-    actualRevenue: totalRevenue,
-    gapRevenue: Math.max(bdQuarterTarget - totalRevenue, 0),
+    actualRevenue: bdQuarterActual,
+    gapRevenue: Math.max(bdQuarterTarget - bdQuarterActual, 0),
     attainment,
     accountCount: revenueRows.length,
     activatedCount: revenueSummary.activatedCount,
@@ -981,7 +1032,7 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     topManager: individuals[0]?.name ?? "BD",
     criticalRegionCount: regionalWithCounts.filter((row) => row.progress < 80).length,
     yearlyTarget: bdYearlyTarget,
-    yearlyActual: revenueSummary.yearlyActual,
+    yearlyActual: bdYearlyActual,
   };
 
   const focusAccounts = revenueRows

@@ -1,5 +1,6 @@
 import 'server-only';
-import { listRegionalMetrics, listLeads } from './salesData';
+import { listLeads } from './salesData';
+import { getBdDashboardData } from './bdDashboard';
 
 // ── Exported Types ─────────────────────────────────────────────────────────────
 
@@ -134,37 +135,41 @@ function scoreLeadUrgency(lead: RawLead, now: Date): number {
 // ── Main Export ─────────────────────────────────────────────────────────────────
 
 export async function computeTeamAnalytics(): Promise<TeamAnalytics> {
-  const [{ rows: regions }, { rows: leads }] = await Promise.all([
-    listRegionalMetrics(),
+  // DSH/REV 단일 소스 — bdDashboard와 동일 수치 사용
+  const [dashboard, { rows: leads }] = await Promise.all([
+    getBdDashboardData(),
     listLeads(),
   ]);
 
   const now = new Date();
 
-  // ── Region Analytics ──────────────────────────────────────────────────────────
-  const regionAnalytics: RegionAnalytics[] = regions.map(r => {
-    const progress      = r.target > 0 ? Math.round((r.revenue / r.target) * 100) : 0;
+  // ── Region Analytics (bdDashboard SEG 기반) ───────────────────────────────────
+  const regionAnalytics: RegionAnalytics[] = dashboard.regional.map(r => {
     const gap           = r.target - r.revenue;
-    const velocity      = r.deals_active > 0
-      ? Math.round((r.deals_closed / r.deals_active) * 100)
-      : 0;
+    const velocity      = r.velocity ?? 0;
     const dealEfficiency = r.deals_closed > 0
       ? Math.round(r.revenue / r.deals_closed)
       : 0;
 
-    const status: RegionAnalytics['status'] =
-      progress >= 90 ? 'good' :
-      progress >= 70 ? 'warning' : 'critical';
+    const performanceIndex = Math.round(r.progress * 0.6 + velocity * 0.4);
 
-    const performanceIndex = Math.round(progress * 0.6 + velocity * 0.4);
-
-    // urgencyScore: 0-100, higher = needs more attention
-    let urgencyScore = Math.round((1 - Math.min(progress, 100) / 100) * 50);
+    let urgencyScore = Math.round((1 - Math.min(r.progress, 100) / 100) * 50);
     if (velocity < 50) urgencyScore += 25;
-    if (progress < 50) urgencyScore += 25;
+    if (r.progress < 50) urgencyScore += 25;
     urgencyScore = Math.min(urgencyScore, 100);
 
-    return { name: r.name, revenue: r.revenue, target: r.target, progress, gap, velocity, dealEfficiency, urgencyScore, status, performanceIndex };
+    return {
+      name: r.name,
+      revenue: r.revenue,
+      target: r.target,
+      progress: r.progress,
+      gap,
+      velocity,
+      dealEfficiency,
+      urgencyScore,
+      status: r.status,
+      performanceIndex,
+    };
   });
 
   // ── Lead Analytics ────────────────────────────────────────────────────────────
@@ -196,10 +201,10 @@ export async function computeTeamAnalytics(): Promise<TeamAnalytics> {
     };
   }).sort((a, b) => b.urgencyScore - a.urgencyScore);
 
-  // ── Team KPIs ─────────────────────────────────────────────────────────────────
-  const totalRevenue = regions.reduce((s, r) => s + r.revenue, 0);
-  const totalTarget  = regions.reduce((s, r) => s + r.target, 0);
-  const overallProgress = totalTarget > 0 ? Math.round((totalRevenue / totalTarget) * 100) : 0;
+  // ── Team KPIs (DSH 단일 소스) ──────────────────────────────────────────────
+  const totalRevenue    = dashboard.teamSummary.actualRevenue;
+  const totalTarget     = dashboard.teamSummary.targetRevenue;
+  const overallProgress = Math.round(dashboard.teamSummary.attainment);
 
   const wonLeads = leads.filter(l => l.stage === 'Contract');
   const winRate  = leads.length > 0 ? Math.round((wonLeads.length / leads.length) * 100) : 0;
@@ -207,18 +212,17 @@ export async function computeTeamAnalytics(): Promise<TeamAnalytics> {
     ? Math.round(wonLeads.reduce((s, l) => s + l.revenue_potential, 0) / wonLeads.length)
     : 0;
 
-  const pipelineValue = leads
-    .filter(l => l.stage !== 'Contract')
-    .reduce((s, l) => s + Math.round((l.probability / 100) * l.revenue_potential), 0);
+  // Pipeline from individuals (DSH/REV 기반)
+  const pipelineValue = dashboard.individuals.reduce((s, p) => s + p.pipelineRevenue, 0);
 
   const remaining = Math.max(totalTarget - totalRevenue, 1);
   const pipelineHealthRatio = Math.round((pipelineValue / remaining) * 100);
 
   // Q1 forecast: won revenue + 70% of pipeline (conservative factor)
-  const q1Forecast     = Math.round(totalRevenue + pipelineValue * 0.7);
+  const q1Forecast      = Math.round(totalRevenue + pipelineValue * 0.7);
   const forecastVsTarget = totalTarget > 0 ? Math.round((q1Forecast / totalTarget) * 100) : 0;
 
-  // ── Stage Conversions ─────────────────────────────────────────────────────────
+  // ── Stage Conversions (CRM lead stages) ───────────────────────────────────────
   const STAGES = ['Lead', 'Proposal', 'Negotiation', 'Contract'];
   const stageCounts = STAGES.map(s => leads.filter(l => l.stage === s).length);
 
@@ -239,34 +243,20 @@ export async function computeTeamAnalytics(): Promise<TeamAnalytics> {
   const bottleneckStage = bottleneck?.stage ?? 'Negotiation';
   const bottleneckDropRate = bottleneck?.dropRate ?? 0;
 
-  // ── Owner Stats ───────────────────────────────────────────────────────────────
-  const ownerMap: Record<string, { won: number; total: number; wonRev: number; pipeRev: number }> = {};
-  leads.forEach(l => {
-    const o = l.owner?.trim();
-    if (!o) return;
-    if (!ownerMap[o]) ownerMap[o] = { won: 0, total: 0, wonRev: 0, pipeRev: 0 };
-    ownerMap[o].total++;
-    if (l.stage === 'Contract') {
-      ownerMap[o].won++;
-      ownerMap[o].wonRev += l.revenue_potential;
-    } else {
-      ownerMap[o].pipeRev += Math.round((l.probability / 100) * l.revenue_potential);
-    }
-  });
-
-  const ownerStats: OwnerStat[] = Object.entries(ownerMap).map(([name, d]) => {
-    const wr = d.total > 0 ? Math.round((d.won / d.total) * 100) : 0;
+  // ── Owner Stats (DSH individuals 기반) ────────────────────────────────────────
+  const ownerStats: OwnerStat[] = dashboard.individuals.map(p => {
+    const wr = p.deals_total > 0 ? Math.round((p.deals_won / p.deals_total) * 100) : 0;
     const productivityScore = Math.min(
-      Math.round(wr * 0.5 + (d.wonRev / 1000) * 0.3 + (d.pipeRev / 500) * 0.2),
+      Math.round(wr * 0.5 + (p.wonRevenue / 1000) * 0.3 + (p.pipelineRevenue / 500) * 0.2),
       100,
     );
     return {
-      name,
-      totalLeads: d.total,
-      wonDeals: d.won,
+      name: p.name,
+      totalLeads: p.deals_total,
+      wonDeals: p.deals_won,
       winRate: wr,
-      wonRevenue: d.wonRev,
-      pipelineRevenue: d.pipeRev,
+      wonRevenue: p.wonRevenue,
+      pipelineRevenue: p.pipelineRevenue,
       productivityScore,
     };
   }).sort((a, b) => b.productivityScore - a.productivityScore);
@@ -284,7 +274,7 @@ export async function computeTeamAnalytics(): Promise<TeamAnalytics> {
     } else if (r.progress < 70 && r.urgencyScore >= 55) {
       anomalies.push({
         type: 'underperformance', severity: 'warning', entity: r.name,
-        message: `${r.name} 지역: 달성률 ${r.progress}%, 목표 대비 ${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${r.gap.toLocaleString()}M 부족`,
+        message: `${r.name} 지역: 달성률 ${r.progress}%, 목표 대비 ¥${r.gap.toLocaleString()}M 부족`,
       });
     }
     if (r.revenue > r.target * 1.1) {
@@ -323,7 +313,7 @@ export async function computeTeamAnalytics(): Promise<TeamAnalytics> {
       type: 'pipeline_risk',
       severity: pipelineHealthRatio < 50 ? 'critical' : 'warning',
       entity: 'Pipeline',
-      message: `파이프라인 건강도 ${pipelineHealthRatio}% — 잔여 목표 ${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${remaining.toLocaleString()}M 달성에 리드 부족`,
+      message: `파이프라인 건강도 ${pipelineHealthRatio}% — 잔여 목표 ¥${remaining.toLocaleString()}M 달성에 리드 부족`,
     });
   }
 
