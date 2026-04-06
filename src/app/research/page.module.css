@@ -255,6 +255,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 0;
 }
 
 .libraryCardId {
@@ -291,8 +293,11 @@
   animation: fadeIn 0.25s ease-out;
   position: sticky;
   top: 1rem;
+  min-width: 0;
+  width: 100%;
   max-height: calc(100vh - 3rem);
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: none;
 }
 
@@ -407,6 +412,9 @@
   color: var(--text-soft);
   font-size: 0.85rem;
   line-height: 1.65;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .legendPrincipleList {
@@ -1447,8 +1455,11 @@
   animation: fadeIn 0.25s ease-out;
   position: sticky;
   top: 1rem;
+  min-width: 0;
+  width: 100%;
   max-height: calc(100vh - 3rem);
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: none;
 }
 
@@ -1560,6 +1571,9 @@
   color: var(--text-soft);
   font-size: 0.85rem;
   line-height: 1.65;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .resourceMetaGrid {
