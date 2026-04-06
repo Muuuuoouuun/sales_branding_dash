@@ -360,7 +360,7 @@ const PERIOD_LABEL: Record<"M" | "Q" | "Y", string> = { Y: "연간", Q: "분기"
 function KpiPanel({ person, period }: { person: IndividualData; period: "M" | "Q" | "Y" }) {
   const div = PERIOD_DIVISOR[period];
   const totalGoal = Math.round((person.activityGoal ?? 0) / div);
-  const totalActual = Math.round((person.activityActual ?? 0) / div);
+  const totalActual = person.activityActual ?? 0; // cumulative — never divide
 
   return (
     <div className={styles.kpiPanel}>
@@ -383,7 +383,7 @@ function KpiPanel({ person, period }: { person: IndividualData; period: "M" | "Q
       <div className={styles.kpiGrid}>
         {person.kpis!.map((kpi) => {
           const scaledGoal = Math.round(kpi.goal / div);
-          const scaledActual = Math.round(kpi.actual / div);
+          const scaledActual = kpi.actual; // cumulative — never divide
           const scaledProgress = scaledGoal > 0 ? Math.round((scaledActual / scaledGoal) * 100) : 0;
           const kpiColor = getHeatColor(scaledProgress);
           const kpiFill = Math.min(scaledGoal > 0 ? (scaledActual / scaledGoal) * 100 : 0, 100);
