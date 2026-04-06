@@ -164,15 +164,15 @@ function buildAiReadout(summary: TeamSummary, weakestStage: ActivityStage | null
   const daysRemaining = getDaysRemainingInMonth();
   const pacePerDay =
     summary.gapRevenue > 0 && daysRemaining > 0
-      ? `${formatRevenue(Math.round(summary.gapRevenue / daysRemaining))}/day`
-      : "On plan";
+      ? `${formatRevenue(Math.round(summary.gapRevenue / daysRemaining))}/일`
+      : "목표 달성 안정권";
 
   return [
-    `Team attainment is ${summary.attainment.toFixed(1)}% with ${formatCompactRevenue(summary.gapRevenue)} still open to target.`,
+    `팀 달성률 ${summary.attainment.toFixed(1)}%, 목표 대비 잔여 ${formatCompactRevenue(summary.gapRevenue)} 남아 있습니다.`,
     weakestStage
-      ? `${weakestStage.stage} is pacing at ${weakestStage.progress ?? 0}% of goal, making it the key execution watchpoint.`
-      : "Execution KPI data is still sparse, so the current readout is focused on revenue and account progress.",
-    `${summary.topManager} is leading the board, and the team needs ${pacePerDay} to close the remaining gap this month.`,
+      ? `${weakestStage.stage} 단계 ${weakestStage.progress ?? 0}% 달성 — 현재 핵심 실행 관리 포인트입니다.`
+      : "KPI 활동 데이터가 부족합니다. 매출 및 고객 진행 현황 중심으로 관리하세요.",
+    `${summary.topManager}이(가) 현재 선두를 달리고 있으며, 이번 달 잔여 격차 마감을 위해 ${pacePerDay} 속도가 필요합니다.`,
   ];
 }
 
@@ -221,6 +221,7 @@ export default function Dashboard() {
   const [aiInsight, setAiInsight] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showAllRegions, setShowAllRegions] = useState(false);
   const [drilldownGeo, setDrilldownGeo] = useState<string | null>(null);
   const [drilldownData, setDrilldownData] = useState<MapRegionData | null>(null);
 
@@ -536,7 +537,7 @@ export default function Dashboard() {
           <TargetGapRing teamSummary={dashboard.teamSummary} periodLabel={dashboard.periodLabel} />
           <HotDealsWidget deals={dashboard.hotDeals} />
 
-          <Card className={styles.alertCard} title="Decision board">
+          <Card className={styles.alertCard} title="의사결정 보드">
             <div className={styles.aiBoxContent}>
               <div className={styles.aiIconBox}>
                 <Brain size={22} className={styles.aiIcon} />
@@ -544,9 +545,9 @@ export default function Dashboard() {
               <div className={styles.aiContent}>
                 <div className={styles.aiTitleRow}>
                   <div>
-                    <h4 className={styles.aiTitle}>Current BD readout</h4>
+                    <h4 className={styles.aiTitle}>현재 BD 현황 요약</h4>
                     <p className={styles.aiSubTitle}>
-                      Grounded on the latest dashboard payload and bottleneck logic.
+                      최신 대시보드 및 실행 KPI 기반 분석입니다.
                     </p>
                   </div>
                   <button
@@ -554,7 +555,7 @@ export default function Dashboard() {
                     disabled={insightLoading}
                     className={styles.generateBtn}
                   >
-                    {insightLoading ? <Loader2 size={14} className={styles.inlineSpinner} /> : "Refresh"}
+                    {insightLoading ? <Loader2 size={14} className={styles.inlineSpinner} /> : "새로고침"}
                   </button>
                 </div>
 
@@ -679,44 +680,68 @@ export default function Dashboard() {
 
               <div className={styles.regionList}>
                 <div className={styles.regionListHeader}>
-                  <span>Region</span>
-                  <span style={{ gridColumn: "2 / 4" }}>Attainment</span>
-                  <span>Revenue / Target</span>
+                  <span>지역</span>
+                  <span style={{ gridColumn: "2 / 4" }}>달성률</span>
+                  <span>매출 / 목표</span>
                 </div>
 
                 {filteredRegions.length === 0 ? (
-                  <p className={styles.emptyMsg}>No regions match the current filter.</p>
+                  <p className={styles.emptyMsg}>해당 필터 조건에 맞는 지역이 없습니다.</p>
                 ) : (
-                  filteredRegions.map((region) => {
-                    const color = getHeatColor(region.progress);
+                  <>
+                    {(showAllRegions ? filteredRegions : filteredRegions.slice(0, 5)).map((region) => {
+                      const color = getHeatColor(region.progress);
 
-                    return (
+                      return (
+                        <button
+                          key={region.name}
+                          className={styles.regionRow}
+                          onClick={() => handleRegionClick(region.name, region as MapRegionData)}
+                          type="button"
+                        >
+                          <div className={styles.regionName}>
+                            <span className={styles.regionDot} style={{ background: color }} />
+                            {region.name}
+                          </div>
+                          <div className={styles.progressBarWrap}>
+                            <div
+                              className={styles.progressBarFill}
+                              style={{ width: `${Math.min(region.progress, 100)}%`, background: color }}
+                            />
+                          </div>
+                          <span className={styles.progressPct} style={{ color }}>
+                            {region.progress}%
+                          </span>
+                          <span className={styles.revenueText}>
+                            {formatRevenue(region.revenue)}
+                            <span className={styles.targetText}> / {formatRevenue(region.target)}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {filteredRegions.length > 5 && (
                       <button
-                        key={region.name}
-                        className={styles.regionRow}
-                        onClick={() => handleRegionClick(region.name, region as MapRegionData)}
                         type="button"
+                        onClick={() => setShowAllRegions((v) => !v)}
+                        style={{
+                          width: "100%",
+                          padding: "0.45rem 0",
+                          marginTop: "0.25rem",
+                          fontSize: "0.75rem",
+                          color: "var(--primary)",
+                          background: "var(--primary-soft)",
+                          border: "1px solid var(--primary-border)",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
                       >
-                        <div className={styles.regionName}>
-                          <span className={styles.regionDot} style={{ background: color }} />
-                          {region.name}
-                        </div>
-                        <div className={styles.progressBarWrap}>
-                          <div
-                            className={styles.progressBarFill}
-                            style={{ width: `${Math.min(region.progress, 100)}%`, background: color }}
-                          />
-                        </div>
-                        <span className={styles.progressPct} style={{ color }}>
-                          {region.progress}%
-                        </span>
-                        <span className={styles.revenueText}>
-                          {formatRevenue(region.revenue)}
-                          <span className={styles.targetText}> / {formatRevenue(region.target)}</span>
-                        </span>
+                        {showAllRegions
+                          ? "▲ 접기"
+                          : `▼ 더 보기 (${filteredRegions.length - 5}개 지역 더)`}
                       </button>
-                    );
-                  })
+                    )}
+                  </>
                 )}
               </div>
             </div>
