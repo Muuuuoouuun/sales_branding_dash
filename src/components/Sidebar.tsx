@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Brain,
+    ChevronLeft,
+    ChevronRight,
     Database,
     FileText,
     LayoutDashboard,
@@ -41,24 +43,41 @@ const NAV_ITEMS = {
 export default function Sidebar() {
     const pathname = usePathname();
     const [mobileNavPath, setMobileNavPath] = useState<string | null>(null);
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const mobileNavOpen = mobileNavPath === pathname;
 
-    // We can read language directly if we use it inside Provider, but Sidebar is inside SettingsProvider.
-    // However, since we want to avoid hydrating errors on server, let's pick up language securely, or just use localStorage.
-    // To gracefully use SettingsProvider, we can import useSettings
     const { language } = require("./SettingsProvider").useSettings();
     const currentNavItems = language === "ko" ? NAV_ITEMS.ko : NAV_ITEMS.en;
 
+    useEffect(() => {
+        const stored = localStorage.getItem("sidebar-collapsed");
+        if (stored === "true") {
+            setIsCollapsed(true);
+            document.documentElement.dataset.sidebarCollapsed = "true";
+        }
+    }, []);
+
+    const toggleCollapsed = () => {
+        const next = !isCollapsed;
+        setIsCollapsed(next);
+        document.documentElement.dataset.sidebarCollapsed = next ? "true" : "false";
+        localStorage.setItem("sidebar-collapsed", String(next));
+    };
+
     return (
-        <aside className={styles.sidebar} data-mobile-open={mobileNavOpen ? "true" : "false"}>
+        <aside
+            className={styles.sidebar}
+            data-mobile-open={mobileNavOpen ? "true" : "false"}
+            data-collapsed={isCollapsed ? "true" : "false"}
+        >
             <div className={styles.headerRow}>
                 <Link href="/" className={styles.logo} onClick={() => setMobileNavPath(null)}>
                     <Zap size={24} className={styles.logoIcon} fill="currentColor" />
-                    <span>Sales Master</span>
+                    {!isCollapsed && <span>Sales Master</span>}
                 </Link>
 
                 <div className={styles.headerActions}>
-                    <ThemeToggle className={styles.themeToggle} />
+                    {!isCollapsed && <ThemeToggle className={styles.themeToggle} />}
                     <button
                         type="button"
                         className={styles.mobileMenuButton}
@@ -88,24 +107,40 @@ export default function Sidebar() {
                             href={item.href}
                             className={clsx(styles.navItem, isActive && styles.active)}
                             onClick={() => setMobileNavPath(null)}
+                            title={isCollapsed ? item.name : undefined}
                         >
                             <item.icon />
-                            <span>{item.name}</span>
+                            {!isCollapsed && <span>{item.name}</span>}
                         </Link>
                     );
                 })}
             </nav>
 
-            <div className={styles.userSection} style={{ flexDirection: 'column', alignItems: 'stretch', gap: '1rem' }}>
-                <SettingsControls />
-                <div className={styles.userCard}>
-                    <div className={styles.avatar}>TC</div>
-                    <div className={styles.userInfo}>
-                        <span className={styles.userName}>{language === "ko" ? "탑-C 관리자" : "Top-C Admin"}</span>
-                        <span className={styles.userRole}>{language === "ko" ? "전략 리드" : "Strategy Lead"}</span>
+            <div className={clsx(styles.userSection, isCollapsed && styles.userSectionCollapsed)}>
+                {!isCollapsed && <SettingsControls />}
+                {!isCollapsed && (
+                    <div className={styles.userCard}>
+                        <div className={styles.avatar}>TC</div>
+                        <div className={styles.userInfo}>
+                            <span className={styles.userName}>{language === "ko" ? "탑-C 관리자" : "Top-C Admin"}</span>
+                            <span className={styles.userRole}>{language === "ko" ? "전략 리드" : "Strategy Lead"}</span>
+                        </div>
                     </div>
-                </div>
+                )}
+                {isCollapsed && (
+                    <div className={styles.avatar} title="Top-C Admin">TC</div>
+                )}
             </div>
+
+            <button
+                type="button"
+                className={styles.collapseToggle}
+                onClick={toggleCollapsed}
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+                {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+                {!isCollapsed && <span>{language === "ko" ? "접기" : "Collapse"}</span>}
+            </button>
         </aside>
     );
 }

@@ -1,5 +1,6 @@
 :root {
   --sidebar-width: 260px;
+  --sidebar-width-collapsed: 64px;
 
   /* ─── Spacing scale (4pt grid) ─────────────────────────────── */
   --space-1:  0.25rem;  /* 4px  */
@@ -417,6 +418,11 @@ a {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ─── Sidebar collapsed state ───────────────────────────────────── */
+[data-sidebar-collapsed="true"] {
+  --sidebar-width: var(--sidebar-width-collapsed);
 }
 
 /* ─────────────────────────────────────────────────────────────────
