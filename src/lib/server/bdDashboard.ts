@@ -144,6 +144,7 @@ interface DashboardCacheEntry {
 interface RevenueSummary {
   managerBuckets: Map<string, ManagerBucket>;
   regionCounts: Map<string, { total: number; activated: number }>;
+  regionRevenue: Map<string, number>; // confirmed (firstPayment) revenue per region
   monthlyActuals: Map<number, number>;
   activatedCount: number;
   newRevenue: number;
@@ -765,6 +766,7 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
   );
   const managerBuckets = new Map<string, ManagerBucket>();
   const regionCounts = new Map<string, { total: number; activated: number }>();
+  const regionRevenue = new Map<string, number>();
 
   let activatedCount = 0;
   let newRevenue = 0;
@@ -777,6 +779,11 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
     currentRegion.total += 1;
     currentRegion.activated += row.firstPayment ? 1 : 0;
     regionCounts.set(row.location, currentRegion);
+
+    // Confirmed revenue per region (firstPayment = red = actual)
+    if (row.firstPayment) {
+      regionRevenue.set(row.location, (regionRevenue.get(row.location) ?? 0) + row.amount);
+    }
 
     const currentManager = managerBuckets.get(row.manager) ?? createEmptyManagerBucket();
     currentManager.dealsTotal += 1;
@@ -825,6 +832,7 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
   return {
     managerBuckets,
     regionCounts,
+    regionRevenue,
     monthlyActuals,
     activatedCount,
     newRevenue,
@@ -1022,8 +1030,17 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     const counts = revenueSummary.regionCounts.get(row.name) ?? { total: 0, activated: 0 };
     const velocity = counts.total > 0 ? Math.round((counts.activated / counts.total) * 100) : 0;
 
+    // Use confirmed (firstPayment) revenue from REV sheet as actual.
+    // Falls back to SEG status revenue only when no confirmed deal exists for that region.
+    const confirmedRevenue = revenueSummary.regionRevenue.get(row.name);
+    const revenue = confirmedRevenue !== undefined ? confirmedRevenue : row.revenue;
+    const progress = row.target > 0 ? Math.round((revenue / row.target) * 100) : 0;
+
     return {
       ...row,
+      revenue,
+      progress,
+      status: getRegionStatus(progress),
       deals_active: counts.total,
       deals_closed: counts.activated,
       velocity,
