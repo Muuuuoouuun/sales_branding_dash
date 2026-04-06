@@ -249,6 +249,8 @@ function TeamPanel({
 }
 
 function IndividualPanel({ individuals, period }: { individuals: IndividualData[]; period: "M" | "Q" | "Y" }) {
+  const [expandedRep, setExpandedRep] = useState<string | null>(null);
+
   if (individuals.length === 0) {
     return (
       <div className={styles.indivList}>
@@ -286,56 +288,105 @@ function IndividualPanel({ individuals, period }: { individuals: IndividualData[
         const fillWidth = Math.min((progress / BAR_MAX) * 100, 100);
         const milestone =
           [...MILESTONES].reverse().find((item) => progress >= item.pct) ?? null;
+        const isExpanded = expandedRep === person.name;
 
         return (
-          <div
-            key={person.name}
-            className={styles.indivRow}
-            data-tooltip={`목표: ${formatRevenue(target)} | 달성: ${formatRevenue(won)} | 남은 격차: ${formatRevenue(Math.max(0, target - won))}`}
-          >
-            <span className={styles.indivRank}>#{index + 1}</span>
-            <span className={styles.indivName}>
-              {person.name}
-              {milestone ? <span className={styles.indivMs}>{milestone.marker}</span> : null}
-            </span>
-            <div className={styles.indivBarWrap}>
-              {MILESTONES.map((item) => (
+          <div key={person.name}>
+            <div
+              className={`${styles.indivRow} ${isExpanded ? styles.indivRowExpanded : ""}`}
+              onClick={() => setExpandedRep(isExpanded ? null : person.name)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && setExpandedRep(isExpanded ? null : person.name)}
+              aria-expanded={isExpanded}
+            >
+              <span className={styles.indivRank}>#{index + 1}</span>
+              <span className={styles.indivName}>
+                {person.name}
+                {milestone ? <span className={styles.indivMs}>{milestone.marker}</span> : null}
+              </span>
+              <div className={styles.indivBarWrap}>
+                {MILESTONES.map((item) => (
+                  <div
+                    key={item.pct}
+                    className={styles.indivTick}
+                    style={{ left: `${(item.pct / BAR_MAX) * 100}%` }}
+                  />
+                ))}
                 <div
-                  key={item.pct}
-                  className={styles.indivTick}
-                  style={{ left: `${(item.pct / BAR_MAX) * 100}%` }}
+                  style={{
+                    width: `${fillWidth}%`,
+                    background: color,
+                    height: "100%",
+                    borderRadius: 3,
+                    transition: "width 0.6s ease",
+                    position: "relative",
+                  }}
                 />
-              ))}
-              <div
-                style={{
-                  width: `${fillWidth}%`,
-                  background: color,
-                  height: "100%",
-                  borderRadius: 3,
-                  transition: "width 0.6s ease",
-                  position: "relative",
-                }}
-              />
+              </div>
+              <span className={styles.indivPct} style={{ color }}>
+                {progress}%
+              </span>
+              <span className={styles.indivRev} style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.2, gap: "2px" }}>
+                <span>{formatRevenue(won)}</span>
+                <span style={{ fontSize: "0.55rem", color: "var(--text-muted)" }}>/ {formatRevenue(target)}</span>
+              </span>
+              <span className={styles.indivPipe} style={{ color: "var(--primary)" }}>
+                {formatRevenue(person.pipelineRevenue)}
+              </span>
+              <span className={styles.indivDeals} style={{ color: "var(--text-muted)" }}>
+                {person.deals_won}/{person.deals_total}
+              </span>
             </div>
-            <span className={styles.indivPct} style={{ color }}>
-              {progress}%
-            </span>
-            <span className={styles.indivRev} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2, gap: '2px' }}>
-              <span>{formatRevenue(won)}</span>
-              <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>/ {formatRevenue(target)}</span>
-            </span>
-            <span className={styles.indivPipe} style={{ color: "var(--primary)" }}>
-              {formatRevenue(person.pipelineRevenue)}
-            </span>
-            <span className={styles.indivDeals} style={{ color: "var(--text-muted)" }}>
-              {person.deals_won}/{person.deals_total}
-            </span>
+
+            {isExpanded && person.kpis && person.kpis.length > 0 && (
+              <div className={styles.kpiPanel}>
+                <div className={styles.kpiPanelTitle}>
+                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>{person.name}</span>
+                  &nbsp;— 활동 KPI
+                </div>
+                <div className={styles.kpiGrid}>
+                  {person.kpis.map((kpi) => {
+                    const kpiColor = getHeatColor(kpi.progress);
+                    const kpiFill = Math.min(kpi.goal > 0 ? (kpi.actual / kpi.goal) * 100 : 0, 100);
+                    return (
+                      <div key={kpi.key} className={styles.kpiItem}>
+                        <div className={styles.kpiLabelRow}>
+                          <span className={styles.kpiLabel}>{kpi.label}</span>
+                          <span className={styles.kpiStat} style={{ color: kpiColor }}>
+                            {kpi.actual}<span style={{ color: "var(--text-muted)", fontWeight: 400 }}>/{kpi.goal}</span>
+                          </span>
+                        </div>
+                        <div className={styles.kpiBarOuter}>
+                          <div
+                            className={styles.kpiBarFill}
+                            style={{ width: `${kpiFill}%`, background: kpiColor }}
+                          />
+                        </div>
+                        <span className={styles.kpiPct} style={{ color: kpiColor }}>{kpi.progress}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className={styles.kpiSummaryRow}>
+                  <span style={{ color: "var(--text-muted)" }}>총 활동</span>
+                  <span style={{ fontWeight: 700, color: "var(--foreground)" }}>
+                    {person.activityActual ?? 0}
+                    <span style={{ color: "var(--text-muted)", fontWeight: 400 }}> / {person.activityGoal ?? 0}</span>
+                  </span>
+                  <span style={{ color: "var(--text-muted)" }}>전환율</span>
+                  <span style={{ fontWeight: 700, color: person.deals_total > 0 ? getHeatColor(Math.round((person.deals_won / person.deals_total) * 100)) : "var(--text-muted)" }}>
+                    {person.deals_total > 0 ? Math.round((person.deals_won / person.deals_total) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
 
       <p className={styles.indivNote}>
-        Won = closed revenue. Pipeline = weighted open revenue.
+        클릭하면 개인 KPI를 확인할 수 있습니다. Won = 확정 매출. Pipeline = 가중 기대 매출.
       </p>
     </div>
   );
