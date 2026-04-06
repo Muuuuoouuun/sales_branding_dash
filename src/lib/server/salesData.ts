@@ -29,6 +29,9 @@ export interface LeadRow {
   last_contact: string;
   due_date: string;
   notes?: string | null;
+  deal_type?: "New" | "Renew" | null;
+  product_type?: string | null;
+  importance?: string | null;
 }
 
 export interface LeadSyncRow {
@@ -245,29 +248,30 @@ export async function listLeads(): Promise<{
   if (hasGoogleSheetsConfig()) {
     try {
       const { getMultipleSheetValues } = await import('@/lib/server/googleSheets');
-      const ranges = await getMultipleSheetValues(['3. REV!A1:V400']);
-      const sheetRows = ranges['3. REV!A1:V400'] || [];
+      const ranges = await getMultipleSheetValues(['3. REV!A1:Z400']);
+      const sheetRows = ranges['3. REV!A1:Z400'] || [];
       const TARGET_MANAGERS = ['han', 'wangchan', 'junhyuk'];
-      
+
       const parsedLeads: LeadRow[] = [];
       let rowId = 1;
-      
+
       for (const row of sheetRows.slice(2)) {
         const account = (row[0] || '').trim();
+        const branch = (row[1] || '').trim();
         const team = (row[2] || '').trim();
         const manager = (row[3] || '').trim().toLowerCase();
-        
+
         if (account && team === 'BD' && TARGET_MANAGERS.includes(manager)) {
           const type = (row[4] || '').trim();
           const pStatus = (row[5] || '').trim();
           const firstPayment = (row[6] || '').trim();
           const location = (row[8] || '').trim();
-          const importance = (row[10] || '').trim();
+          const importance = (row[9] || '').trim();  // col[9]: A / B / KA tier
           const remark = (row[11] || '').trim();
-          
+
           let amount = Number((row[12] || '').replace(/[^\d.-]/g, ''));
           if (!Number.isFinite(amount)) amount = 0;
-          
+
           let probScore = pStatus === 'Renew' ? 72 : 58;
           if (importance === 'KA') probScore += 18;
           else if (importance === 'A') probScore += 10;
@@ -275,24 +279,29 @@ export async function listLeads(): Promise<{
           if (type === 'Channel') probScore -= 4;
           let probability = Math.min(Math.max(probScore, 20), 95);
           if (firstPayment && firstPayment !== '-') probability = 100;
-          
+
           let stage = 'Lead';
           if (probability === 100) stage = 'Contract';
           else if (probability >= 70) stage = 'Negotiation';
           else if (probability >= 50) stage = 'Proposal';
-          
+
+          const productType = (row[7] || '').trim() || null;
+
           parsedLeads.push({
             id: rowId++,
             company: account,
-            contact: '-',
+            contact: branch && branch !== '-' ? branch : '-',
             region: location,
             stage,
             probability,
             revenue_potential: amount,
-            owner: (row[3] || '').trim(), // Keep original capitalization
+            owner: (row[3] || '').trim(),
             last_contact: '',
             due_date: firstPayment && firstPayment !== '-' ? firstPayment : '',
             notes: remark || null,
+            deal_type: pStatus === 'Renew' ? 'Renew' : 'New',
+            product_type: productType,
+            importance: importance || null,
           });
         }
       }

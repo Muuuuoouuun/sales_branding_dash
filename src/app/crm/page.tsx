@@ -72,6 +72,9 @@ interface Lead {
   action: string;
   notes?: string | null;
   urgencyScore?: number;
+  deal_type?: "New" | "Renew" | null;
+  product_type?: string | null;
+  importance?: string | null;
 }
 
 interface FocusScore {
@@ -91,6 +94,9 @@ interface ActionItem {
   due: string;
   region: string;
   stage: StageName;
+  deal_type?: string | null;
+  product_type?: string | null;
+  importance?: string | null;
 }
 
 interface CrmSummary {
@@ -104,6 +110,12 @@ interface CrmSummary {
   nextDueLabel: string;
   stageCounts: Record<StageName, number>;
   stageValues: Record<StageName, number>;
+  newPipeline: number;
+  renewPipeline: number;
+  newDeals: number;
+  renewDeals: number;
+  newWon: number;
+  renewWon: number;
 }
 
 interface CrmPayload {
@@ -159,6 +171,12 @@ const EMPTY_SUMMARY: CrmSummary = {
   nextDueLabel: "No open due date",
   stageCounts: { Lead: 0, Proposal: 0, Negotiation: 0, Contract: 0 },
   stageValues: { Lead: 0, Proposal: 0, Negotiation: 0, Contract: 0 },
+  newPipeline: 0,
+  renewPipeline: 0,
+  newDeals: 0,
+  renewDeals: 0,
+  newWon: 0,
+  renewWon: 0,
 };
 
 const EMPTY_PAYLOAD: CrmPayload = {
@@ -171,11 +189,8 @@ const EMPTY_PAYLOAD: CrmPayload = {
 };
 
 function formatMoney(value: number): string {
-  if (value >= 1000) {
-    return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ (value / 1000).toFixed(1) }B`;
-  }
-
-  return `${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}${ Math.round(value).toLocaleString() }M`;
+  const symbol = typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥';
+  return `${symbol}${Math.round(value).toLocaleString()}`;
 }
 
 function formatDateTime(value: string): string {
@@ -195,6 +210,12 @@ function normalizePayload(payload: Partial<CrmPayload> | null | undefined): CrmP
       ...summary,
       stageCounts: { ...EMPTY_SUMMARY.stageCounts, ...(summary.stageCounts ?? {}) },
       stageValues: { ...EMPTY_SUMMARY.stageValues, ...(summary.stageValues ?? {}) },
+      newPipeline: summary.newPipeline ?? 0,
+      renewPipeline: summary.renewPipeline ?? 0,
+      newDeals: summary.newDeals ?? 0,
+      renewDeals: summary.renewDeals ?? 0,
+      newWon: summary.newWon ?? 0,
+      renewWon: summary.renewWon ?? 0,
     },
     scores: payload?.scores ?? [],
     actions: payload?.actions ?? [],
@@ -320,6 +341,8 @@ export default function CRMPage() {
   const [query, setQuery] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("All");
   const [stageFilter, setStageFilter] = useState("All");
+  const [dealTypeFilter, setDealTypeFilter] = useState("All");
+  const [productTypeFilter, setProductTypeFilter] = useState("All");
   const [sortKey, setSortKey] = useState<SortKey>("probability");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
@@ -457,7 +480,9 @@ export default function CRMPage() {
       return (
         matchesQuery &&
         (ownerFilter === "All" || lead.owner === ownerFilter) &&
-        (stageFilter === "All" || lead.stage === stageFilter)
+        (stageFilter === "All" || lead.stage === stageFilter) &&
+        (dealTypeFilter === "All" || lead.deal_type === dealTypeFilter) &&
+        (productTypeFilter === "All" || lead.product_type === productTypeFilter)
       );
     });
 
@@ -480,7 +505,7 @@ export default function CRMPage() {
 
       return sortDir === "asc" ? comparison : -comparison;
     });
-  }, [ownerFilter, payload.leads, query, sortDir, sortKey, stageFilter]);
+  }, [ownerFilter, payload.leads, query, sortDir, sortKey, stageFilter, dealTypeFilter, productTypeFilter]);
 
   const selectedLead = useMemo(() => {
     return (
@@ -509,6 +534,7 @@ export default function CRMPage() {
   }
 
   const ownerOptions = ["All", ...Array.from(new Set(payload.leads.map((lead) => lead.owner)))];
+  const productTypeOptions = ["All", ...Array.from(new Set(payload.leads.map((lead) => lead.product_type).filter(Boolean))) as string[]];
 
   return (
     <div className={styles.container}>
@@ -519,10 +545,10 @@ export default function CRMPage() {
           <p className={styles.subtitle}>{language === "ko" ? "실시간 CRM 피드에서 가져온 핵심 액션 큐, 스테이지 관리 및 리드 정보입니다." : "High-signal action queues, stage control, and lead context from the live CRM feed."}</p>
         </div>
         <div className={styles.heroMeta}>
-          <span className={styles.heroBadge}>{payload.backend === "supabase" ? "Live DB" : "CSV fallback"}</span>
-          <span className={styles.heroBadge}>Updated {formatDateTime(payload.generatedAt)}</span>
+          <span className={styles.heroBadge}>{payload.backend === "supabase" ? (language === "ko" ? "라이브 DB" : "Live DB") : (language === "ko" ? "CSV 폴백" : "CSV fallback")}</span>
+          <span className={styles.heroBadge}>{language === "ko" ? `업데이트: ${formatDateTime(payload.generatedAt)}` : `Updated ${formatDateTime(payload.generatedAt)}`}</span>
           <button className={styles.refreshBtn} onClick={() => void loadPayload(true)} type="button">
-            <RefreshCw size={14} /> Refresh
+            <RefreshCw size={14} /> {language === "ko" ? "새로고침" : "Refresh"}
           </button>
         </div>
       </header>
@@ -535,10 +561,10 @@ export default function CRMPage() {
       ) : null}
 
       <div className={styles.metricGrid}>
-        <MetricCard label="Open deals" value={String(summary.openDeals)} sub="Active opportunities in motion" />
-        <MetricCard label="Overdue" value={String(summary.overdueDeals)} sub="Deals past due date" tone={summary.overdueDeals > 0 ? "critical" : "good"} />
-        <MetricCard label="Weighted pipeline" value={formatMoney(summary.weightedPipeline)} sub={`Avg probability ${summary.averageProbability}%`} />
-        <MetricCard label="Next due" value={summary.nextDueLabel} sub={`${summary.urgentDeals} urgent deals`} tone={summary.urgentDeals > 0 ? "watch" : "good"} />
+        <MetricCard label={language === "ko" ? "전체 딜" : "Total deals"} value={String(summary.newDeals + summary.renewDeals)} sub={`New ${summary.newDeals} / Renew ${summary.renewDeals}`} />
+        <MetricCard label={language === "ko" ? "New 수주" : "New won"} value={formatMoney(summary.newWon)} sub={`${language === "ko" ? "파이프" : "pipe"} ${formatMoney(summary.newPipeline)}`} />
+        <MetricCard label={language === "ko" ? "Renew 수주" : "Renew won"} value={formatMoney(summary.renewWon)} sub={`${language === "ko" ? "파이프" : "pipe"} ${formatMoney(summary.renewPipeline)}`} />
+        <MetricCard label={language === "ko" ? "가중 파이프라인" : "Weighted pipeline"} value={formatMoney(summary.weightedPipeline)} sub={`${language === "ko" ? "평균 확률" : "Avg"} ${summary.averageProbability}% · ${summary.urgentDeals} ${language === "ko" ? "긴급" : "urgent"}`} tone={summary.urgentDeals > 0 ? "watch" : "neutral"} />
       </div>
 
       <div className={styles.scoreStrip}>
@@ -554,9 +580,9 @@ export default function CRMPage() {
               <div className={styles.scoreValue} style={{ color }}>{score.score}</div>
               <div className={styles.scoreBar}><div className={styles.scoreBarFill} style={{ width: `${score.score}%`, background: color }} /></div>
               <div className={styles.scoreMeta}>
-                <span>Won {formatMoney(score.won)}</span>
-                <span>Pipe {formatMoney(score.pipeline)}</span>
-                <span>{score.deals} deals</span>
+                <span>{language === "ko" ? `수주 ${formatMoney(score.won)}` : `Won ${formatMoney(score.won)}`}</span>
+                <span>{language === "ko" ? `파이프 ${formatMoney(score.pipeline)}` : `Pipe ${formatMoney(score.pipeline)}`}</span>
+                <span>{score.deals} {language === "ko" ? "딜" : "deals"}</span>
               </div>
             </div>
           );
@@ -565,9 +591,9 @@ export default function CRMPage() {
 
       <div className={styles.tabBar}>
         {[
-          { id: "killist", label: "Kill list", icon: <Crosshair size={14} /> },
-          { id: "pipeline", label: "Pipeline", icon: <Kanban size={14} /> },
-          { id: "leads", label: "Leads", icon: <TableProperties size={14} /> },
+          { id: "killist", label: language === "ko" ? "킬 리스트" : "Kill list", icon: <Crosshair size={14} /> },
+          { id: "pipeline", label: language === "ko" ? "파이프라인" : "Pipeline", icon: <Kanban size={14} /> },
+          { id: "leads", label: language === "ko" ? "리드" : "Leads", icon: <TableProperties size={14} /> },
         ].map((item) => (
           <button key={item.id} className={`${styles.tabBtn} ${tab === item.id ? styles.tabBtnActive : ""}`} onClick={() => setTab(item.id as CrmTab)} type="button">
             {item.icon}<span>{item.label}</span>
@@ -578,21 +604,23 @@ export default function CRMPage() {
       <div className={styles.toolRow}>
         <div className={styles.searchBox}>
           <Search size={14} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search company, owner, region, stage, or action" className={styles.searchInput} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={language === "ko" ? "회사, 담당자, 지역, 스테이지 또는 액션 검색" : "Search company, owner, region, stage, or action"} className={styles.searchInput} />
         </div>
         <div className={styles.filterWrap}>
-          <FilterChipGroup label="Owner" values={ownerOptions} activeValue={ownerFilter} onChange={setOwnerFilter} colorMap={ownerColors} />
-          <FilterChipGroup label="Stage" values={["All", ...STAGE_ORDER]} activeValue={stageFilter} onChange={(value) => setStageFilter(value as "All" | StageName)} colorMap={Object.fromEntries(Object.entries(STAGE_META).map(([key, value]) => [key, value.color]))} />
+          <FilterChipGroup label={language === "ko" ? "소유자" : "Owner"} values={ownerOptions} activeValue={ownerFilter} onChange={setOwnerFilter} colorMap={ownerColors} />
+          <FilterChipGroup label={language === "ko" ? "스테이지" : "Stage"} values={["All", ...STAGE_ORDER]} activeValue={stageFilter} onChange={(value) => setStageFilter(value as "All" | StageName)} colorMap={Object.fromEntries(Object.entries(STAGE_META).map(([key, value]) => [key, value.color]))} />
+          <FilterChipGroup label={language === "ko" ? "딜 유형" : "Type"} values={["All", "New", "Renew"]} activeValue={dealTypeFilter} onChange={setDealTypeFilter} />
+          <FilterChipGroup label={language === "ko" ? "제품" : "Product"} values={productTypeOptions} activeValue={productTypeFilter} onChange={setProductTypeFilter} />
         </div>
       </div>
 
       {tab === "killist" ? (
         <div className={styles.tabLayout}>
           <div className={styles.mainColumn}>
-            <Card className={styles.panel} title="Priority queue">
+            <Card className={styles.panel} title={language === "ko" ? "우선순위 큐" : "Priority queue"}>
               <div className={styles.panelHeaderMeta}>
-                <span>{payload.actions.length} live actions</span>
-                <span>{summary.overdueDeals} overdue</span>
+                <span>{payload.actions.length} {language === "ko" ? "개 라이브 액션" : "live actions"}</span>
+                <span>{summary.overdueDeals} {language === "ko" ? "개 기한 초과" : "overdue"}</span>
                 <span>{summary.nextDueLabel}</span>
               </div>
               <div className={styles.actionList}>
@@ -604,17 +632,21 @@ export default function CRMPage() {
                   const nextStage = lead ? getNextStage(lead.stage) : null;
 
                   return (
-                    <div key={`${action.salesRep}-${action.target}-${action.due}`} className={`${styles.actionCard} ${selectedLead?.company === action.target ? styles.actionCardActive : ""}`} onClick={() => lead && setSelectedLeadId(lead.id)}>
+                    <div key={`${action.salesRep}-${action.target}-${action.stage}-${action.due}-${index}`} className={`${styles.actionCard} ${selectedLead?.company === action.target ? styles.actionCardActive : ""}`} onClick={() => lead && setSelectedLeadId(lead.id)}>
                       <div className={styles.actionCardLeft}>
                         <div className={styles.badgeRow}>
                           <span className={styles.ownerBadge} style={{ color: ownerColor, borderColor: `${ownerColor}44`, background: `${ownerColor}12` }}>{action.salesRep}</span>
                           <span className={styles.stageBadge} style={{ color: stageMeta.color, borderColor: `${stageMeta.color}44`, background: stageMeta.soft }}>{stageMeta.label}</span>
-                          <span className={styles.riskBadge} style={{ color: riskTone(risk), borderColor: `${riskTone(risk)}33` }}>{risk.toUpperCase()}</span>
+                          {action.deal_type ? <span className={styles.riskBadge} style={{ color: action.deal_type === "Renew" ? "#06b6d4" : "#8b5cf6", borderColor: action.deal_type === "Renew" ? "#06b6d433" : "#8b5cf633" }}>{action.deal_type}</span> : null}
+                          {action.importance === "KA" ? <span className={styles.riskBadge} style={{ color: "#f59e0b", borderColor: "#f59e0b33" }}>KA</span> : null}
                           <span className={styles.regionTag}>{action.region}</span>
                         </div>
                         <div className={styles.actionTitleRow}>
                           <div>
-                            <div className={styles.actionTitle}>{action.target}</div>
+                            <div className={styles.actionTitle}>
+                              {action.target}
+                              {action.product_type ? <span style={{ marginLeft: 6, fontSize: 11, color: "#64748b", fontWeight: 400 }}>· {action.product_type}</span> : null}
+                            </div>
                             <div className={styles.actionMeta}>{action.action}</div>
                           </div>
                           <div className={styles.actionScore}>
@@ -628,8 +660,8 @@ export default function CRMPage() {
                             {lead ? <span className={styles.actionPill}><UserRound size={12} />{lead.contact}</span> : null}
                           </div>
                           <div className={styles.actionButtons}>
-                            <button className={styles.secondaryBtn} type="button" onClick={(event) => { event.stopPropagation(); if (lead) void openAiScript(lead.id, lead.company); }} disabled={!lead}><Brain size={13} /> AI script</button>
-                            <button className={styles.primaryBtn} type="button" onClick={(event) => { event.stopPropagation(); if (lead) setSelectedLeadId(lead.id); }} disabled={!lead}>Open brief <ArrowRight size={13} /></button>
+                            <button className={styles.secondaryBtn} type="button" onClick={(event) => { event.stopPropagation(); if (lead) void openAiScript(lead.id, lead.company); }} disabled={!lead}><Brain size={13} /> {language === "ko" ? "AI 스크립트" : "AI script"}</button>
+                            <button className={styles.primaryBtn} type="button" onClick={(event) => { event.stopPropagation(); if (lead) setSelectedLeadId(lead.id); }} disabled={!lead}>{language === "ko" ? "브리프 열기" : "Open brief"} <ArrowRight size={13} /></button>
                             <button className={styles.iconBtn} type="button" title={nextStage ? `Advance to ${nextStage}` : "Closed"} onClick={(event) => { event.stopPropagation(); if (lead && nextStage) void updateLeadStage(lead.id, nextStage); }} disabled={!lead || !nextStage}><CheckCircle2 size={13} /></button>
                           </div>
                         </div>
@@ -641,29 +673,29 @@ export default function CRMPage() {
             </Card>
           </div>
           <div className={styles.railColumn}>
-            <Card className={styles.panel} title="Deal brief">
-              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} /> : <p className={styles.emptyState}>Select a lead to see the operating context.</p>}
+            <Card className={styles.panel} title={language === "ko" ? "딜 브리프" : "Deal brief"}>
+              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} language={language} /> : <p className={styles.emptyState}>{language === "ko" ? "리드를 선택하면 운영 컨텍스트를 확인할 수 있습니다." : "Select a lead to see the operating context."}</p>}
             </Card>
           </div>
         </div>
       ) : null}
 
-      {tab === "pipeline" ? <PipelineBoard leads={filteredLeads} summary={summary} ownerColors={ownerColors} selectedLeadId={selectedLeadId} onOpenLead={(leadId) => setSelectedLeadId(leadId)} onUpdateStage={updateLeadStage} /> : null}
+      {tab === "pipeline" ? <PipelineBoard leads={filteredLeads} summary={summary} ownerColors={ownerColors} selectedLeadId={selectedLeadId} onOpenLead={(leadId) => setSelectedLeadId(leadId)} onUpdateStage={updateLeadStage} language={language} /> : null}
 
       {tab === "leads" ? (
         <div className={styles.tabLayout}>
           <div className={styles.mainColumn}>
-            <Card className={styles.panel} title="Lead table">
+            <Card className={styles.panel} title={language === "ko" ? "리드 테이블" : "Lead table"}>
               <div className={styles.panelHeaderMeta}>
-                <span>{filteredLeads.length} leads shown</span>
+                <span>{filteredLeads.length} {language === "ko" ? "개 리드" : "leads shown"}</span>
                 <span>{formatMoney(filteredLeads.reduce((sum, lead) => sum + lead.revenue_potential, 0))}</span>
-                <span>{summary.openDeals} open / {summary.wonDeals} won</span>
+                <span>{summary.openDeals} {language === "ko" ? "진행 /" : "open /"} {summary.wonDeals} {language === "ko" ? "완료" : "won"}</span>
               </div>
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      {([["company", "Company"], ["contact", "Contact"], ["region", "Region"], ["stage", "Stage"], ["owner", "Owner"], ["probability", "Confidence"], ["revenue_potential", "Potential"], ["due_date", "Due"]] as [SortKey, string][]).map(([key, label]) => (
+                      {(([["company", language === "ko" ? "회사" : "Company"], ["contact", language === "ko" ? "담당자" : "Contact"], ["region", language === "ko" ? "지역" : "Region"], ["stage", language === "ko" ? "스테이지" : "Stage"], ["owner", language === "ko" ? "소유자" : "Owner"], ["probability", language === "ko" ? "확률" : "Conf."], ["revenue_potential", language === "ko" ? "잠재 매출" : "Potential"], ["due_date", language === "ko" ? "마감일" : "Due"]]) as [SortKey, string][]).map(([key, label]) => (
                         <th key={key} className={styles.th} onClick={() => { if (sortKey === key) setSortDir((current) => (current === "asc" ? "desc" : current === "desc" ? null : "asc")); else { setSortKey(key); setSortDir("desc"); } }}>
                           <span className={styles.thInner}>{label}<SortIcon activeKey={sortKey} activeDir={sortDir} thisKey={key} /></span>
                         </th>
@@ -676,14 +708,19 @@ export default function CRMPage() {
                       const ownerColor = ownerColors[lead.owner] ?? "#818cf8";
                       return (
                         <tr key={lead.id} className={`${styles.tr} ${selectedLead?.id === lead.id ? styles.trActive : ""}`} onClick={() => setSelectedLeadId(lead.id)}>
-                          <td className={styles.td}>{lead.company}</td>
+                          <td className={styles.td}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              <span>{lead.company}</span>
+                              {lead.importance === "KA" ? <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>KA</span> : null}
+                            </div>
+                          </td>
                           <td className={styles.td}>{lead.contact}</td>
                           <td className={styles.td}>{lead.region}</td>
                           <td className={styles.td}><span className={styles.stageTag} style={{ color: stageMeta.color, background: stageMeta.soft, borderColor: `${stageMeta.color}44` }}>{stageMeta.label}</span></td>
                           <td className={styles.td}><span style={{ color: ownerColor, fontWeight: 700 }}>{lead.owner}</span></td>
                           <td className={styles.td}><div className={styles.probCell}><span style={{ color: getLeadTone(lead.probability), fontWeight: 700, width: 42, display: "inline-block", textAlign: "right" }}>{lead.probability}%</span><div className={styles.miniBar}><div style={{ width: `${lead.probability}%`, height: "100%", borderRadius: 999, background: stageMeta.color }} /></div></div></td>
                           <td className={styles.td}>{formatMoney(lead.revenue_potential)}</td>
-                          <td className={styles.td}><div className={styles.dateStack}><span className={styles.dueText}>{lead.due_label}</span><span className={styles.contactText}>Last: {formatDateTime(lead.last_contact)}</span></div></td>
+                          <td className={styles.td}><div className={styles.dateStack}><span className={styles.dueText}>{lead.due_label}</span><span className={styles.contactText}>{lead.deal_type ?? "-"} · {lead.product_type ?? "-"}</span></div></td>
                         </tr>
                       );
                     })}
@@ -693,14 +730,14 @@ export default function CRMPage() {
             </Card>
           </div>
           <div className={styles.railColumn}>
-            <Card className={styles.panel} title="Lead detail">
-              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} /> : <p className={styles.emptyState}>Select a row to inspect the deal context.</p>}
+            <Card className={styles.panel} title={language === "ko" ? "리드 상세" : "Lead detail"}>
+              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} language={language} /> : <p className={styles.emptyState}>{language === "ko" ? "행을 선택하면 딜 컨텍스트를 확인할 수 있습니다." : "Select a row to inspect the deal context."}</p>}
             </Card>
           </div>
         </div>
       ) : null}
 
-      {aiModal.open ? <AIScriptModal modal={aiModal} onClose={closeAiScript} /> : null}
+      {aiModal.open ? <AIScriptModal modal={aiModal} onClose={closeAiScript} language={language} /> : null}
     </div>
   );
 }
@@ -738,7 +775,7 @@ function SortIcon({ activeKey, activeDir, thisKey }: { activeKey: SortKey; activ
   return activeDir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />;
 }
 
-function LeadDetailPanel({ lead, ownerColor, onAi, onAdvance }: { lead: Lead; ownerColor: string; onAi: (lead: Lead) => void; onAdvance: (lead: Lead) => void; }) {
+function LeadDetailPanel({ lead, ownerColor, onAi, onAdvance, language = "en" }: { lead: Lead; ownerColor: string; onAi: (lead: Lead) => void; onAdvance: (lead: Lead) => void; language?: string; }) {
   const risk = getRiskLevel(lead);
   const nextStage = getNextStage(lead.stage);
 
@@ -753,24 +790,24 @@ function LeadDetailPanel({ lead, ownerColor, onAi, onAdvance }: { lead: Lead; ow
       </div>
 
       <div className={styles.detailList}>
-        <div className={styles.detailRow}><span>Stage</span><strong>{lead.stage}</strong></div>
-        <div className={styles.detailRow}><span>Contact</span><strong>{lead.contact}</strong></div>
-        <div className={styles.detailRow}><span>Potential</span><strong>{formatMoney(lead.revenue_potential)}</strong></div>
-        <div className={styles.detailRow}><span>Due</span><strong>{lead.due_label}</strong></div>
-        <div className={styles.detailRow}><span>Last contact</span><strong>{formatDateTime(lead.last_contact)}</strong></div>
+        <div className={styles.detailRow}><span>{language === "ko" ? "스테이지" : "Stage"}</span><strong>{lead.stage}</strong></div>
+        <div className={styles.detailRow}><span>{language === "ko" ? "담당자" : "Contact"}</span><strong>{lead.contact}</strong></div>
+        <div className={styles.detailRow}><span>{language === "ko" ? "잠재 매출" : "Potential"}</span><strong>{formatMoney(lead.revenue_potential)}</strong></div>
+        <div className={styles.detailRow}><span>{language === "ko" ? "마감일" : "Due"}</span><strong>{lead.due_label}</strong></div>
+        <div className={styles.detailRow}><span>{language === "ko" ? "최근 연락" : "Last contact"}</span><strong>{formatDateTime(lead.last_contact)}</strong></div>
       </div>
 
       <div className={styles.detailAction}>{lead.action}</div>
       <div className={styles.detailButtons}>
-        <button className={styles.secondaryBtn} type="button" onClick={() => onAi(lead)}><Brain size={13} /> AI script</button>
-        <button className={styles.primaryBtn} type="button" onClick={() => onAdvance(lead)} disabled={!nextStage}>{nextStage ? `Advance to ${nextStage}` : "Closed"}<ArrowRight size={13} /></button>
+        <button className={styles.secondaryBtn} type="button" onClick={() => onAi(lead)}><Brain size={13} /> {language === "ko" ? "AI 스크립트" : "AI script"}</button>
+        <button className={styles.primaryBtn} type="button" onClick={() => onAdvance(lead)} disabled={!nextStage}>{nextStage ? `${language === "ko" ? `${nextStage}(으)로 진행` : `Advance to ${nextStage}`}` : (language === "ko" ? "완료" : "Closed")}<ArrowRight size={13} /></button>
       </div>
       {lead.notes ? <div className={styles.noteItem}>{lead.notes}</div> : null}
     </div>
   );
 }
 
-function PipelineBoard({ leads, summary, ownerColors, selectedLeadId, onOpenLead, onUpdateStage }: { leads: Lead[]; summary: CrmSummary; ownerColors: Record<string, string>; selectedLeadId: number | null; onOpenLead: (leadId: number) => void; onUpdateStage: (leadId: number, stage: StageName) => void; }) {
+function PipelineBoard({ leads, summary, ownerColors, selectedLeadId, onOpenLead, onUpdateStage, language = "en" }: { leads: Lead[]; summary: CrmSummary; ownerColors: Record<string, string>; selectedLeadId: number | null; onOpenLead: (leadId: number) => void; onUpdateStage: (leadId: number, stage: StageName) => void; language?: string; }) {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -797,10 +834,10 @@ function PipelineBoard({ leads, summary, ownerColors, selectedLeadId, onOpenLead
 
   return (
     <div className={styles.pipelineWrap}>
-      <Card className={styles.panel} title="Pipeline board">
-        <div className={styles.panelHeaderMeta}><span>{summary.openDeals} open deals</span><span>{summary.urgentDeals} urgent</span><span>{summary.nextDueLabel}</span></div>
+      <Card className={styles.panel} title={language === "ko" ? "파이프라인 보드" : "Pipeline board"}>
+        <div className={styles.panelHeaderMeta}><span>{summary.openDeals} {language === "ko" ? "개 진행 딜" : "open deals"}</span><span>{summary.urgentDeals} {language === "ko" ? "개 긴급" : "urgent"}</span><span>{summary.nextDueLabel}</span></div>
         <div className={styles.pipelineIntro}>
-          <div className={styles.pipelineIntroText}>Drag cards only when the next action is clear.</div>
+          <div className={styles.pipelineIntroText}>{language === "ko" ? "다음 액션이 명확할 때만 카드를 드래그하세요." : "Drag cards only when the next action is clear."}</div>
           <div className={styles.pipelineIntroStats}>{STAGE_ORDER.map((stage) => <span key={stage} className={styles.pipelineStat}><strong>{summary.stageCounts[stage]}</strong><span>{stage}</span></span>)}</div>
         </div>
 
@@ -819,6 +856,7 @@ function PipelineBoard({ leads, summary, ownerColors, selectedLeadId, onOpenLead
                 ownerColors={ownerColors}
                 onOpenLead={onOpenLead}
                 selectedLeadId={selectedLeadId}
+                language={language}
               />
             ))}
           </div>
@@ -831,7 +869,7 @@ function PipelineBoard({ leads, summary, ownerColors, selectedLeadId, onOpenLead
   );
 }
 
-function PipelineColumn({ stage, leads, ownerColors, onOpenLead, selectedLeadId }: { stage: StageName; leads: Lead[]; ownerColors: Record<string, string>; onOpenLead: (leadId: number) => void; selectedLeadId: number | null; }) {
+function PipelineColumn({ stage, leads, ownerColors, onOpenLead, selectedLeadId, language = "en" }: { stage: StageName; leads: Lead[]; ownerColors: Record<string, string>; onOpenLead: (leadId: number) => void; selectedLeadId: number | null; language?: string; }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const stageMeta = STAGE_META[stage];
   const totalRevenue = leads.reduce((sum, lead) => sum + lead.revenue_potential, 0);
@@ -841,13 +879,13 @@ function PipelineColumn({ stage, leads, ownerColors, onOpenLead, selectedLeadId 
     <div ref={setNodeRef} className={`${styles.kanbanCol} ${isOver ? styles.kanbanColHover : ""}`}>
       <div className={styles.kanbanHeader} style={{ borderTopColor: stageMeta.color }}>
         <div className={styles.kanbanHeaderTop}><span className={styles.kanbanStage} style={{ color: stageMeta.color }}>{stageMeta.label}</span><span className={styles.kanbanCount} style={{ background: `${stageMeta.color}22`, color: stageMeta.color }}>{leads.length}</span></div>
-        <div className={styles.kanbanHeaderMeta}><span>{formatMoney(totalRevenue)}</span><span>{averageProbability}% avg</span></div>
+        <div className={styles.kanbanHeaderMeta}><span>{formatMoney(totalRevenue)}</span><span>{averageProbability}% {language === "ko" ? "평균" : "avg"}</span></div>
       </div>
       <div className={styles.kanbanCards}>
         <SortableContext items={leads.map((lead) => lead.id)} strategy={verticalListSortingStrategy}>
           {leads.map((lead) => <PipelineCard key={lead.id} lead={lead} ownerColor={ownerColors[lead.owner] ?? "#818cf8"} selected={selectedLeadId === lead.id} onOpenLead={onOpenLead} />)}
         </SortableContext>
-        {leads.length === 0 ? <div className={styles.emptyCol}>No deals in this stage.</div> : null}
+        {leads.length === 0 ? <div className={styles.emptyCol}>{language === "ko" ? "이 스테이지에 딜이 없습니다." : "No deals in this stage."}</div> : null}
       </div>
     </div>
   );
@@ -870,7 +908,7 @@ function PipelineCard({ lead, ownerColor, selected = false, dragging = false, on
   );
 }
 
-function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () => void; }) {
+function AIScriptModal({ modal, onClose, language = "en" }: { modal: AiModalState; onClose: () => void; language?: string; }) {
   const sections = modal.data?.callScript ? parseScriptSections(modal.data.callScript) : [];
 
   return (
@@ -878,7 +916,7 @@ function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () =>
       <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalHeader}>
           <div>
-            <div className={styles.modalEyebrow}>AI call brief</div>
+            <div className={styles.modalEyebrow}>{language === "ko" ? "AI 콜 브리핑" : "AI call brief"}</div>
             <h3 className={styles.modalTitle}>{modal.company}</h3>
           </div>
           <button className={styles.iconBtn} type="button" onClick={onClose}><X size={14} /></button>
@@ -887,17 +925,17 @@ function AIScriptModal({ modal, onClose }: { modal: AiModalState; onClose: () =>
         {modal.loading ? (
           <div className={styles.modalLoading}>
             <Loader2 size={28} className={styles.spinner} />
-            <span>Generating a sharper script from the live score...</span>
+            <span>{language === "ko" ? "라이브 점수에서 스크립트를 생성 중..." : "Generating a sharper script from the live score..."}</span>
           </div>
         ) : modal.error ? (
           <div className={styles.errorBanner}><AlertTriangle size={15} /><span>{modal.error}</span></div>
         ) : modal.data ? (
           <>
             <div className={styles.aiScoreGrid}>
-              <div className={styles.aiScoreItem}><span>Urgency</span><strong>{modal.data.score.urgencyScore}/100</strong></div>
-              <div className={styles.aiScoreItem}><span>Risk</span><strong>{modal.data.score.riskLevel}</strong></div>
-              <div className={styles.aiScoreItem}><span>Expected value</span><strong>{formatMoney(modal.data.score.expectedValue)}</strong></div>
-              <div className={styles.aiScoreItem}><span>Due</span><strong>{modal.data.score.dueLabel}</strong></div>
+              <div className={styles.aiScoreItem}><span>{language === "ko" ? "긴급도" : "Urgency"}</span><strong>{modal.data.score.urgencyScore}/100</strong></div>
+              <div className={styles.aiScoreItem}><span>{language === "ko" ? "리스크" : "Risk"}</span><strong>{modal.data.score.riskLevel}</strong></div>
+              <div className={styles.aiScoreItem}><span>{language === "ko" ? "기대 가치" : "Expected value"}</span><strong>{formatMoney(modal.data.score.expectedValue)}</strong></div>
+              <div className={styles.aiScoreItem}><span>{language === "ko" ? "마감일" : "Due"}</span><strong>{modal.data.score.dueLabel}</strong></div>
             </div>
             <div className={styles.scriptSections}>
               {sections.map((section) => (
