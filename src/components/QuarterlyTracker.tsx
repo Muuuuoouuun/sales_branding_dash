@@ -26,15 +26,21 @@ interface Props {
 
 export default function QuarterlyTracker({ data, individuals, periodLabel, teamSummary }: Props) {
   const [view, setView] = useState<"team" | "individual">("team");
-  const [period, setPeriod] = useState<"Q" | "Y">("Q");
+  const [period, setPeriod] = useState<"M" | "Q" | "Y">("Q");
+
+  const currentMonth = teamSummary.currentMonth ?? new Date().getMonth() + 1;
 
   // Use DSH-based teamSummary as the single source of truth
   const displayRevenue = period === "Y"
     ? (teamSummary.yearlyActual ?? teamSummary.actualRevenue)
-    : teamSummary.actualRevenue;
+    : period === "M"
+      ? (teamSummary.monthlyActual ?? 0)
+      : teamSummary.actualRevenue;
   const displayTarget = period === "Y"
     ? (teamSummary.yearlyTarget ?? teamSummary.targetRevenue)
-    : teamSummary.targetRevenue;
+    : period === "M"
+      ? (teamSummary.monthlyTarget ?? 0)
+      : teamSummary.targetRevenue;
   const progress = displayTarget > 0 ? (displayRevenue / displayTarget) * 100 : 0;
   const remaining = Math.max(0, displayTarget - displayRevenue);
   const barFillPct = Math.min((progress / BAR_MAX) * 100, 100);
@@ -43,7 +49,9 @@ export default function QuarterlyTracker({ data, individuals, periodLabel, teamS
 
   const periodBadge = period === "Y"
     ? periodLabel.replace(/Q\d$/, "FY")
-    : periodLabel;
+    : period === "M"
+      ? periodLabel.replace(/Q\d/, `${currentMonth}월`)
+      : periodLabel;
 
   return (
     <div className={styles.card}>
@@ -59,6 +67,13 @@ export default function QuarterlyTracker({ data, individuals, periodLabel, teamS
         </div>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           <div className={styles.toggleGroup}>
+            <button
+              className={`${styles.toggle} ${period === "M" ? styles.toggleOn : ""}`}
+              onClick={() => setPeriod("M")}
+              type="button"
+            >
+              M
+            </button>
             <button
               className={`${styles.toggle} ${period === "Q" ? styles.toggleOn : ""}`}
               onClick={() => setPeriod("Q")}
