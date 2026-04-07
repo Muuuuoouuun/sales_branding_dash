@@ -16,30 +16,28 @@
 
 ---
 
-## 2. SEG 시트 — 지역 히트맵 기준
+## 2. SEG 시트 — DSH 보조용 (히트맵에 사용 안 함)
+
+> ⛔ **히트맵에 SEG 데이터를 사용하지 않습니다. REV 시트 전용입니다.**
+> SEG는 Goal/Status 섹션이 나란히 있는 요약 시트로, REV와 구조가 근본적으로 다릅니다.
 
 > SEG는 지역별 요약 시트입니다. 범위 `A1:S40` (col A~S, row 1~40).
 
 ### 주요 컬럼
 | 열 | 0-based index | 내용 |
 |---|---|---|
-| L | 11 | **Goal 섹션 지역명** |
-| M | 12 | **Goal 섹션 목표 금액** (히트맵 target) |
-| Q | 16 | **Status 섹션 지역명** |
-| R | 17 | **Status 섹션 현재 금액** (히트맵 revenue 폴백) |
+| L | 11 | Goal 섹션 지역명 |
+| M | 12 | Goal 섹션 목표 금액 |
+| Q | 16 | Status 섹션 지역명 |
+| R | 17 | Status 섹션 현재 금액 |
 
 - `rows.slice(3)` 로 데이터 시작 (상위 3행 = 헤더)
-- Goal 지역(L열)과 Status 지역(Q열)이 같은 이름을 사용해야 REV 데이터와 매칭됨
+- `parseSegRows` 함수에서만 사용 — DSH 보조 계산 용도
 
-### 히트맵 매출 계산 로직
-```
-지역 목표  = SEG L/M열 → goal 섹션 목표 금액
-지역 매출  = REV monthTotals 현재월까지 합산 (firstPayment 확정 건만)
-           → 없으면 SEG R열 status 금액으로 폴백
-달성률     = 지역 매출 / 지역 목표 × 100
-```
-
-> ⚠️ SEG의 R열(Status)을 그대로 사용하면 Goal과 같은 값이 들어오는 경우가 있어 달성률이 100%처럼 보일 수 있음. REV monthly 데이터를 우선 사용할 것.
+### ⚠️ SEG를 히트맵에 쓰면 안 되는 이유
+- R열(Status)이 Goal(M열)과 동일한 값이 들어오는 경우가 있어 달성률이 100%처럼 보임
+- REV 시트에 월별 실납부 데이터가 있으므로 SEG 폴백이 불필요함
+- SEG 파싱 로직을 REV 컬럼 방식으로 변경하면 DSH/BD Target Tracker 포함 전체 대시보드가 깨짐
 
 ---
 
@@ -94,8 +92,25 @@
 
 ---
 
+## 히트맵 계산 원칙 (REV 전용)
+
+```
+regionTarget   = REV M열 합산 (전체 딜, firstPayment 무관)
+regionRevenue  = REV monthTotals 합산 (firstPayment 있는 딜만, 현재 회계월까지)
+regionRevenueM = 이번 달(calendarMonth) monthTotals 합산
+regionRevenueQ = 이번 분기 월 중 현재월까지 monthTotals 합산
+달성률          = regionRevenue / regionTarget × 100
+```
+
+M/Q/Y 토글: `page.tsx`의 `heatmapRegions` useMemo에서 `displayRevenue/displayTarget/displayProgress` 파생.
+
+---
+
 ## 변경 이력
 
 | 날짜 | 내용 |
 |---|---|
-| 2026-04-07 | 히트맵 regionRevenue 계산: REV M열(계약 목표치) 합산 → REV monthTotals 현재월까지 합산으로 수정 |
+| 2026-04-07 | 히트맵 regionRevenue: REV M열 합산 → REV monthTotals 합산으로 수정 (target≈revenue 버그 수정) |
+| 2026-04-07 | SEG 히트맵 사용 중단 — REV 전용으로 전환 |
+| 2026-04-07 | 히트맵 M/Q/Y 토글 추가, RegionDrilldown 탭 레이아웃(실행포인트/확정계약/파이프라인) 적용 |
+| 2026-04-07 | focusAccounts/topAccounts/deriveRegionAccounts slice 제한 제거 |
