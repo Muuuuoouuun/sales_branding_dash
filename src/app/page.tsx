@@ -203,7 +203,12 @@ function deriveRegionAccounts(region: string | null, accounts: FocusAccount[]): 
     return [];
   }
 
-  return accounts.filter((account) => account.region === region);
+  const seen = new Set<string>();
+  return accounts.filter((account) => {
+    if (account.region !== region || seen.has(account.id)) return false;
+    seen.add(account.id);
+    return true;
+  });
 }
 
 function deriveRegionDeals(region: string | null, deals: HotDeal[]): HotDeal[] {
