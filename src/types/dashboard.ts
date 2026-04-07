@@ -20,6 +20,8 @@ export interface RegionData {
   velocity?: number;
   coordinates?: [number, number];
   isDummy?: boolean;
+  revenueM?: number;  // current month actual
+  revenueQ?: number;  // current quarter YTD actual
 }
 
 export interface IndividualKpi {

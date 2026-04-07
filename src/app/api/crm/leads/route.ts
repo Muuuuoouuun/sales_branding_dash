@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listLeads } from "@/lib/server/salesData";
+import { listLeads, createLead } from "@/lib/server/salesData";
 
 const STAGES = ["Lead", "Proposal", "Negotiation", "Contract"] as const;
 const TIME_ZONE = "Asia/Seoul";
@@ -287,4 +287,40 @@ export async function GET() {
     actions,
     leads,
   });
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { company, contact, region, stage, probability, revenue_potential, owner, last_contact, due_date, notes, deal_type, product_type, importance } = body;
+
+    if (!company || !stage) {
+      return NextResponse.json({ error: 'company and stage are required' }, { status: 400 });
+    }
+
+    if (!(STAGES as readonly string[]).includes(stage)) {
+      return NextResponse.json({ error: 'Invalid stage' }, { status: 400 });
+    }
+
+    const result = await createLead({
+      company: String(company),
+      contact: String(contact ?? ''),
+      region: String(region ?? ''),
+      stage: String(stage),
+      probability: Number(probability ?? 50),
+      revenue_potential: Number(revenue_potential ?? 0),
+      owner: String(owner ?? ''),
+      last_contact: String(last_contact ?? ''),
+      due_date: String(due_date ?? ''),
+      notes: notes ? String(notes) : null,
+      deal_type: deal_type ?? null,
+      product_type: product_type ? String(product_type) : null,
+      importance: importance ? String(importance) : null,
+    });
+
+    return NextResponse.json({ success: true, ...result });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

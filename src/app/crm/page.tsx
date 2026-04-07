@@ -1,21 +1,27 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  BarChart3,
   Brain,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
   Clock3,
+  Copy,
   Crosshair,
   Kanban,
   Loader2,
+  NotebookPen,
+  Pencil,
+  Plus,
   RefreshCw,
   Search,
   TableProperties,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -43,7 +49,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Card from "@/components/Card";
 import styles from "./page.module.css";
 
-type CrmTab = "killist" | "pipeline" | "leads";
+type CrmTab = "killist" | "pipeline" | "leads" | "analysis";
 type StageName = "Lead" | "Proposal" | "Negotiation" | "Contract";
 type SortDir = "asc" | "desc" | null;
 type SortKey =
@@ -332,6 +338,56 @@ function resolveDropStage(overId: UniqueIdentifier | undefined, leads: Lead[]): 
   return null;
 }
 
+function FilterDropdown({ label, values, activeValue, onChange, colorMap }: { label: string; values: string[]; activeValue: string; onChange: (value: string) => void; colorMap?: Record<string, string>; }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const isAll = activeValue === "All";
+  const activeColor = !isAll ? colorMap?.[activeValue] : undefined;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className={styles.filterDropdown}>
+      <button
+        type="button"
+        className={`${styles.filterDropdownTrigger} ${!isAll ? styles.filterDropdownTriggerActive : ""}`}
+        style={!isAll && activeColor ? { color: activeColor, borderColor: `${activeColor}44`, background: `${activeColor}10` } : undefined}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={styles.filterDropdownLabel}>{label}</span>
+        {!isAll && <span className={styles.filterDropdownValue} style={activeColor ? { color: activeColor } : undefined}>{activeValue}</span>}
+        <ChevronDown size={11} className={`${styles.filterDropdownChevron} ${open ? styles.filterDropdownChevronOpen : ""}`} />
+      </button>
+      {open && (
+        <div className={styles.filterDropdownMenu}>
+          {values.map((value) => {
+            const itemColor = colorMap?.[value];
+            const isActive = activeValue === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                className={`${styles.filterDropdownItem} ${isActive ? styles.filterDropdownItemActive : ""}`}
+                style={isActive && itemColor ? { color: itemColor } : itemColor ? { color: itemColor } : undefined}
+                onClick={() => { onChange(value); setOpen(false); }}
+              >
+                {isActive && <span className={styles.filterDropdownCheck}>✓</span>}
+                <span>{value}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CRMPage() {
   const { language } = require("@/components/SettingsProvider").useSettings();
   const [tab, setTab] = useState<CrmTab>("killist");
@@ -346,6 +402,9 @@ export default function CRMPage() {
   const [sortKey, setSortKey] = useState<SortKey>("probability");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [expandedLeadId, setExpandedLeadId] = useState<number | null>(null);
+  const [leadFormModal, setLeadFormModal] = useState<{ open: boolean; mode: "add" | "edit"; lead?: Lead }>({ open: false, mode: "add" });
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [routeFilterApplied, setRouteFilterApplied] = useState(false);
   const [aiModal, setAiModal] = useState<AiModalState>({
     open: false,
@@ -467,6 +526,20 @@ export default function CRMPage() {
     setAiModal((current) => ({ ...current, open: false }));
   }, []);
 
+  const handleDeleteLead = useCallback(async (leadId: number) => {
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      setDeleteConfirm(null);
+      if (expandedLeadId === leadId) setExpandedLeadId(null);
+      if (selectedLeadId === leadId) setSelectedLeadId(null);
+      await loadPayload(true);
+    } catch (err) {
+      console.error(err);
+      setError(language === "ko" ? "리드 삭제에 실패했습니다." : "Failed to delete lead.");
+    }
+  }, [expandedLeadId, selectedLeadId, loadPayload, language]);
+
   const ownerColors = useMemo(() => getOwnerColors(payload.scores), [payload.scores]);
   const summary = payload.summary ?? EMPTY_SUMMARY;
 
@@ -547,6 +620,9 @@ export default function CRMPage() {
         <div className={styles.heroMeta}>
           <span className={styles.heroBadge}>{payload.backend === "supabase" ? (language === "ko" ? "라이브 DB" : "Live DB") : (language === "ko" ? "CSV 폴백" : "CSV fallback")}</span>
           <span className={styles.heroBadge}>{language === "ko" ? `업데이트: ${formatDateTime(payload.generatedAt)}` : `Updated ${formatDateTime(payload.generatedAt)}`}</span>
+          <button className={styles.addLeadBtn} onClick={() => setLeadFormModal({ open: true, mode: "add" })} type="button">
+            <Plus size={14} /> {language === "ko" ? "신규 리드" : "New lead"}
+          </button>
           <button className={styles.refreshBtn} onClick={() => void loadPayload(true)} type="button">
             <RefreshCw size={14} /> {language === "ko" ? "새로고침" : "Refresh"}
           </button>
@@ -594,6 +670,7 @@ export default function CRMPage() {
           { id: "killist", label: language === "ko" ? "킬 리스트" : "Kill list", icon: <Crosshair size={14} /> },
           { id: "pipeline", label: language === "ko" ? "파이프라인" : "Pipeline", icon: <Kanban size={14} /> },
           { id: "leads", label: language === "ko" ? "리드" : "Leads", icon: <TableProperties size={14} /> },
+          { id: "analysis", label: language === "ko" ? "분석" : "Analysis", icon: <BarChart3 size={14} /> },
         ].map((item) => (
           <button key={item.id} className={`${styles.tabBtn} ${tab === item.id ? styles.tabBtnActive : ""}`} onClick={() => setTab(item.id as CrmTab)} type="button">
             {item.icon}<span>{item.label}</span>
@@ -607,10 +684,10 @@ export default function CRMPage() {
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={language === "ko" ? "회사, 담당자, 지역, 스테이지 또는 액션 검색" : "Search company, owner, region, stage, or action"} className={styles.searchInput} />
         </div>
         <div className={styles.filterWrap}>
-          <FilterChipGroup label={language === "ko" ? "소유자" : "Owner"} values={ownerOptions} activeValue={ownerFilter} onChange={setOwnerFilter} colorMap={ownerColors} />
-          <FilterChipGroup label={language === "ko" ? "스테이지" : "Stage"} values={["All", ...STAGE_ORDER]} activeValue={stageFilter} onChange={(value) => setStageFilter(value as "All" | StageName)} colorMap={Object.fromEntries(Object.entries(STAGE_META).map(([key, value]) => [key, value.color]))} />
-          <FilterChipGroup label={language === "ko" ? "딜 유형" : "Type"} values={["All", "New", "Renew"]} activeValue={dealTypeFilter} onChange={setDealTypeFilter} />
-          <FilterChipGroup label={language === "ko" ? "제품" : "Product"} values={productTypeOptions} activeValue={productTypeFilter} onChange={setProductTypeFilter} />
+          <FilterDropdown label={language === "ko" ? "소유자" : "Owner"} values={ownerOptions} activeValue={ownerFilter} onChange={setOwnerFilter} colorMap={ownerColors} />
+          <FilterDropdown label={language === "ko" ? "스테이지" : "Stage"} values={["All", ...STAGE_ORDER]} activeValue={stageFilter} onChange={(value) => setStageFilter(value as "All" | StageName)} colorMap={Object.fromEntries(Object.entries(STAGE_META).map(([key, value]) => [key, value.color]))} />
+          <FilterDropdown label={language === "ko" ? "딜 유형" : "Type"} values={["All", "New", "Renew"]} activeValue={dealTypeFilter} onChange={setDealTypeFilter} />
+          <FilterDropdown label={language === "ko" ? "제품" : "Product"} values={productTypeOptions} activeValue={productTypeFilter} onChange={setProductTypeFilter} />
         </div>
       </div>
 
@@ -674,7 +751,7 @@ export default function CRMPage() {
           </div>
           <div className={styles.railColumn}>
             <Card className={styles.panel} title={language === "ko" ? "딜 브리프" : "Deal brief"}>
-              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} language={language} /> : <p className={styles.emptyState}>{language === "ko" ? "리드를 선택하면 운영 컨텍스트를 확인할 수 있습니다." : "Select a lead to see the operating context."}</p>}
+              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} onEdit={(lead) => setLeadFormModal({ open: true, mode: "edit", lead })} onDelete={(lead) => setDeleteConfirm(lead.id)} language={language} /> : <p className={styles.emptyState}>{language === "ko" ? "리드를 선택하면 운영 컨텍스트를 확인할 수 있습니다." : "Select a lead to see the operating context."}</p>}
             </Card>
           </div>
         </div>
@@ -683,58 +760,96 @@ export default function CRMPage() {
       {tab === "pipeline" ? <PipelineBoard leads={filteredLeads} summary={summary} ownerColors={ownerColors} selectedLeadId={selectedLeadId} onOpenLead={(leadId) => setSelectedLeadId(leadId)} onUpdateStage={updateLeadStage} language={language} /> : null}
 
       {tab === "leads" ? (
-        <div className={styles.tabLayout}>
-          <div className={styles.mainColumn}>
-            <Card className={styles.panel} title={language === "ko" ? "리드 테이블" : "Lead table"}>
-              <div className={styles.panelHeaderMeta}>
-                <span>{filteredLeads.length} {language === "ko" ? "개 리드" : "leads shown"}</span>
-                <span>{formatMoney(filteredLeads.reduce((sum, lead) => sum + lead.revenue_potential, 0))}</span>
-                <span>{summary.openDeals} {language === "ko" ? "진행 /" : "open /"} {summary.wonDeals} {language === "ko" ? "완료" : "won"}</span>
-              </div>
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      {(([["company", language === "ko" ? "회사" : "Company"], ["contact", language === "ko" ? "담당자" : "Contact"], ["region", language === "ko" ? "지역" : "Region"], ["stage", language === "ko" ? "스테이지" : "Stage"], ["owner", language === "ko" ? "소유자" : "Owner"], ["probability", language === "ko" ? "확률" : "Conf."], ["revenue_potential", language === "ko" ? "잠재 매출" : "Potential"], ["due_date", language === "ko" ? "마감일" : "Due"]]) as [SortKey, string][]).map(([key, label]) => (
-                        <th key={key} className={styles.th} onClick={() => { if (sortKey === key) setSortDir((current) => (current === "asc" ? "desc" : current === "desc" ? null : "asc")); else { setSortKey(key); setSortDir("desc"); } }}>
-                          <span className={styles.thInner}>{label}<SortIcon activeKey={sortKey} activeDir={sortDir} thisKey={key} /></span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredLeads.map((lead) => {
-                      const stageMeta = STAGE_META[lead.stage];
-                      const ownerColor = ownerColors[lead.owner] ?? "#818cf8";
-                      return (
-                        <tr key={lead.id} className={`${styles.tr} ${selectedLead?.id === lead.id ? styles.trActive : ""}`} onClick={() => setSelectedLeadId(lead.id)}>
-                          <td className={styles.td}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                              <span>{lead.company}</span>
-                              {lead.importance === "KA" ? <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>KA</span> : null}
-                            </div>
+        <Card className={styles.panel} title={language === "ko" ? "리드 테이블" : "Lead table"}>
+          <div className={styles.panelHeaderMeta}>
+            <span>{filteredLeads.length} {language === "ko" ? "개 리드" : "leads shown"}</span>
+            <span>{formatMoney(filteredLeads.reduce((sum, lead) => sum + lead.revenue_potential, 0))}</span>
+            <span>{summary.openDeals} {language === "ko" ? "진행 /" : "open /"} {summary.wonDeals} {language === "ko" ? "완료" : "won"}</span>
+          </div>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  {(([["company", language === "ko" ? "회사" : "Company"], ["contact", language === "ko" ? "담당자" : "Contact"], ["region", language === "ko" ? "지역" : "Region"], ["stage", language === "ko" ? "스테이지" : "Stage"], ["owner", language === "ko" ? "소유자" : "Owner"], ["probability", language === "ko" ? "확률" : "Conf."], ["revenue_potential", language === "ko" ? "잠재 매출" : "Potential"], ["due_date", language === "ko" ? "마감일" : "Due"]]) as [SortKey, string][]).map(([key, label]) => (
+                    <th key={key} className={styles.th} onClick={() => { if (sortKey === key) setSortDir((current) => (current === "asc" ? "desc" : current === "desc" ? null : "asc")); else { setSortKey(key); setSortDir("desc"); } }}>
+                      <span className={styles.thInner}>{label}<SortIcon activeKey={sortKey} activeDir={sortDir} thisKey={key} /></span>
+                    </th>
+                  ))}
+                  <th className={styles.th} style={{ width: 32 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLeads.map((lead) => {
+                  const stageMeta = STAGE_META[lead.stage];
+                  const ownerColor = ownerColors[lead.owner] ?? "#818cf8";
+                  const isOpen = expandedLeadId === lead.id;
+                  return (
+                    <React.Fragment key={lead.id}>
+                      <tr
+                        className={`${styles.tr} ${isOpen ? styles.trActive : ""}`}
+                        onClick={() => setExpandedLeadId(isOpen ? null : lead.id)}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <td className={styles.td}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <span>{lead.company}</span>
+                            {lead.importance === "KA" ? <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>KA</span> : null}
+                          </div>
+                        </td>
+                        <td className={styles.td}>{lead.contact}</td>
+                        <td className={styles.td}>{lead.region}</td>
+                        <td className={styles.td}><span className={styles.stageTag} style={{ color: stageMeta.color, background: stageMeta.soft, borderColor: `${stageMeta.color}44` }}>{stageMeta.label}</span></td>
+                        <td className={styles.td}><span style={{ color: ownerColor, fontWeight: 700 }}>{lead.owner}</span></td>
+                        <td className={styles.td}><div className={styles.probCell}><span style={{ color: getLeadTone(lead.probability), fontWeight: 700, width: 42, display: "inline-block", textAlign: "right" }}>{lead.probability}%</span><div className={styles.miniBar}><div style={{ width: `${lead.probability}%`, height: "100%", borderRadius: 999, background: stageMeta.color }} /></div></div></td>
+                        <td className={styles.td}>{formatMoney(lead.revenue_potential)}</td>
+                        <td className={styles.td}><div className={styles.dateStack}><span className={styles.dueText}>{lead.due_label}</span><span className={styles.contactText}>{lead.deal_type ?? "-"} · {lead.product_type ?? "-"}</span></div></td>
+                        <td className={styles.td} style={{ textAlign: "center", paddingLeft: 4, paddingRight: 8 }}>
+                          <ChevronDown size={14} className={`${styles.rowChevron} ${isOpen ? styles.rowChevronOpen : ""}`} />
+                        </td>
+                      </tr>
+                      {isOpen ? (
+                        <tr className={styles.expandRow}>
+                          <td colSpan={9} className={styles.expandCell}>
+                            <LeadDropdownPanel
+                              lead={lead}
+                              ownerColor={ownerColor}
+                              stageMeta={stageMeta}
+                              onAi={() => void openAiScript(lead.id, lead.company)}
+                              onAdvance={() => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }}
+                              onEdit={() => setLeadFormModal({ open: true, mode: "edit", lead })}
+                              onDelete={() => setDeleteConfirm(lead.id)}
+                              language={language}
+                            />
                           </td>
-                          <td className={styles.td}>{lead.contact}</td>
-                          <td className={styles.td}>{lead.region}</td>
-                          <td className={styles.td}><span className={styles.stageTag} style={{ color: stageMeta.color, background: stageMeta.soft, borderColor: `${stageMeta.color}44` }}>{stageMeta.label}</span></td>
-                          <td className={styles.td}><span style={{ color: ownerColor, fontWeight: 700 }}>{lead.owner}</span></td>
-                          <td className={styles.td}><div className={styles.probCell}><span style={{ color: getLeadTone(lead.probability), fontWeight: 700, width: 42, display: "inline-block", textAlign: "right" }}>{lead.probability}%</span><div className={styles.miniBar}><div style={{ width: `${lead.probability}%`, height: "100%", borderRadius: 999, background: stageMeta.color }} /></div></div></td>
-                          <td className={styles.td}>{formatMoney(lead.revenue_potential)}</td>
-                          <td className={styles.td}><div className={styles.dateStack}><span className={styles.dueText}>{lead.due_label}</span><span className={styles.contactText}>{lead.deal_type ?? "-"} · {lead.product_type ?? "-"}</span></div></td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                      ) : null}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <div className={styles.railColumn}>
-            <Card className={styles.panel} title={language === "ko" ? "리드 상세" : "Lead detail"}>
-              {selectedLead ? <LeadDetailPanel lead={selectedLead} ownerColor={ownerColors[selectedLead.owner] ?? "#818cf8"} onAi={(lead) => void openAiScript(lead.id, lead.company)} onAdvance={(lead) => { const nextStage = getNextStage(lead.stage); if (nextStage) void updateLeadStage(lead.id, nextStage); }} language={language} /> : <p className={styles.emptyState}>{language === "ko" ? "행을 선택하면 딜 컨텍스트를 확인할 수 있습니다." : "Select a row to inspect the deal context."}</p>}
-            </Card>
-          </div>
-        </div>
+        </Card>
+      ) : null}
+
+      {tab === "analysis" ? <AnalysisSection summary={summary} scores={payload.scores} leads={payload.leads} language={language} /> : null}
+
+      {deleteConfirm !== null ? (
+        <DeleteConfirmModal
+          onConfirm={() => void handleDeleteLead(deleteConfirm)}
+          onCancel={() => setDeleteConfirm(null)}
+          language={language}
+        />
+      ) : null}
+
+      {leadFormModal.open ? (
+        <LeadFormModal
+          mode={leadFormModal.mode}
+          lead={leadFormModal.lead}
+          onClose={() => setLeadFormModal((v) => ({ ...v, open: false }))}
+          onSaved={() => { setLeadFormModal((v) => ({ ...v, open: false })); void loadPayload(true); }}
+          language={language}
+        />
       ) : null}
 
       {aiModal.open ? <AIScriptModal modal={aiModal} onClose={closeAiScript} language={language} /> : null}
@@ -753,29 +868,14 @@ function MetricCard({ label, value, sub, tone = "neutral" }: { label: string; va
   );
 }
 
-function FilterChipGroup({ label, values, activeValue, onChange, colorMap }: { label: string; values: string[]; activeValue: string; onChange: (value: string) => void; colorMap?: Record<string, string>; }) {
-  return (
-    <div className={styles.filterGroup}>
-      <span className={styles.filterLabel}>{label}</span>
-      {values.map((value) => {
-        const activeColor = colorMap?.[value];
-        const isActive = activeValue === value;
-        return (
-          <button key={value} className={`${styles.filterChip} ${isActive ? styles.filterChipActive : ""}`} style={isActive && activeColor ? { color: activeColor, borderColor: `${activeColor}55`, background: `${activeColor}12` } : undefined} onClick={() => onChange(value)} type="button">
-            {value}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function SortIcon({ activeKey, activeDir, thisKey }: { activeKey: SortKey; activeDir: SortDir; thisKey: SortKey; }) {
   if (activeKey !== thisKey || !activeDir) return <ChevronsUpDown size={11} className={styles.sortIcon} />;
   return activeDir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />;
 }
 
-function LeadDetailPanel({ lead, ownerColor, onAi, onAdvance, language = "en" }: { lead: Lead; ownerColor: string; onAi: (lead: Lead) => void; onAdvance: (lead: Lead) => void; language?: string; }) {
+const MEMO_KEY = (leadId: number) => `crm-memo-${leadId}`;
+
+function LeadDetailPanel({ lead, ownerColor, onAi, onAdvance, onEdit, onDelete, language = "en" }: { lead: Lead; ownerColor: string; onAi: (lead: Lead) => void; onAdvance: (lead: Lead) => void; onEdit: (lead: Lead) => void; onDelete: (lead: Lead) => void; language?: string; }) {
   const risk = getRiskLevel(lead);
   const nextStage = getNextStage(lead.stage);
 
@@ -786,7 +886,13 @@ function LeadDetailPanel({ lead, ownerColor, onAi, onAdvance, language = "en" }:
           <div className={styles.detailName}>{lead.company}</div>
           <div className={styles.detailMeta}><span style={{ color: ownerColor, fontWeight: 700 }}>{lead.owner}</span><span>•</span><span>{lead.region}</span></div>
         </div>
-        <div className={styles.detailScoreWrap}><span className={styles.detailScore}>{lead.probability}%</span><span className={styles.detailRisk} style={{ color: riskTone(risk) }}>{risk.toUpperCase()}</span></div>
+        <div className={styles.detailHeaderRight}>
+          <div className={styles.detailScoreWrap}><span className={styles.detailScore}>{lead.probability}%</span><span className={styles.detailRisk} style={{ color: riskTone(risk) }}>{risk.toUpperCase()}</span></div>
+          <div className={styles.detailIconBtns}>
+            <button className={styles.iconBtn} type="button" title={language === "ko" ? "편집" : "Edit"} onClick={() => onEdit(lead)}><Pencil size={13} /></button>
+            <button className={styles.iconBtnDanger} type="button" title={language === "ko" ? "삭제" : "Delete"} onClick={() => onDelete(lead)}><Trash2 size={13} /></button>
+          </div>
+        </div>
       </div>
 
       <div className={styles.detailList}>
@@ -802,7 +908,88 @@ function LeadDetailPanel({ lead, ownerColor, onAi, onAdvance, language = "en" }:
         <button className={styles.secondaryBtn} type="button" onClick={() => onAi(lead)}><Brain size={13} /> {language === "ko" ? "AI 스크립트" : "AI script"}</button>
         <button className={styles.primaryBtn} type="button" onClick={() => onAdvance(lead)} disabled={!nextStage}>{nextStage ? `${language === "ko" ? `${nextStage}(으)로 진행` : `Advance to ${nextStage}`}` : (language === "ko" ? "완료" : "Closed")}<ArrowRight size={13} /></button>
       </div>
+
       {lead.notes ? <div className={styles.noteItem}>{lead.notes}</div> : null}
+      <MemoPanel leadId={lead.id} initialNotes={null} language={language} rows={4} />
+    </div>
+  );
+}
+
+function LeadDropdownPanel({ lead, ownerColor, stageMeta, onAi, onAdvance, onEdit, onDelete, language = "en" }: {
+  lead: Lead;
+  ownerColor: string;
+  stageMeta: { label: string; color: string; soft: string };
+  onAi: () => void;
+  onAdvance: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  language?: string;
+}) {
+  const risk = getRiskLevel(lead);
+  const nextStage = getNextStage(lead.stage);
+
+  return (
+    <div className={styles.dropdownPanel}>
+      <div className={styles.dropdownAccent} style={{ background: stageMeta.color }} />
+      <div className={styles.dropdownGrid}>
+        {/* Col 1: 기본 정보 */}
+        <div className={styles.dropdownCol}>
+          <div className={styles.dropdownCompany}>
+            {lead.company}
+            {lead.importance === "KA" ? <span className={styles.dropdownKa}>KA</span> : null}
+          </div>
+          <div className={styles.dropdownContact}>{lead.contact} · <span style={{ color: ownerColor, fontWeight: 700 }}>{lead.owner}</span> · {lead.region}</div>
+          <div className={styles.dropdownInfoList}>
+            <div className={styles.dropdownInfoRow}><span>{language === "ko" ? "스테이지" : "Stage"}</span><span className={styles.stageTag} style={{ color: stageMeta.color, background: stageMeta.soft, borderColor: `${stageMeta.color}44` }}>{stageMeta.label}</span></div>
+            <div className={styles.dropdownInfoRow}><span>{language === "ko" ? "딜 유형" : "Type"}</span><strong>{lead.deal_type ?? "—"}</strong></div>
+            <div className={styles.dropdownInfoRow}><span>{language === "ko" ? "제품" : "Product"}</span><strong>{lead.product_type ?? "—"}</strong></div>
+          </div>
+          <div className={styles.dropdownRowActions}>
+            <button className={styles.iconBtn} type="button" title={language === "ko" ? "편집" : "Edit"} onClick={(e) => { e.stopPropagation(); onEdit(); }}><Pencil size={12} /></button>
+            <button className={styles.iconBtnDanger} type="button" title={language === "ko" ? "삭제" : "Delete"} onClick={(e) => { e.stopPropagation(); onDelete(); }}><Trash2 size={12} /></button>
+          </div>
+        </div>
+
+        {/* Col 2: 수치 */}
+        <div className={styles.dropdownCol}>
+          <div className={styles.dropdownStatGrid}>
+            <div className={styles.dropdownStat}>
+              <span className={styles.dropdownStatLabel}>{language === "ko" ? "확률" : "Confidence"}</span>
+              <span className={styles.dropdownStatValue} style={{ color: getLeadTone(lead.probability) }}>{lead.probability}%</span>
+            </div>
+            <div className={styles.dropdownStat}>
+              <span className={styles.dropdownStatLabel}>{language === "ko" ? "잠재 매출" : "Potential"}</span>
+              <span className={styles.dropdownStatValue}>{formatMoney(lead.revenue_potential)}</span>
+            </div>
+            <div className={styles.dropdownStat}>
+              <span className={styles.dropdownStatLabel}>{language === "ko" ? "리스크" : "Risk"}</span>
+              <span className={styles.dropdownStatValue} style={{ color: riskTone(risk) }}>{risk.toUpperCase()}</span>
+            </div>
+            <div className={styles.dropdownStat}>
+              <span className={styles.dropdownStatLabel}>{language === "ko" ? "최근 연락" : "Last contact"}</span>
+              <span className={styles.dropdownStatValue} style={{ fontSize: "0.78rem" }}>{formatDateTime(lead.last_contact)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Col 3: 액션 + 버튼 */}
+        <div className={styles.dropdownCol}>
+          <div className={styles.dropdownAction}>{lead.action}</div>
+          {lead.notes ? <div className={styles.noteItem} style={{ marginTop: "0.6rem" }}>{lead.notes}</div> : null}
+          <div className={styles.dropdownButtons}>
+            <button className={styles.secondaryBtn} type="button" onClick={(e) => { e.stopPropagation(); onAi(); }}><Brain size={13} /> {language === "ko" ? "AI 스크립트" : "AI script"}</button>
+            <button className={styles.primaryBtn} type="button" onClick={(e) => { e.stopPropagation(); onAdvance(); }} disabled={!nextStage}>
+              {nextStage ? (language === "ko" ? `${nextStage}(으)로 진행` : `Advance to ${nextStage}`) : (language === "ko" ? "완료" : "Closed")}
+              <ArrowRight size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Col 4: 메모 */}
+        <div className={styles.dropdownCol} onClick={(e) => e.stopPropagation()}>
+          <MemoPanel leadId={lead.id} initialNotes={null} language={language} rows={3} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -910,6 +1097,15 @@ function PipelineCard({ lead, ownerColor, selected = false, dragging = false, on
 
 function AIScriptModal({ modal, onClose, language = "en" }: { modal: AiModalState; onClose: () => void; language?: string; }) {
   const sections = modal.data?.callScript ? parseScriptSections(modal.data.callScript) : [];
+  const [copied, setCopied] = useState(false);
+
+  const copyScript = () => {
+    if (!modal.data?.callScript) return;
+    void navigator.clipboard.writeText(modal.data.callScript).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
@@ -919,7 +1115,14 @@ function AIScriptModal({ modal, onClose, language = "en" }: { modal: AiModalStat
             <div className={styles.modalEyebrow}>{language === "ko" ? "AI 콜 브리핑" : "AI call brief"}</div>
             <h3 className={styles.modalTitle}>{modal.company}</h3>
           </div>
-          <button className={styles.iconBtn} type="button" onClick={onClose}><X size={14} /></button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            {modal.data?.callScript && (
+              <button className={styles.copyBtn} type="button" onClick={copyScript}>
+                <Copy size={13} />{copied ? (language === "ko" ? "복사됨" : "Copied!") : (language === "ko" ? "복사" : "Copy")}
+              </button>
+            )}
+            <button className={styles.iconBtn} type="button" onClick={onClose}><X size={14} /></button>
+          </div>
         </div>
 
         {modal.loading ? (
@@ -950,6 +1153,224 @@ function AIScriptModal({ modal, onClose, language = "en" }: { modal: AiModalStat
           </>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+// ── MemoPanel ─────────────────────────────────────────────
+function MemoPanel({ leadId, initialNotes, language = "en", rows = 3 }: { leadId: number; initialNotes: string | null; language?: string; rows?: number; }) {
+  const [memo, setMemo] = useState("");
+  const [draft, setDraft] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    const local = typeof window !== "undefined" ? (localStorage.getItem(MEMO_KEY(leadId)) ?? "") : "";
+    const initial = initialNotes ?? local;
+    setMemo(initial); setDraft(initial); setEditing(false); setSavedAt(null);
+  }, [leadId, initialNotes]);
+
+  const saveMemo = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}/notes`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: draft || null }) });
+      const json = await res.json() as { savedAt?: string };
+      setMemo(draft); setSavedAt(json.savedAt ?? new Date().toISOString());
+      localStorage.setItem(MEMO_KEY(leadId), draft);
+    } catch { localStorage.setItem(MEMO_KEY(leadId), draft); setMemo(draft); }
+    finally { setSaving(false); setEditing(false); }
+  };
+
+  const deleteMemo = async () => {
+    setSaving(true);
+    try {
+      await fetch(`/api/crm/leads/${leadId}/notes`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: null }) });
+      localStorage.removeItem(MEMO_KEY(leadId)); setMemo(""); setDraft(""); setSavedAt(null);
+    } catch { localStorage.removeItem(MEMO_KEY(leadId)); setMemo(""); setDraft(""); }
+    finally { setSaving(false); setEditing(false); }
+  };
+
+  return (
+    <div className={styles.memoSection} style={{ marginTop: 0, paddingTop: 0, borderTop: "none" }}>
+      <div className={styles.memoHeader}>
+        <span className={styles.memoLabel}><NotebookPen size={13} />{language === "ko" ? "메모" : "Notes"}</span>
+        {savedAt && !editing && <span className={styles.memoTimestamp}>{new Date(savedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+        {!editing && <button className={styles.memoEditBtn} type="button" onClick={() => { setDraft(memo); setEditing(true); }}>{memo ? (language === "ko" ? "편집" : "Edit") : (language === "ko" ? "+ 추가" : "+ Add")}</button>}
+      </div>
+      {editing ? (
+        <div className={styles.memoEditWrap}>
+          <textarea className={styles.memoTextarea} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={language === "ko" ? "메모를 작성하세요..." : "Write a note..."} rows={rows} autoFocus disabled={saving} />
+          <div className={styles.memoActions}>
+            {memo && <button className={styles.memoDeleteBtn} type="button" onClick={() => void deleteMemo()} disabled={saving}>{language === "ko" ? "삭제" : "Delete"}</button>}
+            <button className={styles.memoCancelBtn} type="button" onClick={() => { setDraft(memo); setEditing(false); }} disabled={saving}>{language === "ko" ? "취소" : "Cancel"}</button>
+            <button className={styles.memoSaveBtn} type="button" onClick={() => void saveMemo()} disabled={saving}>{saving ? <Loader2 size={11} className={styles.spinner} /> : null}{language === "ko" ? "저장" : "Save"}</button>
+          </div>
+        </div>
+      ) : memo ? <div className={styles.memoText}>{memo}</div> : null}
+    </div>
+  );
+}
+
+// ── LeadFormModal ─────────────────────────────────────────
+const STAGE_ORDER_CONST: readonly StageName[] = ["Lead", "Proposal", "Negotiation", "Contract"];
+const EMPTY_FORM = { company: "", contact: "", region: "", stage: "Lead" as StageName, probability: 50, revenue_potential: 0, owner: "", last_contact: "", due_date: "", deal_type: "" as "New" | "Renew" | "", product_type: "", importance: "" };
+
+function LeadFormModal({ mode, lead, onClose, onSaved, language = "en" }: { mode: "add" | "edit"; lead?: Lead; onClose: () => void; onSaved: () => void; language?: string; }) {
+  const [form, setForm] = useState(lead ? { company: lead.company, contact: lead.contact, region: lead.region, stage: lead.stage, probability: lead.probability, revenue_potential: lead.revenue_potential, owner: lead.owner, last_contact: lead.last_contact ? lead.last_contact.slice(0, 10) : "", due_date: lead.due_date ? lead.due_date.slice(0, 10) : "", deal_type: (lead.deal_type ?? "") as "New" | "Renew" | "", product_type: lead.product_type ?? "", importance: lead.importance ?? "" } : { ...EMPTY_FORM });
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setSubmitting(true); setFormError(null);
+    const body = { ...form, probability: Number(form.probability), revenue_potential: Number(form.revenue_potential), deal_type: form.deal_type || null, product_type: form.product_type || null, importance: form.importance || null, last_contact: form.last_contact || null };
+    try {
+      const res = await fetch(mode === "add" ? "/api/crm/leads" : `/api/crm/leads/${lead!.id}`, { method: mode === "add" ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const j = await res.json() as { error?: string }; throw new Error(j.error ?? "Failed"); }
+      onSaved();
+    } catch (err) { setFormError(err instanceof Error ? err.message : "저장 실패"); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className={styles.modalBackdrop} onClick={onClose}>
+      <div className={styles.modal} style={{ maxWidth: 580 }} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <div>
+            <div className={styles.modalEyebrow}>{mode === "add" ? (language === "ko" ? "신규 리드" : "New lead") : (language === "ko" ? "리드 편집" : "Edit lead")}</div>
+            <h3 className={styles.modalTitle}>{mode === "add" ? (language === "ko" ? "리드 추가" : "Add Lead") : form.company}</h3>
+          </div>
+          <button className={styles.iconBtn} type="button" onClick={onClose}><X size={14} /></button>
+        </div>
+        {formError && <div className={styles.errorBanner}><AlertTriangle size={14} /><span>{formError}</span></div>}
+        <form onSubmit={(e) => void handleSubmit(e)} className={styles.leadForm}>
+          <div className={styles.formGrid}>
+            {([["company", language === "ko" ? "회사 *" : "Company *", "text", true], ["contact", language === "ko" ? "담당자" : "Contact", "text", false], ["region", language === "ko" ? "지역" : "Region", "text", false], ["owner", language === "ko" ? "소유자" : "Owner", "text", false], ["probability", language === "ko" ? "확률 (%)" : "Probability (%)", "number", false], ["revenue_potential", language === "ko" ? "잠재 매출" : "Revenue potential", "number", false], ["due_date", language === "ko" ? "마감일" : "Due date", "date", false], ["last_contact", language === "ko" ? "최근 연락" : "Last contact", "date", false]] as [string, string, string, boolean][]).map(([key, label, type, required]) => (
+              <div key={key} className={styles.formField}>
+                <label className={styles.formLabel}>{label}</label>
+                <input className={styles.formInput} type={type} required={required} value={String(form[key as keyof typeof form])} onChange={(e) => set(key, e.target.value)} min={type === "number" ? 0 : undefined} max={key === "probability" ? 100 : undefined} />
+              </div>
+            ))}
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>{language === "ko" ? "스테이지 *" : "Stage *"}</label>
+              <select className={styles.formInput} required value={form.stage} onChange={(e) => set("stage", e.target.value)}>{STAGE_ORDER_CONST.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+            </div>
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>{language === "ko" ? "딜 유형" : "Deal type"}</label>
+              <select className={styles.formInput} value={form.deal_type} onChange={(e) => set("deal_type", e.target.value)}><option value="">—</option><option value="New">New</option><option value="Renew">Renew</option></select>
+            </div>
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>{language === "ko" ? "중요도" : "Importance"}</label>
+              <select className={styles.formInput} value={form.importance} onChange={(e) => set("importance", e.target.value)}><option value="">—</option><option value="KA">KA</option><option value="A">A</option><option value="B">B</option></select>
+            </div>
+            <div className={styles.formField} style={{ gridColumn: "span 2" }}>
+              <label className={styles.formLabel}>{language === "ko" ? "제품" : "Product"}</label>
+              <input className={styles.formInput} value={form.product_type} onChange={(e) => set("product_type", e.target.value)} />
+            </div>
+          </div>
+          <div className={styles.formActions}>
+            <button type="button" className={styles.memoCancelBtn} onClick={onClose} disabled={submitting}>{language === "ko" ? "취소" : "Cancel"}</button>
+            <button type="submit" className={styles.memoSaveBtn} disabled={submitting}>{submitting ? <Loader2 size={13} className={styles.spinner} /> : null}{mode === "add" ? (language === "ko" ? "추가" : "Add") : (language === "ko" ? "저장" : "Save")}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── DeleteConfirmModal ────────────────────────────────────
+function DeleteConfirmModal({ onConfirm, onCancel, language = "en" }: { onConfirm: () => void; onCancel: () => void; language?: string; }) {
+  return (
+    <div className={styles.modalBackdrop} onClick={onCancel}>
+      <div className={styles.deleteConfirm} onClick={(e) => e.stopPropagation()}>
+        <Trash2 size={22} style={{ color: "#ef4444" }} />
+        <div className={styles.deleteConfirmText}>
+          <strong>{language === "ko" ? "리드를 삭제하시겠습니까?" : "Delete this lead?"}</strong>
+          <span>{language === "ko" ? "이 작업은 되돌릴 수 없습니다." : "This action cannot be undone."}</span>
+        </div>
+        <div className={styles.deleteConfirmBtns}>
+          <button className={styles.memoCancelBtn} type="button" onClick={onCancel}>{language === "ko" ? "취소" : "Cancel"}</button>
+          <button className={styles.deleteBtn} type="button" onClick={onConfirm}>{language === "ko" ? "삭제" : "Delete"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AnalysisSection ───────────────────────────────────────
+function AnalysisSection({ summary, scores, leads, language = "en" }: { summary: CrmSummary; scores: FocusScore[]; leads: Lead[]; language?: string; }) {
+  const totalLeads = Object.values(summary.stageCounts).reduce((a, b) => a + b, 0);
+  const maxStageCount = Math.max(...Object.values(summary.stageCounts), 1);
+  const maxOwnerWon = Math.max(...scores.map((s) => s.won), 1);
+  const maxOwnerPipe = Math.max(...scores.map((s) => s.pipeline), 1);
+  const regionCounts = leads.reduce<Record<string, number>>((acc, l) => { acc[l.region] = (acc[l.region] ?? 0) + 1; return acc; }, {});
+  const regionEntries = Object.entries(regionCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxRegion = Math.max(...regionEntries.map((e) => e[1]), 1);
+
+  return (
+    <div className={styles.analysisWrap}>
+      <Card className={styles.panel} title={language === "ko" ? "스테이지 깔때기" : "Stage funnel"}>
+        <div className={styles.funnelWrap}>
+          {STAGE_ORDER.map((stage) => {
+            const count = summary.stageCounts[stage];
+            const value = summary.stageValues[stage];
+            const pct = Math.round((count / Math.max(totalLeads, 1)) * 100);
+            const barPct = Math.round((count / maxStageCount) * 100);
+            const meta = STAGE_META[stage];
+            return (
+              <div key={stage} className={styles.funnelRow}>
+                <div className={styles.funnelLabel}><span className={styles.funnelStage} style={{ color: meta.color }}>{stage}</span><span className={styles.funnelCount}>{count} {language === "ko" ? "딜" : "deals"}</span></div>
+                <div className={styles.funnelBarWrap}><div className={styles.funnelBar} style={{ width: `${barPct}%`, background: meta.color }} /></div>
+                <div className={styles.funnelRight}><span className={styles.funnelPct}>{pct}%</span><span className={styles.funnelValue}>{formatMoney(value)}</span></div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <div className={styles.analysisRow}>
+        <Card className={styles.panel} title={language === "ko" ? "영업자 성과" : "Owner performance"}>
+          <div className={styles.ownerBars}>
+            {scores.map((score) => {
+              const color = score.score >= 80 ? "#22c55e" : score.score >= 55 ? "#f59e0b" : "#ef4444";
+              return (
+                <div key={score.name} className={styles.ownerBarItem}>
+                  <div className={styles.ownerBarHeader}><span className={styles.ownerBarName}>{score.name}</span><span className={styles.ownerBarScore} style={{ color }}>{score.score}</span></div>
+                  <div className={styles.ownerBarRow}><span className={styles.ownerBarLabel}>{language === "ko" ? "수주" : "Won"}</span><div className={styles.ownerBarTrack}><div className={styles.ownerBarFill} style={{ width: `${Math.round((score.won / maxOwnerWon) * 100)}%`, background: "#22c55e" }} /></div><span className={styles.ownerBarVal}>{formatMoney(score.won)}</span></div>
+                  <div className={styles.ownerBarRow}><span className={styles.ownerBarLabel}>{language === "ko" ? "파이프" : "Pipe"}</span><div className={styles.ownerBarTrack}><div className={styles.ownerBarFill} style={{ width: `${Math.round((score.pipeline / maxOwnerPipe) * 100)}%`, background: "#6366f1" }} /></div><span className={styles.ownerBarVal}>{formatMoney(score.pipeline)}</span></div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card className={styles.panel} title={language === "ko" ? "지역별 딜 분포" : "Deals by region"}>
+          <div className={styles.regionBars}>
+            {regionEntries.map(([region, count]) => (
+              <div key={region} className={styles.regionBarItem}>
+                <div className={styles.regionBarHeader}><span className={styles.regionBarName}>{region}</span><span className={styles.regionBarCount}>{count}</span></div>
+                <div className={styles.ownerBarTrack}><div className={styles.ownerBarFill} style={{ width: `${Math.round((count / maxRegion) * 100)}%`, background: "#6366f1" }} /></div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <Card className={styles.panel} title="New vs Renew">
+        <div className={styles.dealTypeSummary}>
+          {([["New", summary.newDeals, summary.newWon, summary.newPipeline, "#8b5cf6"] as const, ["Renew", summary.renewDeals, summary.renewWon, summary.renewPipeline, "#06b6d4"] as const]).map(([type, deals, won, pipe, color]) => (
+            <div key={type} className={styles.dealTypeCard} style={{ borderColor: `${color}33` }}>
+              <div className={styles.dealTypeLabel} style={{ color }}>{type}</div>
+              <div className={styles.dealTypeGrid}>
+                <div className={styles.dealTypeStat}><span>{language === "ko" ? "딜 수" : "Deals"}</span><strong>{deals}</strong></div>
+                <div className={styles.dealTypeStat}><span>{language === "ko" ? "수주" : "Won"}</span><strong style={{ color: "#22c55e" }}>{formatMoney(won)}</strong></div>
+                <div className={styles.dealTypeStat}><span>{language === "ko" ? "파이프라인" : "Pipeline"}</span><strong style={{ color }}>{formatMoney(pipe)}</strong></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }

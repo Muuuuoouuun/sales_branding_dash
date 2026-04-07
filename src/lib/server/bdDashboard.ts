@@ -144,7 +144,10 @@ interface DashboardCacheEntry {
 interface RevenueSummary {
   managerBuckets: Map<string, ManagerBucket>;
   regionCounts: Map<string, { total: number; activated: number }>;
-  regionRevenue: Map<string, number>; // confirmed (firstPayment) revenue per region
+  regionRevenue: Map<string, number>; // actual paid-to-date per region (monthTotals sum)
+  regionRevenueM: Map<string, number>; // current month only
+  regionRevenueQ: Map<string, number>; // current quarter YTD
+  regionTarget: Map<string, number>;  // contract target per region (sum of M열 all deals)
   monthlyActuals: Map<number, number>;
   activatedCount: number;
   newRevenue: number;
@@ -759,7 +762,10 @@ function buildHotDeals(accounts: FocusAccount[]): HotDeal[] {
   }));
 }
 
-function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
+function summarizeRevenueRows(revenueRows: RevenueRow[], calendarMonth: number): RevenueSummary {
+  // Fiscal position helper: Apr=0, May=1, ..., Mar=11
+  const fiscalPos = (m: number) => (m - 4 + 12) % 12;
+  const currentFiscalPos = fiscalPos(calendarMonth);
   // Track all 12 fiscal months for yearly view
   const monthlyActuals = new Map<number, number>(
     DSH_FISCAL_MONTHS.map((month) => [month, 0]),
@@ -767,6 +773,10 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
   const managerBuckets = new Map<string, ManagerBucket>();
   const regionCounts = new Map<string, { total: number; activated: number }>();
   const regionRevenue = new Map<string, number>();
+  const regionRevenueM = new Map<string, number>();
+  const regionRevenueQ = new Map<string, number>();
+  const quarterMonthsSet = new Set(getCurrentFiscalQuarterMonths());
+  const regionTarget = new Map<string, number>();
 
   let activatedCount = 0;
   let newRevenue = 0;
@@ -780,9 +790,28 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
     currentRegion.activated += row.firstPayment ? 1 : 0;
     regionCounts.set(row.location, currentRegion);
 
-    // Confirmed revenue per region (firstPayment = red = actual)
+    // Heatmap target: sum of contract targets (M열) for all deals in the region
+    regionTarget.set(row.location, (regionTarget.get(row.location) ?? 0) + row.amount);
+
+    // Heatmap revenue: sum of monthly actuals up to current month (confirmed deals only)
     if (row.firstPayment) {
-      regionRevenue.set(row.location, (regionRevenue.get(row.location) ?? 0) + row.amount);
+      const actualToDate = Object.entries(row.monthTotals)
+        .filter(([m]) => fiscalPos(Number(m)) <= currentFiscalPos)
+        .reduce((sum, [, v]) => sum + v, 0);
+      regionRevenue.set(row.location, (regionRevenue.get(row.location) ?? 0) + actualToDate);
+
+      // M: current month only
+      const actualM = row.monthTotals[calendarMonth] ?? 0;
+      regionRevenueM.set(row.location, (regionRevenueM.get(row.location) ?? 0) + actualM);
+
+      // Q: quarter months up to and including current month
+      const actualQ = Object.entries(row.monthTotals)
+        .filter(([m]) => {
+          const month = Number(m);
+          return quarterMonthsSet.has(month) && fiscalPos(month) <= currentFiscalPos;
+        })
+        .reduce((sum, [, v]) => sum + v, 0);
+      regionRevenueQ.set(row.location, (regionRevenueQ.get(row.location) ?? 0) + actualQ);
     }
 
     const currentManager = managerBuckets.get(row.manager) ?? createEmptyManagerBucket();
@@ -833,6 +862,9 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
     managerBuckets,
     regionCounts,
     regionRevenue,
+    regionRevenueM,
+    regionRevenueQ,
+    regionTarget,
     monthlyActuals,
     activatedCount,
     newRevenue,
@@ -1011,41 +1043,49 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
 function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardDataSource): DashboardPayload {
   const { fiscalQuarter, calendarMonth } = getFiscalCalendarInfo();
   const dshTargets = parseDshSheet(sheetRows[DSH_RANGE], fiscalQuarter);
-  const { regional } = parseSegRows(sheetRows[SEG_RANGE]);
   const revenueRows = parseRevenueRows(sheetRows[REV_RANGE]);
   const kpiByMember = parseKpiRows(sheetRows[KPI_RANGE]);
 
-  if (regional.length === 0 || revenueRows.length === 0) {
+  if (revenueRows.length === 0) {
     return buildMinimalFallbackDashboard();
   }
 
-  // ── Revenue source: DSH Status (confirmed revenue) ──
-  // Fall back to SEG totals only if DSH parsing found nothing.
-  const bdQuarterTarget = dshTargets.bdQuarterlyTarget || regional.reduce((s, r) => s + r.target, 0);
+  const revenueSummary = summarizeRevenueRows(revenueRows, calendarMonth);
+
+  // ── Heatmap regional data — built entirely from REV sheet ──
+  // target = sum of contract amounts (M열) per region (all deals)
+  // revenue = sum of monthly actuals up to current month (confirmed/firstPayment deals only)
+  const regionalWithCounts: RegionData[] = Array.from(revenueSummary.regionTarget.entries())
+    .filter(([name]) => MAP_VISIBLE_REGIONS.has(name))
+    .map(([name, target]) => {
+      const revenue = revenueSummary.regionRevenue.get(name) ?? 0;
+      const revenueM = revenueSummary.regionRevenueM.get(name) ?? 0;
+      const revenueQ = revenueSummary.regionRevenueQ.get(name) ?? 0;
+      const counts = revenueSummary.regionCounts.get(name) ?? { total: 0, activated: 0 };
+      const progress = target > 0 ? Math.round((revenue / target) * 100) : 0;
+      const velocity = counts.total > 0 ? Math.round((counts.activated / counts.total) * 100) : 0;
+      return {
+        name,
+        revenue,
+        revenueM,
+        revenueQ,
+        target,
+        progress,
+        deals_active: counts.total,
+        deals_closed: counts.activated,
+        velocity,
+        status: getRegionStatus(progress),
+        coordinates: REGION_COORDINATES[name],
+      } satisfies RegionData;
+    })
+    .sort((a, b) => b.revenue - a.revenue);
+
+  // ── Team-level targets/actuals — DSH is source of truth, REV as fallback ──
+  const bdQuarterTarget = dshTargets.bdQuarterlyTarget ||
+    Array.from(revenueSummary.regionTarget.values()).reduce((s, v) => s + v, 0);
   const bdYearlyTarget = dshTargets.bdYearlyTarget || bdQuarterTarget * 4;
-  const totalRevenue = dshTargets.bdQuarterlyActual || regional.reduce((s, r) => s + r.revenue, 0);
-
-  const revenueSummary = summarizeRevenueRows(revenueRows);
-  const regionalWithCounts = regional.map((row) => {
-    const counts = revenueSummary.regionCounts.get(row.name) ?? { total: 0, activated: 0 };
-    const velocity = counts.total > 0 ? Math.round((counts.activated / counts.total) * 100) : 0;
-
-    // Use confirmed (firstPayment) revenue from REV sheet as actual.
-    // Falls back to SEG status revenue only when no confirmed deal exists for that region.
-    const confirmedRevenue = revenueSummary.regionRevenue.get(row.name);
-    const revenue = confirmedRevenue !== undefined ? confirmedRevenue : row.revenue;
-    const progress = row.target > 0 ? Math.round((revenue / row.target) * 100) : 0;
-
-    return {
-      ...row,
-      revenue,
-      progress,
-      status: getRegionStatus(progress),
-      deals_active: counts.total,
-      deals_closed: counts.activated,
-      velocity,
-    };
-  });
+  const totalRevenue = dshTargets.bdQuarterlyActual ||
+    Array.from(revenueSummary.regionRevenue.values()).reduce((s, v) => s + v, 0);
 
   const managerNames = Array.from(
     new Set([
@@ -1163,6 +1203,8 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
     currentMonth: calendarMonth,
   };
 
+  // No slice limit — all accounts are passed so region drilldown can filter by region
+  // and show all confirmed + pipeline deals for that area.
   const focusAccounts = revenueRows
     .slice()
     .sort((left, right) => {
@@ -1177,13 +1219,11 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
 
       return right.amount - left.amount;
     })
-    .slice(0, 6)
     .map(buildFocusAccount);
 
   const topAccounts = revenueRows
     .slice()
     .sort((left, right) => right.amount - left.amount)
-    .slice(0, 6)
     .map(buildFocusAccount);
 
   const quarterMonths = getCurrentFiscalQuarterMonths();

@@ -2,10 +2,10 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
-  Clock,
   MapPin,
   Minus,
   Target,
@@ -59,13 +59,29 @@ interface Props {
 }
 
 // ── 데이터 파생 유틸 ────────────────────────────────────────────
+
+// 확정 계약의 실납부액: monthTotals에서 현재 회계월까지 합산
+// acc.amount(M열)는 계약 목표치이므로 실납부액과 다름
+function calcActualPaid(acc: FocusAccount): number {
+  if (!acc.monthTotals || Object.keys(acc.monthTotals).length === 0) {
+    return acc.amount; // monthTotals 없으면 계약액 폴백
+  }
+  const now = new Date();
+  const calendarMonth = now.getMonth() + 1; // 1-12
+  const fiscalPos = (m: number) => (m - 4 + 12) % 12;
+  const currentFiscalPos = fiscalPos(calendarMonth);
+  return Object.entries(acc.monthTotals)
+    .filter(([m]) => fiscalPos(Number(m)) <= currentFiscalPos)
+    .reduce((sum, [, v]) => sum + v, 0);
+}
+
 function deriveManagerStats(accounts: FocusAccount[]) {
   const map = new Map<string, { confirmed: number; pipeline: number; deals: number }>();
   for (const acc of accounts) {
     const entry = map.get(acc.manager) ?? { confirmed: 0, pipeline: 0, deals: 0 };
     entry.deals += 1;
     if (acc.firstPayment) {
-      entry.confirmed += acc.amount;
+      entry.confirmed += calcActualPaid(acc);
     } else {
       entry.pipeline += Math.round(acc.amount * (acc.probability / 100));
     }
@@ -139,6 +155,8 @@ export default function RegionDrilldown({
   const rank = sortedRegions.findIndex((r) => r.name === regionName) + 1;
 
   const TrendIcon = progress >= 80 ? TrendingUp : progress >= 60 ? Minus : TrendingDown;
+
+  const [activeTab, setActiveTab] = useState<"action" | "confirmed" | "pipeline">("confirmed");
 
   const confirmedAccounts = accounts.filter((a) => Boolean(a.firstPayment));
   const pipelineAccounts = accounts
@@ -267,108 +285,114 @@ export default function RegionDrilldown({
           {/* ── 메인 콘텐츠 ── */}
           <div className={styles.main}>
 
-            {/* 실행 포인트 */}
-            <section className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <h3>실행 포인트</h3>
-                <span className={styles.sectionHint}>담당 매니저가 지금 해야 할 것</span>
-              </div>
-              <div className={styles.priorityList}>
-                {priorityMoves.map((item) => (
-                  <div key={item} className={styles.priorityItem}>
-                    <Target size={14} style={{ flexShrink: 0, marginTop: 2 }} />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
+            {/* Tab nav */}
+            <div className={styles.tabNav}>
+              <button
+                type="button"
+                className={`${styles.tabBtn} ${activeTab === "action" ? styles.tabBtnActive : ""}`}
+                onClick={() => setActiveTab("action")}
+              >
+                실행 포인트
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabBtn} ${activeTab === "confirmed" ? styles.tabBtnActive : ""}`}
+                onClick={() => setActiveTab("confirmed")}
+              >
+                확정 계약 <span className={styles.tabCount}>{confirmedAccounts.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabBtn} ${activeTab === "pipeline" ? styles.tabBtnActive : ""}`}
+                onClick={() => setActiveTab("pipeline")}
+              >
+                파이프라인 <span className={styles.tabCount}>{pipelineAccounts.length}</span>
+              </button>
+            </div>
 
-            {/* 확정 계약 */}
-            <section className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <h3 style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <CheckCircle2 size={15} style={{ color: "#22c55e" }} />
-                  확정 계약
-                  <span className={styles.countBadge} style={{ background: "#22c55e18", color: "#22c55e", border: "1px solid #22c55e33" }}>
-                    {confirmedAccounts.length}건
-                  </span>
-                </h3>
-                <span className={styles.sectionHint}>firstPayment 완료된 딜</span>
-              </div>
+            {/* Tab panels */}
+            {activeTab === "action" && (
+              <section className={styles.section}>
+                <div className={styles.priorityList}>
+                  {priorityMoves.map((item) => (
+                    <div key={item} className={styles.priorityItem}>
+                      <Target size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
-              {confirmedAccounts.length === 0 ? (
-                <p className={styles.emptyState}>이 지역의 확정 계약이 아직 없습니다.</p>
-              ) : (
-                <div className={styles.accountList}>
-                  {confirmedAccounts
-                    .sort((a, b) => b.amount - a.amount)
-                    .map((acc) => (
-                      <div key={acc.id} className={styles.accountCard}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className={styles.accountName}>{acc.name}</div>
-                          <div className={styles.accountMeta}>
-                            {acc.manager} · {acc.type} · {acc.status}
-                            {acc.importance && ` · ${acc.importance}`}
+            {activeTab === "confirmed" && (
+              <section className={styles.section}>
+                {confirmedAccounts.length === 0 ? (
+                  <p className={styles.emptyState}>이 지역의 확정 계약이 아직 없습니다.</p>
+                ) : (
+                  <div className={styles.accountList}>
+                    {confirmedAccounts
+                      .sort((a, b) => b.amount - a.amount)
+                      .map((acc) => (
+                        <div key={acc.id} className={styles.accountCard}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className={styles.accountName}>{acc.name}</div>
+                            <div className={styles.accountMeta}>
+                              {acc.manager} · {acc.type} · {acc.status}
+                              {acc.importance && ` · ${acc.importance}`}
+                            </div>
                           </div>
-                        </div>
-                        <div className={styles.accountRight}>
-                          <strong className={`${styles.accountAmount} metricValue`}>
-                            {formatRevenue(acc.amount)}
-                          </strong>
-                          {acc.firstPayment && (
-                            <span className={styles.confirmedDate}>
-                              <CheckCircle2 size={10} /> {acc.firstPayment}
+                          <div className={styles.accountRight}>
+                            <strong className={`${styles.accountAmount} metricValue`}>
+                              {formatRevenue(calcActualPaid(acc))}
+                            </strong>
+                            <span className={styles.confirmedDate} style={{ color: "var(--text-muted)", fontSize: "0.65rem" }}>
+                              목표 {formatRevenue(acc.amount)}
                             </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </section>
-
-            {/* 파이프라인 딜 */}
-            <section className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <h3 style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <Clock size={15} style={{ color: "var(--primary)" }} />
-                  파이프라인
-                  <span className={styles.countBadge} style={{ background: "var(--primary-soft)", color: "var(--primary-foreground)", border: "1px solid var(--primary-border)" }}>
-                    {pipelineAccounts.length}건
-                  </span>
-                </h3>
-                <span className={styles.sectionHint}>확률 높은 순 정렬</span>
-              </div>
-
-              {pipelineAccounts.length === 0 ? (
-                <p className={styles.emptyState}>이 지역의 파이프라인 딜이 없습니다.</p>
-              ) : (
-                <div className={styles.accountList}>
-                  {pipelineAccounts.map((acc) => {
-                    const probColor = acc.probability >= 80 ? "#22c55e" : acc.probability >= 60 ? "#f59e0b" : "#6b7280";
-                    return (
-                      <div key={acc.id} className={styles.accountCard}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className={styles.accountName}>{acc.name}</div>
-                          <div className={styles.accountMeta}>
-                            {acc.manager} · {acc.type} · {acc.status}
-                            {acc.remark ? ` — ${acc.remark}` : ""}
+                            {acc.firstPayment && (
+                              <span className={styles.confirmedDate}>
+                                <CheckCircle2 size={10} /> {acc.firstPayment}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <div className={styles.accountRight}>
-                          <strong className={`${styles.accountAmount} metricValue`}>
-                            {formatRevenue(acc.amount)}
-                          </strong>
-                          <span className={styles.accountProb} style={{ color: probColor }}>
-                            {acc.probability}% 확률
-                          </span>
+                      ))}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {activeTab === "pipeline" && (
+              <section className={styles.section}>
+                {pipelineAccounts.length === 0 ? (
+                  <p className={styles.emptyState}>이 지역의 파이프라인 딜이 없습니다.</p>
+                ) : (
+                  <div className={styles.accountList}>
+                    {pipelineAccounts.map((acc) => {
+                      const probColor = acc.probability >= 80 ? "#22c55e" : acc.probability >= 60 ? "#f59e0b" : "#6b7280";
+                      return (
+                        <div key={acc.id} className={styles.accountCard}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className={styles.accountName}>{acc.name}</div>
+                            <div className={styles.accountMeta}>
+                              {acc.manager} · {acc.type} · {acc.status}
+                              {acc.remark ? ` — ${acc.remark}` : ""}
+                            </div>
+                          </div>
+                          <div className={styles.accountRight}>
+                            <strong className={`${styles.accountAmount} metricValue`}>
+                              {formatRevenue(acc.amount)}
+                            </strong>
+                            <span className={styles.accountProb} style={{ color: probColor }}>
+                              {acc.probability}% 확률
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
 
             <div className={styles.footerActions}>
               <Link className={styles.crmLink} href={`/crm?region=${encodeURIComponent(regionName)}`}>

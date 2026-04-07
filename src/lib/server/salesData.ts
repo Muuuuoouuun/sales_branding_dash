@@ -323,6 +323,69 @@ export async function listLeads(): Promise<{
   };
 }
 
+// CSV leads 전체를 쓰는 내부 함수
+function writeLeadsToCsv(rows: LeadRow[]): void {
+  const filePath = path.join(process.cwd(), 'data', 'leads.csv');
+  const header = 'id,company,contact,region,stage,probability,revenue_potential,owner,last_contact,due_date,notes,deal_type,product_type,importance';
+  const lines = rows.map((r) =>
+    [r.id, r.company, r.contact, r.region, r.stage, r.probability, r.revenue_potential,
+     r.owner, r.last_contact, r.due_date,
+     r.notes ?? '', r.deal_type ?? '', r.product_type ?? '', r.importance ?? '']
+    .map(String).join(',')
+  );
+  fs.writeFileSync(filePath, [header, ...lines].join('\n'), 'utf-8');
+}
+
+// 새 리드 생성
+export async function createLead(data: Omit<LeadRow, 'id'>): Promise<{ backend: DataBackend; id: number }> {
+  if (hasSupabaseServerConfig()) {
+    const supabase = createSupabaseAdminClient();
+    if (supabase) {
+      const { data: inserted, error } = await supabase
+        .from('leads')
+        .insert({ ...data, updated_at: new Date().toISOString() })
+        .select('id')
+        .single();
+      if (!error && inserted) return { backend: 'supabase', id: (inserted as { id: number }).id };
+    }
+  }
+  const existing = loadLeadsFromCsv();
+  const newId = existing.length > 0 ? Math.max(...existing.map(r => r.id)) + 1 : 1;
+  writeLeadsToCsv([...existing, { ...data, id: newId }]);
+  return { backend: 'csv', id: newId };
+}
+
+// 리드 필드 업데이트
+export async function updateLead(id: number, data: Partial<LeadRow>): Promise<{ backend: DataBackend }> {
+  if (hasSupabaseServerConfig()) {
+    const supabase = createSupabaseAdminClient();
+    if (supabase) {
+      const { error } = await supabase
+        .from('leads')
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (!error) return { backend: 'supabase' };
+    }
+  }
+  const existing = loadLeadsFromCsv();
+  writeLeadsToCsv(existing.map(r => r.id === id ? { ...r, ...data } : r));
+  return { backend: 'csv' };
+}
+
+// 리드 삭제
+export async function deleteLead(id: number): Promise<{ backend: DataBackend }> {
+  if (hasSupabaseServerConfig()) {
+    const supabase = createSupabaseAdminClient();
+    if (supabase) {
+      const { error } = await supabase.from('leads').delete().eq('id', id);
+      if (!error) return { backend: 'supabase' };
+    }
+  }
+  const existing = loadLeadsFromCsv();
+  writeLeadsToCsv(existing.filter(r => r.id !== id));
+  return { backend: 'csv' };
+}
+
 export async function saveLeads(rows: LeadSyncRow[]): Promise<{
   backend: DataBackend;
   savedAt: string;

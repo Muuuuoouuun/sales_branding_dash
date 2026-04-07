@@ -203,7 +203,7 @@ function deriveRegionAccounts(region: string | null, accounts: FocusAccount[]): 
     return [];
   }
 
-  return accounts.filter((account) => account.region === region).slice(0, 5);
+  return accounts.filter((account) => account.region === region);
 }
 
 function deriveRegionDeals(region: string | null, deals: HotDeal[]): HotDeal[] {
@@ -221,6 +221,7 @@ export default function Dashboard() {
   const [aiInsight, setAiInsight] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [heatmapPeriod, setHeatmapPeriod] = useState<"M" | "Q" | "Y">("Q");
   const [showAllRegions, setShowAllRegions] = useState(false);
   const [drilldownGeo, setDrilldownGeo] = useState<string | null>(null);
   const [drilldownData, setDrilldownData] = useState<MapRegionData | null>(null);
@@ -302,6 +303,19 @@ export default function Dashboard() {
     [dashboard.regional, statusFilter],
   );
 
+  const heatmapRegions = useMemo(() => {
+    return filteredRegions.map((r) => {
+      const divisor = heatmapPeriod === "M" ? 12 : heatmapPeriod === "Q" ? 4 : 1;
+      const displayTarget = r.target > 0 ? Math.round(r.target / divisor) : 0;
+      const displayRevenue =
+        heatmapPeriod === "M" ? (r.revenueM ?? 0) :
+        heatmapPeriod === "Q" ? (r.revenueQ ?? 0) :
+        r.revenue;
+      const displayProgress = displayTarget > 0 ? Math.round((displayRevenue / displayTarget) * 100) : 0;
+      return { ...r, displayRevenue, displayTarget, displayProgress };
+    });
+  }, [filteredRegions, heatmapPeriod]);
+
   const overviewStats = useMemo(() => {
     const daysRemaining = getDaysRemainingInMonth();
     const perDay =
@@ -373,14 +387,14 @@ export default function Dashboard() {
   }, [dashboard.teamSummary, staleAccounts, weakestStage, language]);
 
   const signalCards = useMemo(() => {
-    const newMix =
-      dashboard.teamSummary.actualRevenue > 0
-        ? Math.round((dashboard.teamSummary.newRevenue / dashboard.teamSummary.actualRevenue) * 100)
-        : 0;
-    const directMix =
-      dashboard.teamSummary.actualRevenue > 0
-        ? Math.round((dashboard.teamSummary.directRevenue / dashboard.teamSummary.actualRevenue) * 100)
-        : 0;
+    const revTotal = dashboard.teamSummary.newRevenue + dashboard.teamSummary.renewRevenue;
+    const newMix = revTotal > 0
+      ? Math.round((dashboard.teamSummary.newRevenue / revTotal) * 100)
+      : 0;
+    const channelTotal = dashboard.teamSummary.directRevenue + dashboard.teamSummary.channelRevenue;
+    const directMix = channelTotal > 0
+      ? Math.round((dashboard.teamSummary.directRevenue / channelTotal) * 100)
+      : 0;
 
     return [
       {
@@ -645,6 +659,19 @@ export default function Dashboard() {
             className={styles.heatmapCard}
             action={
               <div className={styles.filterRow}>
+                <div style={{ display: "flex", gap: "0.25rem", marginRight: "0.5rem", borderRight: "1px solid var(--surface-border)", paddingRight: "0.5rem" }}>
+                  {(["M", "Q", "Y"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setHeatmapPeriod(p)}
+                      className={`${styles.filterBtn} ${heatmapPeriod === p ? styles.filterBtnActive : ""}`}
+                      style={heatmapPeriod === p ? { background: "#818cf822", color: "#818cf8", borderColor: "#818cf855" } : undefined}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
                 <Filter size={13} style={{ color: "var(--text-muted)" }} />
                 {(Object.keys(FILTER_LABELS) as StatusFilter[]).map((filterKey) => (
                   <button
@@ -672,7 +699,7 @@ export default function Dashboard() {
             <div id="regional-heatmap" className={styles.heatmapLayout}>
               <div className={styles.mapWrapper}>
                 <KoreaProvinceMap
-                  data={dashboard.regional}
+                  data={heatmapRegions}
                   filter={statusFilter}
                   onRegionClick={handleRegionClick}
                 />
@@ -685,12 +712,12 @@ export default function Dashboard() {
                   <span>매출 / 목표</span>
                 </div>
 
-                {filteredRegions.length === 0 ? (
+                {heatmapRegions.length === 0 ? (
                   <p className={styles.emptyMsg}>해당 필터 조건에 맞는 지역이 없습니다.</p>
                 ) : (
                   <>
-                    {(showAllRegions ? filteredRegions : filteredRegions.slice(0, 5)).map((region) => {
-                      const color = getHeatColor(region.progress);
+                    {(showAllRegions ? heatmapRegions : heatmapRegions.slice(0, 5)).map((region) => {
+                      const color = getHeatColor(region.displayProgress);
 
                       return (
                         <button
@@ -706,20 +733,20 @@ export default function Dashboard() {
                           <div className={styles.progressBarWrap}>
                             <div
                               className={styles.progressBarFill}
-                              style={{ width: `${Math.min(region.progress, 100)}%`, background: color }}
+                              style={{ width: `${Math.min(region.displayProgress, 100)}%`, background: color }}
                             />
                           </div>
                           <span className={styles.progressPct} style={{ color }}>
-                            {region.progress}%
+                            {region.displayProgress}%
                           </span>
                           <span className={styles.revenueText}>
-                            {formatRevenue(region.revenue)}
-                            <span className={styles.targetText}> / {formatRevenue(region.target)}</span>
+                            {formatRevenue(region.displayRevenue)}
+                            <span className={styles.targetText}> / {formatRevenue(region.displayTarget)}</span>
                           </span>
                         </button>
                       );
                     })}
-                    {filteredRegions.length > 5 && (
+                    {heatmapRegions.length > 5 && (
                       <button
                         type="button"
                         onClick={() => setShowAllRegions((v) => !v)}
@@ -738,7 +765,7 @@ export default function Dashboard() {
                       >
                         {showAllRegions
                           ? "▲ 접기"
-                          : `▼ 더 보기 (${filteredRegions.length - 5}개 지역 더)`}
+                          : `▼ 더 보기 (${heatmapRegions.length - 5}개 지역 더)`}
                       </button>
                     )}
                   </>

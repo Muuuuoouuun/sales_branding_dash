@@ -58,9 +58,12 @@ SPIN 또는 Challenger 방법론 적용. 질문 의도도 간략히 설명.
 ## 이번 통화 목표 (Next Step)
 이번 전화로 반드시 합의해야 하는 Next Step 1가지. 구체적 날짜/행동 포함.`;
 
-    const model  = genAI.getGenerativeModel({ model: 'gemini-3.1-pro' });
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+      generationConfig: { maxOutputTokens: 1800, temperature: 0.7 },
+    });
     const result = await model.generateContent(prompt);
-    const callScript = result.response.text();
+    const callScript = result.response.text() || '스크립트를 생성하지 못했습니다. 다시 시도하세요.';
 
     return NextResponse.json({
       lead: {
