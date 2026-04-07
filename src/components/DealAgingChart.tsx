@@ -20,9 +20,10 @@ function getAgingLabel(days: number): string {
 }
 
 export default function DealAgingChart({ data }: Props) {
-  const staleCount = data.filter((point) => point.days > 40 && !point.isDummy).length;
+  const staleCount = data.filter((point) => point.days > 40).length;
   const sorted = [...data].sort((a, b) => b.days - a.days).slice(0, 7);
   const maxDays = Math.max(...sorted.map((d) => d.days), 1);
+  const hasData = data.length > 0;
 
   return (
     <Card title="파이프라인 체류 현황">
@@ -79,7 +80,7 @@ export default function DealAgingChart({ data }: Props) {
                   background: color,
                   borderRadius: "4px",
                   transition: "width 0.5s ease",
-                  opacity: point.isDummy ? 0.4 : 0.85,
+                  opacity: 0.85,
                 }} />
                 {/* 40-day stale threshold marker */}
                 <div style={{
@@ -116,19 +117,25 @@ export default function DealAgingChart({ data }: Props) {
           );
         })}
 
-        {sorted.length === 0 && (
-          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "1rem 0" }}>
-            활성 딜 데이터가 없습니다.
-          </p>
+        {!hasData && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem", padding: "1.5rem 0", textAlign: "center" }}>
+            <span style={{ fontSize: "1.4rem" }}>📭</span>
+            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-soft)", margin: 0 }}>파이프라인이 비어있습니다</p>
+            <p style={{ fontSize: "0.73rem", color: "var(--text-muted)", margin: 0 }}>REV 시트에 딜을 추가하면 체류 현황이 표시됩니다.</p>
+          </div>
         )}
       </div>
 
-      <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "1rem", borderTop: "1px solid var(--card-border)", paddingTop: "0.6rem" }}>
-        <strong style={{ color: staleCount > 0 ? "#ef4444" : "#22c55e" }}>Action:</strong>{" "}
-        {staleCount > 0
-          ? `${staleCount}건의 딜이 40일 이상 정체 중 — 즉시 후속 조치 필요.`
-          : "장기 체류 딜 없음. 파이프라인 흐름 양호."}
-      </p>
+      {hasData && (
+        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "1rem", borderTop: "1px solid var(--card-border)", paddingTop: "0.6rem" }}>
+          <strong style={{ color: staleCount > 0 ? "#ef4444" : "#22c55e" }}>
+            {staleCount > 0 ? "⚠ 조치 필요" : "✓ 정상"}
+          </strong>{" "}
+          {staleCount > 0
+            ? `${staleCount}건의 딜이 40일 이상 정체 중 — 즉시 후속 조치 필요.`
+            : "모든 딜이 정상 진행 중입니다. 파이프라인 흐름 양호."}
+        </p>
+      )}
     </Card>
   );
 }

@@ -8,6 +8,7 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 import { getHeatColor, getStatusLabel } from "@/lib/heatUtils";
+import { formatRevenue } from "@/lib/formatCurrency";
 import styles from "./KoreaProvinceMap.module.css";
 
 // ── Korean province GeoJSON (local public folder) ────────────────────────────
@@ -166,7 +167,7 @@ export default function KoreaProvinceMap({ data, filter, onRegionClick }: Props)
                       );
                     }}
                     onMouseLeave={() => setTooltip(null)}
-                    onClick={() => onRegionClick(geoName, regionData)}
+                    onClick={() => { if (regionData) onRegionClick(geoName, regionData); }}
                   />
                 );
               })
@@ -186,8 +187,8 @@ export default function KoreaProvinceMap({ data, filter, onRegionClick }: Props)
           {tooltip.data ? (
             <>
               <div className={styles.ttRow}>
-                <span>매출</span>
-                <span>${typeof window !== 'undefined' && localStorage.getItem('app-currency') === 'USD' ? '$' : '¥'}{tooltip.data.revenue.toLocaleString()}M</span>
+                <span>확정 매출</span>
+                <span>{formatRevenue(tooltip.data.revenue)}</span>
               </div>
               <div className={styles.ttRow}>
                 <span>달성률</span>

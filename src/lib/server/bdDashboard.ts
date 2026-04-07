@@ -27,7 +27,6 @@ import type {
 
 const TARGET_MANAGERS = ["han", "wangchan", "junhyuk"] as const;
 const DSH_RANGE = "1. DSH!A1:V200";
-const SEG_RANGE = "2. SEG!A1:S40";
 const REV_RANGE = "3. REV!A1:CZ400";
 const KPI_RANGE = "4. KPI!A1:AZ60";
 
@@ -39,8 +38,8 @@ const DSH_YEAR_COL = 5;
 const DSH_QUARTER_COLS: Record<number, number> = { 1: 6, 2: 7, 3: 8, 4: 9 };
 const DSH_FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3] as const;
 
-const LIVE_CACHE_TTL_MS = 5 * 60 * 1000;
-const FALLBACK_CACHE_TTL_MS = 60 * 1000;
+const LIVE_CACHE_TTL_MS = 30 * 60 * 1000; // 30분
+const FALLBACK_CACHE_TTL_MS = 5 * 60 * 1000; // 5분 (미설정 환경)
 
 const ACTIVITY_KEYS = ["LD", "ACC", "OPP", "SOL", "VST"] as const;
 const ACTIVITY_LABELS: Record<(typeof ACTIVITY_KEYS)[number], string> = {
@@ -131,7 +130,6 @@ interface DshTargets {
 
 interface SheetRanges {
   [DSH_RANGE]: string[][];
-  [SEG_RANGE]: string[][];
   [REV_RANGE]: string[][];
   [KPI_RANGE]: string[][];
 }
@@ -440,62 +438,83 @@ function findLowestProgressActivity(activityStages: ActivityStage[]): ActivitySt
   return lowest;
 }
 
-function parseSegRows(rows: string[][]): {
-  totalTarget: number;
-  totalRevenue: number;
-  regional: RegionData[];
-} {
-  const regionMap = new Map<string, { target: number; revenue: number }>();
+/**
+ * REV 시트 + DSH 매니저 목표에서 지역별 데이터를 구축합니다.
+ *
+ * 매출(실적): REV firstPayment 딜의 총 계약금액 합산
+ *   → monthly 칼럼 미입력이 많아 분기 분할 대신 전체 계약금액 기준으로 통일
+ *
+ * 목표: DSH 매니저별 연간 목표 × (지역 전체 딜 금액 / 매니저 전체 딜 금액)
+ *   → 확정·비확정 모두 포함한 딜 비중으로 목표를 배분
+ *
+ * 결과적으로 "이 지역에서 확정된 계약 규모가 연간 목표의 몇 %인가"를 표시
+ */
+function buildRegionalData(
+  revenueRows: RevenueRow[],
+  managerTargets: Record<string, DshManagerTarget>,
+  fallbackYearlyTarget: number,
+): RegionData[] {
+  // 1. 지역별 확정 매출 = firstPayment 딜의 amount 합산 (분기 분할 없음)
+  const regionRevenue = new Map<string, number>();
+  const regionCounts = new Map<string, { total: number; activated: number }>();
 
-  for (const sourceRow of rows.slice(3)) {
-    const row = padRow(sourceRow, 19);
-    const goalLocation = row[11]?.trim();
-    const goalRevenue = parseNumber(row[12]);
-    const statusLocation = row[16]?.trim();
-    const statusRevenue = parseNumber(row[17]);
-
-    if (goalLocation) {
-      const current = regionMap.get(goalLocation) ?? { target: 0, revenue: 0 };
-      current.target = goalRevenue;
-      regionMap.set(goalLocation, current);
+  for (const rev of revenueRows) {
+    if (!rev.location) continue;
+    const cnt = regionCounts.get(rev.location) ?? { total: 0, activated: 0 };
+    cnt.total += 1;
+    if (rev.firstPayment) {
+      cnt.activated += 1;
+      regionRevenue.set(rev.location, (regionRevenue.get(rev.location) ?? 0) + rev.amount);
     }
+    regionCounts.set(rev.location, cnt);
+  }
 
-    if (statusLocation) {
-      const current = regionMap.get(statusLocation) ?? { target: 0, revenue: 0 };
-      current.revenue = statusRevenue;
-      regionMap.set(statusLocation, current);
+  // 2. 지역별 목표: 매니저별 DSH 연간 목표 × (지역 딜 금액 / 매니저 총 딜 금액)
+  const managerRegionAmt = new Map<string, Map<string, number>>();
+  for (const rev of revenueRows) {
+    if (!rev.manager || !rev.location) continue;
+    const mgr = managerRegionAmt.get(rev.manager) ?? new Map<string, number>();
+    mgr.set(rev.location, (mgr.get(rev.location) ?? 0) + rev.amount);
+    managerRegionAmt.set(rev.manager, mgr);
+  }
+
+  const regionTarget = new Map<string, number>();
+  for (const [manager, byRegion] of managerRegionAmt) {
+    // 연간 목표 사용 (분기 ×4 or 직접 연간)
+    const mgrYearlyTarget =
+      managerTargets[manager.toLowerCase()]?.yearlyTarget ?? fallbackYearlyTarget;
+    const totalAmt = Array.from(byRegion.values()).reduce((s, v) => s + v, 0);
+    if (totalAmt === 0 || mgrYearlyTarget === 0) continue;
+    for (const [region, amt] of byRegion) {
+      const contribution = Math.round(mgrYearlyTarget * (amt / totalAmt));
+      regionTarget.set(region, (regionTarget.get(region) ?? 0) + contribution);
     }
   }
 
-  const allRegions = Array.from(regionMap.entries()).map(([name, values]) => ({
-    name,
-    ...values,
-  }));
-
-  const regional = allRegions
-    .filter((row) => MAP_VISIBLE_REGIONS.has(row.name))
-    .map((row) => {
-      const progress = row.target > 0 ? Math.round((row.revenue / row.target) * 100) : 0;
-
+  // 3. 지도에 표시 가능한 지역만 RegionData로 변환
+  const allRegions = new Set([...regionRevenue.keys(), ...regionTarget.keys()]);
+  return Array.from(allRegions)
+    .filter((name) => MAP_VISIBLE_REGIONS.has(name))
+    .map((name) => {
+      const revenue = regionRevenue.get(name) ?? 0;
+      const target = regionTarget.get(name) ?? 0;
+      const progress = target > 0 ? Math.round((revenue / target) * 100) : 0;
+      const counts = regionCounts.get(name) ?? { total: 0, activated: 0 };
+      const velocity =
+        counts.total > 0 ? Math.round((counts.activated / counts.total) * 100) : 0;
       return {
-        name: row.name,
-        revenue: row.revenue,
-        target: row.target,
+        name,
+        revenue,
+        target,
         progress,
-        deals_active: 0,
-        deals_closed: 0,
-        velocity: 0,
+        deals_active: counts.total,
+        deals_closed: counts.activated,
+        velocity,
         status: getRegionStatus(progress),
-        coordinates: REGION_COORDINATES[row.name],
+        coordinates: REGION_COORDINATES[name],
       } satisfies RegionData;
     })
-    .sort((left, right) => right.revenue - left.revenue);
-
-  return {
-    totalTarget: allRegions.reduce((sum, row) => sum + row.target, 0),
-    totalRevenue: allRegions.reduce((sum, row) => sum + row.revenue, 0),
-    regional,
-  };
+    .sort((a, b) => b.revenue - a.revenue);
 }
 
 function parseRevenueRows(rows: string[][]): RevenueRow[] {
@@ -650,9 +669,8 @@ function buildFallbackPacing(totalTarget: number): RevenuePacingPoint[] {
     return {
       label: getMonthLabel(month),
       month,
-      actual: Math.round(cumulativeTarget * factors[index]),
-      target: cumulativeTarget,
-      isDummy: true,
+      actual: 0,
+      target: 0,
     };
   });
 }
@@ -844,150 +862,29 @@ function summarizeRevenueRows(revenueRows: RevenueRow[]): RevenueSummary {
 }
 
 function buildMinimalFallbackDashboard(): DashboardPayload {
-  const regional: RegionData[] = [
-    {
-      name: "서울",
-      revenue: 380,
-      target: 520,
-      progress: 73,
-      deals_active: 4,
-      deals_closed: 2,
-      velocity: 50,
-      status: "warning",
-      coordinates: REGION_COORDINATES["서울"],
-      isDummy: true,
-    },
-    {
-      name: "경기",
-      revenue: 340,
-      target: 500,
-      progress: 68,
-      deals_active: 3,
-      deals_closed: 1,
-      velocity: 33,
-      status: "critical",
-      coordinates: REGION_COORDINATES["경기"],
-      isDummy: true,
-    },
-    {
-      name: "부산",
-      revenue: 290,
-      target: 360,
-      progress: 81,
-      deals_active: 3,
-      deals_closed: 2,
-      velocity: 67,
-      status: "warning",
-      coordinates: REGION_COORDINATES["부산"],
-      isDummy: true,
-    },
-  ];
-
-  const individuals: IndividualData[] = [
-    {
-      name: "Han",
-      wonRevenue: 410,
-      pipelineRevenue: 140,
-      target: 460,
-      progress: 89,
-      deals_total: 4,
-      deals_won: 2,
-      isDummy: true,
-    },
-    {
-      name: "Wangchan",
-      wonRevenue: 320,
-      pipelineRevenue: 180,
-      target: 460,
-      progress: 70,
-      deals_total: 4,
-      deals_won: 1,
-      isDummy: true,
-    },
-    {
-      name: "Junhyuk",
-      wonRevenue: 280,
-      pipelineRevenue: 210,
-      target: 460,
-      progress: 61,
-      deals_total: 3,
-      deals_won: 1,
-      isDummy: true,
-    },
-  ];
-
-  const bottleneck: ActivityStage[] = [
-    { stage: "Lead", value: 12, fullMark: 18, goal: 18, actual: 12, progress: 67, isDummy: true },
-    { stage: "Account", value: 8, fullMark: 12, goal: 12, actual: 8, progress: 67, isDummy: true },
-    { stage: "Opportunity", value: 5, fullMark: 10, goal: 10, actual: 5, progress: 50, isDummy: true },
-  ];
-
-  const focusAccounts: FocusAccount[] = [
-    {
-      id: "dummy-acct-1",
-      name: "서울 교육그룹",
-      manager: "Han",
-      region: "서울",
-      type: "Direct",
-      status: "New",
-      version: "Hardware",
-      amount: 220,
-      firstPayment: null,
-      remark: "KA Focus Account",
-      importance: "KA",
-      probability: 82,
-      isDummy: true,
-    },
-    {
-      id: "dummy-acct-2",
-      name: "경기 러닝랩",
-      manager: "Wangchan",
-      region: "경기",
-      type: "Channel",
-      status: "Renew",
-      version: "Subscription",
-      amount: 180,
-      firstPayment: "2026-03-10",
-      remark: "A-class account",
-      importance: "A",
-      probability: 76,
-      isDummy: true,
-    },
-    {
-      id: "dummy-acct-3",
-      name: "부산 캠퍼스",
-      manager: "Junhyuk",
-      region: "부산",
-      type: "Direct",
-      status: "New",
-      version: "Hardware",
-      amount: 160,
-      firstPayment: null,
-      remark: "Standard lead",
-      importance: "B",
-      probability: 68,
-      isDummy: true,
-    },
-  ];
+  const regional: RegionData[] = [];
+  const individuals: IndividualData[] = [];
+  const bottleneck: ActivityStage[] = [];
+  const focusAccounts: FocusAccount[] = [];
 
   const teamSummary: TeamSummary = {
-    targetRevenue: 1380,
-    actualRevenue: 1010,
-    gapRevenue: 370,
-    attainment: 73.2,
-    accountCount: 11,
-    activatedCount: 4,
-    newRevenue: 620,
-    renewRevenue: 390,
-    directRevenue: 650,
-    channelRevenue: 360,
-    activityGoal: 40,
-    activityActual: 25,
-    activityCompletion: 62.5,
-    topManager: individuals[0]?.name ?? "BD",
-    criticalRegionCount: 1,
-    yearlyTarget: 5520,
-    yearlyActual: 1010,
+    targetRevenue: 0,
+    actualRevenue: 0,
+    gapRevenue: 0,
+    attainment: 0,
+    accountCount: 0,
+    activatedCount: 0,
+    newRevenue: 0,
+    renewRevenue: 0,
+    directRevenue: 0,
+    channelRevenue: 0,
+    activityGoal: 0,
+    activityActual: 0,
+    activityCompletion: 0,
+    topManager: "BD",
+    criticalRegionCount: 0,
+    yearlyTarget: 0,
+    yearlyActual: 0,
   };
 
   return {
@@ -997,10 +894,10 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
     individuals,
     focusAccounts,
     topAccounts: focusAccounts,
-    hotDeals: buildHotDeals(focusAccounts),
+    hotDeals: [],
     teamSummary,
-    pacing: buildFallbackPacing(teamSummary.targetRevenue),
-    yearlyPacing: buildFallbackPacing(teamSummary.yearlyTarget ?? teamSummary.targetRevenue * 4),
+    pacing: buildFallbackPacing(0),
+    yearlyPacing: buildFallbackPacing(0),
     aging: buildAgingData([]),
     periodLabel: getPeriodLabel(),
     dataSource: "fallback",
@@ -1011,41 +908,19 @@ function buildMinimalFallbackDashboard(): DashboardPayload {
 function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardDataSource): DashboardPayload {
   const { fiscalQuarter, calendarMonth } = getFiscalCalendarInfo();
   const dshTargets = parseDshSheet(sheetRows[DSH_RANGE], fiscalQuarter);
-  const { regional } = parseSegRows(sheetRows[SEG_RANGE]);
   const revenueRows = parseRevenueRows(sheetRows[REV_RANGE]);
   const kpiByMember = parseKpiRows(sheetRows[KPI_RANGE]);
 
-  if (regional.length === 0 || revenueRows.length === 0) {
+  if (revenueRows.length === 0) {
     return buildMinimalFallbackDashboard();
   }
 
-  // ── Revenue source: DSH Status (confirmed revenue) ──
-  // Fall back to SEG totals only if DSH parsing found nothing.
-  const bdQuarterTarget = dshTargets.bdQuarterlyTarget || regional.reduce((s, r) => s + r.target, 0);
+  // ── 매출 소스: DSH Status (확정 매출) ──
+  const bdQuarterTarget = dshTargets.bdQuarterlyTarget;
   const bdYearlyTarget = dshTargets.bdYearlyTarget || bdQuarterTarget * 4;
-  const totalRevenue = dshTargets.bdQuarterlyActual || regional.reduce((s, r) => s + r.revenue, 0);
+  const totalRevenue = dshTargets.bdQuarterlyActual;
 
   const revenueSummary = summarizeRevenueRows(revenueRows);
-  const regionalWithCounts = regional.map((row) => {
-    const counts = revenueSummary.regionCounts.get(row.name) ?? { total: 0, activated: 0 };
-    const velocity = counts.total > 0 ? Math.round((counts.activated / counts.total) * 100) : 0;
-
-    // Use confirmed (firstPayment) revenue from REV sheet as actual.
-    // Falls back to SEG status revenue only when no confirmed deal exists for that region.
-    const confirmedRevenue = revenueSummary.regionRevenue.get(row.name);
-    const revenue = confirmedRevenue !== undefined ? confirmedRevenue : row.revenue;
-    const progress = row.target > 0 ? Math.round((revenue / row.target) * 100) : 0;
-
-    return {
-      ...row,
-      revenue,
-      progress,
-      status: getRegionStatus(progress),
-      deals_active: counts.total,
-      deals_closed: counts.activated,
-      velocity,
-    };
-  });
 
   const managerNames = Array.from(
     new Set([
@@ -1058,6 +933,15 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
   const fallbackEqualTarget = managerNames.length > 0 ? Math.round(bdQuarterTarget / managerNames.length) : 0;
   const getManagerTarget = (name: string): number =>
     dshTargets.managerTargets[name.toLowerCase()]?.quarterlyTarget ?? fallbackEqualTarget;
+
+  // ── 지역별 데이터: REV 기반 확정 매출 + DSH 연간 목표 비례 배분 ──
+  // 연간 목표 기준: 분기 ÷4 vs 연간 목표 불일치 방지
+  const fallbackYearlyTarget = bdYearlyTarget || fallbackEqualTarget * 4;
+  const regionalWithCounts = buildRegionalData(
+    revenueRows,
+    dshTargets.managerTargets,
+    fallbackYearlyTarget,
+  );
 
   const activityTotals = Object.fromEntries(
     ACTIVITY_KEYS.map((key) => [key, { goal: 0, actual: 0 }]),
@@ -1225,16 +1109,21 @@ function rememberDashboard(data: DashboardPayload, ttlMs: number): DashboardPayl
 }
 
 async function loadLiveDashboard(): Promise<DashboardPayload> {
-  const values = await getMultipleSheetValues([DSH_RANGE, SEG_RANGE, REV_RANGE, KPI_RANGE]);
+  const values = await getMultipleSheetValues([DSH_RANGE, REV_RANGE, KPI_RANGE]);
 
   const sheetRanges: SheetRanges = {
     [DSH_RANGE]: values[DSH_RANGE] ?? [],
-    [SEG_RANGE]: values[SEG_RANGE] ?? [],
     [REV_RANGE]: values[REV_RANGE] ?? [],
     [KPI_RANGE]: values[KPI_RANGE] ?? [],
   };
 
   return buildDashboardFromRanges(sheetRanges, "google-sheets");
+}
+
+/** 캐시를 즉시 무효화합니다 (강제 새로고침 시 사용). */
+export function resetDashboardCache(): void {
+  cache = null;
+  inflightDashboard = null;
 }
 
 export async function getBdDashboardData(): Promise<DashboardPayload> {
