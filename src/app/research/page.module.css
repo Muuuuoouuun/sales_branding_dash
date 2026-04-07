@@ -203,6 +203,7 @@
 
 .librarySelectCard {
   width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -215,6 +216,7 @@
   text-align: left;
   cursor: pointer;
   font: inherit;
+  overflow: hidden;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
@@ -244,8 +246,9 @@
 .libraryCardTop {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .libraryCardMethod {
@@ -262,9 +265,11 @@
 .libraryCardId {
   font-size: 0.63rem;
   font-weight: 800;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   flex-shrink: 0;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .libraryCardAuthor {
@@ -286,18 +291,25 @@
   color: var(--foreground);
 }
 
-/* ── Legend blog article ────────────────────────────────────────────────── */
-.legendArticle {
-  display: grid;
-  gap: 1rem;
-  animation: fadeIn 0.25s ease-out;
+/* ── Legend sticky wrapper (handles position, not overflow) ─────────────── */
+.legendStickyWrapper {
   position: sticky;
   top: 1rem;
   min-width: 0;
   width: 100%;
   max-height: calc(100vh - 3rem);
+  overflow: hidden;
+}
+
+/* ── Legend blog article (handles scrolling inside wrapper) ─────────────── */
+.legendArticle {
+  display: grid;
+  gap: 1rem;
+  animation: fadeIn 0.25s ease-out;
+  width: 100%;
+  height: 100%;
+  max-height: calc(100vh - 3rem);
   overflow-y: auto;
-  overflow-x: hidden;
   scrollbar-width: none;
 }
 
@@ -402,6 +414,8 @@
   box-shadow: var(--shadow-soft);
   display: grid;
   gap: 0.65rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .legendOrderedList {
@@ -1448,18 +1462,25 @@
   opacity: 0.8;
 }
 
-/* Resource article (right panel) */
-.resourceArticle {
-  display: grid;
-  gap: 1rem;
-  animation: fadeIn 0.25s ease-out;
+/* Resource sticky wrapper */
+.resourceStickyWrapper {
   position: sticky;
   top: 1rem;
   min-width: 0;
   width: 100%;
   max-height: calc(100vh - 3rem);
+  overflow: hidden;
+}
+
+/* Resource article (right panel) */
+.resourceArticle {
+  display: grid;
+  gap: 1rem;
+  animation: fadeIn 0.25s ease-out;
+  width: 100%;
+  height: 100%;
+  max-height: calc(100vh - 3rem);
   overflow-y: auto;
-  overflow-x: hidden;
   scrollbar-width: none;
 }
 

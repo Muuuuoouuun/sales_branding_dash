@@ -909,6 +909,7 @@ export default function ResearchPage() {
           {selectedLegend ? (() => {
             const detail = METHODOLOGY_DETAILS[selectedLegend.id];
             return (
+              <div className={styles.legendStickyWrapper}>
               <article className={styles.legendArticle}>
                 <div className={styles.legendHero} style={{ borderColor: selectedLegend.color, background: selectedLegend.colorBg }}>
                   <div className={styles.legendHeroTop}>
@@ -981,6 +982,7 @@ export default function ResearchPage() {
                   <p className={styles.legendSignatureText}>{selectedLegend.signatureMove}</p>
                 </div>
               </article>
+              </div>
             );
           })() : null}
         </div>
@@ -1270,6 +1272,7 @@ export default function ResearchPage() {
           </div>
 
           {selectedResource ? (
+            <div className={styles.resourceStickyWrapper}>
             <article className={styles.resourceArticle}>
               <div className={styles.resourceArticleHero} style={{ borderColor: selectedResource.color, background: selectedResource.colorBg }}>
                 <div className={styles.resourceArticleHeroTop}>
@@ -1326,6 +1329,7 @@ export default function ResearchPage() {
                 ))}
               </div>
             </article>
+            </div>
           ) : null}
         </div>
       )}
