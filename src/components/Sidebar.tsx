@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+    Box,
     Brain,
     ChevronLeft,
     ChevronRight,
@@ -25,6 +26,7 @@ const NAV_ITEMS = {
     en: [
         { name: "Dashboard", href: "/", icon: LayoutDashboard },
         { name: "Strategy Room", href: "/project", icon: Target },
+        { name: "Hardware", href: "/hardware", icon: Box },
         { name: "CRM", href: "/crm", icon: Users },
         { name: "Research", href: "/research", icon: Brain },
         { name: "Reports", href: "/report", icon: FileText },
@@ -33,6 +35,7 @@ const NAV_ITEMS = {
     ko: [
         { name: "대시보드", href: "/", icon: LayoutDashboard },
         { name: "전략 룸", href: "/project", icon: Target },
+        { name: "하드웨어", href: "/hardware", icon: Box },
         { name: "고객 관리(CRM)", href: "/crm", icon: Users },
         { name: "리서치", href: "/research", icon: Brain },
         { name: "보고서", href: "/report", icon: FileText },
