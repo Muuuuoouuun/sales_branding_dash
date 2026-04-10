@@ -996,15 +996,6 @@ function buildDashboardFromRanges(sheetRows: SheetRanges, dataSource: DashboardD
   const getManagerTarget = (name: string): number =>
     dshTargets.managerTargets[name.toLowerCase()]?.quarterlyTarget ?? fallbackEqualTarget;
 
-  // ── 지역별 데이터: REV 기반 확정 매출 + DSH 연간 목표 비례 배분 ──
-  // 연간 목표 기준: 분기 ÷4 vs 연간 목표 불일치 방지
-  const fallbackYearlyTarget = bdYearlyTarget || fallbackEqualTarget * 4;
-  const regionalWithCounts = buildRegionalData(
-    revenueRows,
-    dshTargets.managerTargets,
-    fallbackYearlyTarget,
-  );
-
   const activityTotals = Object.fromEntries(
     ACTIVITY_KEYS.map((key) => [key, { goal: 0, actual: 0 }]),
   ) as Record<ActivityKey, { goal: number; actual: number }>;
