@@ -356,6 +356,7 @@ export default function HardwarePipelinePage() {
               )}
             </div>
           ) : (
+            <div className={styles.tableWrap}>
             <div className={styles.table} role="table" aria-label="딜 목록">
               {/* Table head */}
               <div className={styles.tableHead} role="row">
@@ -446,6 +447,7 @@ export default function HardwarePipelinePage() {
                   </div>
                 ))}
               </div>
+            </div>
             </div>
           )}
         </section>
@@ -543,6 +545,7 @@ export default function HardwarePipelinePage() {
               <span>지역 데이터 없음</span>
             </div>
           ) : (
+            <div className={styles.regionTableWrap}>
             <div className={styles.regionTable} role="table" aria-label="지역별 현황">
               {/* Head */}
               <div className={styles.regionHead} role="row">
@@ -579,6 +582,7 @@ export default function HardwarePipelinePage() {
                   </div>
                 </div>
               ))}
+            </div>
             </div>
           )}
         </section>
