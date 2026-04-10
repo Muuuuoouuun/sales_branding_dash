@@ -111,6 +111,41 @@
   transform: translateY(-1px);
 }
 
+.refreshAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--surface-1);
+  color: var(--text-muted);
+  border: 1px solid var(--surface-border);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.refreshAction:hover:not(:disabled) {
+  color: var(--foreground);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.refreshAction:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spinIcon {
+  animation: spin 0.9s linear infinite;
+}
+
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

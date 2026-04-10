@@ -61,7 +61,9 @@ export default function QuarterlyTracker({ data, individuals, periodLabel, teamS
           <div>
             <h3 className={styles.title}>BD target tracker</h3>
             <p className={styles.sub}>
-              {formatRevenue(displayRevenue)} / {formatRevenue(displayTarget)}
+              <span className={styles.subLabel}>실적</span>{formatRevenue(displayRevenue)}
+              <span className={styles.subSep}>·</span>
+              <span className={styles.subLabel}>목표</span>{formatRevenue(displayTarget)}
             </p>
           </div>
         </div>
@@ -149,12 +151,14 @@ function ProgressTrack({
             style={{ left: `${(milestone.pct / BAR_MAX) * 100}%` }}
             data-tooltip={milestone.desc}
           >
-            <span className={styles.msEmoji}>{milestone.marker}</span>
             <span
               className={styles.msLabel}
               style={{ color: progress >= milestone.pct ? milestone.color : "var(--text-muted)" }}
             >
               {milestone.label}
+            </span>
+            <span className={styles.msEmoji} style={{ color: progress >= milestone.pct ? milestone.color : "var(--text-muted)" }}>
+              {milestone.pct}%
             </span>
           </div>
         ))}
@@ -177,7 +181,7 @@ function ProgressTrack({
           </div>
           <div className={styles.cursor} style={{ left: `${barFillPct}%` }}>
             <div className={styles.cursorPill}>
-              {currentMilestone?.marker ?? "P0"} {progress.toFixed(1)}%
+              {currentMilestone?.label ?? "Start"} {progress.toFixed(1)}%
             </div>
             <div className={styles.cursorLine} />
           </div>

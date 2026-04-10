@@ -24,19 +24,19 @@ import SettingsControls from "./SettingsControls";
 const NAV_ITEMS = {
     en: [
         { name: "Dashboard", href: "/", icon: LayoutDashboard },
-        { name: "Strategy", href: "/project", icon: Target },
+        { name: "Strategy Room", href: "/project", icon: Target },
         { name: "CRM", href: "/crm", icon: Users },
         { name: "Research", href: "/research", icon: Brain },
-        { name: "Data", href: "/data", icon: Database },
         { name: "Reports", href: "/report", icon: FileText },
+        { name: "Data", href: "/data", icon: Database },
     ],
     ko: [
         { name: "대시보드", href: "/", icon: LayoutDashboard },
-        { name: "프로젝트 전략", href: "/project", icon: Target },
+        { name: "전략 룸", href: "/project", icon: Target },
         { name: "고객 관리(CRM)", href: "/crm", icon: Users },
         { name: "리서치", href: "/research", icon: Brain },
-        { name: "데이터", href: "/data", icon: Database },
         { name: "보고서", href: "/report", icon: FileText },
+        { name: "데이터", href: "/data", icon: Database },
     ]
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -9,6 +9,7 @@ import {
   Clock3,
   Filter,
   Loader2,
+  RefreshCw,
   ShieldAlert,
   TrendingDown,
   TrendingUp,
@@ -219,10 +220,49 @@ function deriveRegionDeals(region: string | null, deals: HotDeal[]): HotDeal[] {
   return deals.filter((deal) => deal.region === region).slice(0, 4);
 }
 
+const CACHE_KEY = "bd-dashboard-v3"; // SEG 제거 + 연간 목표 기반 지역 배분
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30분 — 서버 캐시와 동기화
+const AUTO_REFRESH_MS = 30 * 60 * 1000; // 30분마다 자동 갱신
+
+interface ClientCache {
+  data: DashboardPayload;
+  savedAt: number;
+}
+
+function readClientCache(): DashboardPayload | null {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { data, savedAt } = JSON.parse(raw) as ClientCache;
+    if (Date.now() - savedAt > CACHE_TTL_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writeClientCache(data: DashboardPayload): void {
+  try {
+    const entry: ClientCache = { data, savedAt: Date.now() };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+  } catch {
+    /* sessionStorage 가득 찬 경우 무시 */
+  }
+}
+
+function clearClientCache(): void {
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch {
+    /* 무시 */
+  }
+}
+
 export default function Dashboard() {
   const { language } = require("@/components/SettingsProvider").useSettings();
   const [dashboard, setDashboard] = useState<DashboardPayload>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [aiInsight, setAiInsight] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -230,46 +270,76 @@ export default function Dashboard() {
   const [showAllRegions, setShowAllRegions] = useState(false);
   const [drilldownGeo, setDrilldownGeo] = useState<string | null>(null);
   const [drilldownData, setDrilldownData] = useState<MapRegionData | null>(null);
+  const autoRefreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /** 백그라운드 조용히 데이터 갱신 (로딩 표시 없음) */
+  const fetchBackground = useCallback(async () => {
+    try {
+      const response = await fetch("/api/dashboard/regions");
+      if (!response.ok) return;
+      const payload = normalizeDashboardPayload((await response.json()) as DashboardPayload);
+      setDashboard(payload);
+      writeClientCache(payload);
+    } catch {
+      /* 백그라운드 실패는 조용히 무시 */
+    }
+  }, []);
+
+  /** 수동 새로고침 — 서버 캐시 bust 후 즉시 재로드 */
+  const handleDataRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    clearClientCache();
+    try {
+      const response = await fetch("/api/dashboard/refresh", { method: "POST" });
+      if (!response.ok) throw new Error(`Refresh failed: ${response.status}`);
+      const payload = normalizeDashboardPayload((await response.json()) as DashboardPayload);
+      setDashboard(payload);
+      writeClientCache(payload);
+    } catch (error) {
+      console.error("Dashboard refresh failed:", error);
+      // 서버 새로고침 실패 시 일반 fetch로 폴백
+      await fetchBackground();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, fetchBackground]);
 
   useEffect(() => {
-    let isCancelled = false;
-    const controller = new AbortController();
-
-    const fetchDashboard = async () => {
-      try {
-        const response = await fetch("/api/dashboard/regions", {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(`Dashboard request failed with ${response.status}`);
-        }
-
-        const payload = normalizeDashboardPayload((await response.json()) as DashboardPayload);
-
-        if (!isCancelled) {
+    // 1) 캐시 즉시 표시 → 로딩 없이 이전 데이터 바로 보임
+    const cached = readClientCache();
+    if (cached) {
+      setDashboard(normalizeDashboardPayload(cached));
+      setLoading(false);
+      // 백그라운드로 신선도 체크
+      void fetchBackground();
+    } else {
+      // 캐시 없으면 로딩 표시 후 fetch
+      setLoading(true);
+      void (async () => {
+        try {
+          const response = await fetch("/api/dashboard/regions");
+          if (!response.ok) throw new Error(`${response.status}`);
+          const payload = normalizeDashboardPayload((await response.json()) as DashboardPayload);
           setDashboard(payload);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-
-        console.error("Failed to fetch BD dashboard:", error);
-      } finally {
-        if (!isCancelled) {
+          writeClientCache(payload);
+        } catch (error) {
+          console.error("Failed to fetch BD dashboard:", error);
+        } finally {
           setLoading(false);
         }
-      }
-    };
+      })();
+    }
 
-    void fetchDashboard();
+    // 2) 30분마다 자동 백그라운드 갱신
+    autoRefreshTimer.current = setInterval(() => {
+      void fetchBackground();
+    }, AUTO_REFRESH_MS);
 
     return () => {
-      isCancelled = true;
-      controller.abort();
+      if (autoRefreshTimer.current) clearInterval(autoRefreshTimer.current);
     };
-  }, []);
+  }, [fetchBackground]);
 
   const handleGenerateInsight = async () => {
     if (insightLoading) {
@@ -292,7 +362,7 @@ export default function Dashboard() {
 
   const weakestStage = useMemo(() => getWeakestStage(dashboard.bottleneck), [dashboard.bottleneck]);
   const staleAccounts = useMemo(
-    () => dashboard.aging.filter((point) => point.days > 40 && !point.isDummy).length,
+    () => dashboard.aging.filter((point) => point.days > 40).length,
     [dashboard.aging],
   );
   const highConfidenceDeals = useMemo(
@@ -499,6 +569,15 @@ export default function Dashboard() {
             </div>
           </div>
           <div className={styles.headerActions}>
+            <button
+              className={styles.refreshAction}
+              onClick={() => void handleDataRefresh()}
+              disabled={refreshing}
+              title="데이터 새로고침"
+            >
+              <RefreshCw size={14} className={refreshing ? styles.spinIcon : undefined} />
+              {refreshing ? "갱신 중…" : "새로고침"}
+            </button>
             <Link className={styles.secondaryAction} href="/report">
               Open report
             </Link>

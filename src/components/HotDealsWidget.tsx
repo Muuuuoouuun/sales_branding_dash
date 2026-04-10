@@ -1,6 +1,6 @@
 import Link from "next/link";
 import React from "react";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Inbox } from "lucide-react";
 import { formatRevenue } from "@/lib/formatCurrency";
 import type { HotDeal } from "@/types/dashboard";
 import Card from "./Card";
@@ -23,11 +23,10 @@ export default function HotDealsWidget({ deals }: Props) {
     >
       <div className={styles.listContainer}>
         {deals.length === 0 ? (
-          <div className={styles.dealRow}>
-            <div className={styles.dealInfo}>
-              <div className={styles.clientName}>No BD deals available</div>
-              <div className={styles.dealMeta}>Sheet data did not return any focus accounts yet.</div>
-            </div>
+          <div className={styles.emptyState}>
+            <Inbox size={28} className={styles.emptyIcon} />
+            <p className={styles.emptyTitle}>아직 핫딜이 없습니다</p>
+            <p className={styles.emptyDesc}>REV 시트에 집중 계정을 추가하면<br />여기에 자동으로 표시됩니다.</p>
           </div>
         ) : (
           deals.map((deal) => (
@@ -43,16 +42,15 @@ export default function HotDealsWidget({ deals }: Props) {
                       <AlertCircle size={12} className={styles.urgentIcon} />
                     ) : null}
                     {deal.client}
-                    {deal.isDummy ? " - dummy" : ""}
                   </div>
                   <div className={styles.dealMeta}>
-                    {deal.manager} · {deal.region} · {deal.probability}% confidence
+                    {deal.manager} · {deal.region} · 확률 {deal.probability}%
                   </div>
                   <div className={styles.dealSubMeta}>{deal.note}</div>
                 </div>
                 <div className={styles.dealRight}>
                   <div className={`${styles.dealValue} metricValue`}>{formatRevenue(deal.value)}</div>
-                  <ChevronRight size={14} className={styles.chevron} />
+                  <ArrowUpRight size={14} className={styles.chevron} />
                 </div>
                 <div className={styles.probBarWrap}>
                   <div
