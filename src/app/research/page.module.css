@@ -499,6 +499,102 @@
   word-break: keep-all;
 }
 
+.legendResourceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.legendResourceCard,
+.legendPlayCard {
+  min-width: 0;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.85rem;
+  background: var(--surface-2);
+}
+
+.legendResourceCard strong {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.legendResourceCard p {
+  margin: 0.4rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.legendPlayStack {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.legendPlayHeader {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+
+.legendPlayHeader strong {
+  color: var(--foreground);
+  font-size: 0.88rem;
+  font-weight: 850;
+}
+
+.legendPlayHeader span {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.24rem 0.52rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: var(--card-bg-glass);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.legendMiniList {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.4rem;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+.legendChecklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.legendChecklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.62rem 0.7rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.8rem;
+  background: var(--surface-2);
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
 .libraryGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1147,6 +1243,10 @@
     grid-template-columns: 1fr;
   }
 
+  .legendResourceGrid {
+    grid-template-columns: 1fr;
+  }
+
   .sideRail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1157,6 +1257,7 @@
   .libraryGrid,
   .patternGrid,
   .detailGrid,
+  .legendChecklist,
   .libraryList {
     grid-template-columns: 1fr;
   }

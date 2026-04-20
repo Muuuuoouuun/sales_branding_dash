@@ -15,9 +15,10 @@ import {
   Target,
 } from "lucide-react";
 import styles from "./page.module.css";
+import { useSettings } from "@/components/SettingsProvider";
 import { formatRevenue } from "@/lib/formatCurrency";
 import { SALES_LEGENDS, getContextualTip, type GuruTip, type SalesLegend } from "@/lib/salesTips";
-import { RESOURCES, RESOURCE_CATEGORY_LABEL, RESOURCE_CATEGORY_EMOJI, isNewResource, getWeeklyResource, type Resource, type ResourceCategory } from "@/lib/resources";
+import { RESOURCES, RESOURCE_CATEGORY_LABEL, RESOURCE_CATEGORY_EMOJI, isNewResource, getWeeklyResource, type ResourceCategory } from "@/lib/resources";
 import type { ActivityStage, DashboardPayload, HotDeal, IndividualData, RegionData } from "@/types/dashboard";
 
 type ResearchTab = "library" | "patterns" | "intel" | "resources" | "talks";
@@ -360,7 +361,6 @@ function buildPatternCards(dashboard: DashboardSnapshot): PatternCard[] {
   const weakestStage = getWeakestStage(dashboard.bottleneck);
   const topDeal = getTopDeal(dashboard.hotDeals);
   const topManager = getTopManager(dashboard.individuals);
-  const fallback = dashboard.dataSource !== "google-sheets";
   const cards: PatternCard[] = [];
 
   if (weakestRegion && strongestRegion) {
@@ -678,7 +678,6 @@ function buildIntelCards(dashboard: DashboardSnapshot): IntelCard[] {
   const topDeal = getTopDeal(dashboard.hotDeals);
   const agingDeals = dashboard.aging.filter((deal) => deal.days >= 40);
   const lastUpdated = formatIsoDate(dashboard.lastUpdated);
-  const fallback = dashboard.dataSource !== "google-sheets";
   const cards: IntelCard[] = [];
 
   if (weakestRegion) {
@@ -1802,7 +1801,7 @@ function GuruTipBanner({ tip }: { tip: GuruTip }) {
 }
 
 export default function ResearchPage() {
-  const { language } = require("@/components/SettingsProvider").useSettings();
+  const { language } = useSettings();
   const [activeTab, setActiveTab] = useState<ResearchTab>("library");
   const [initialTalkTrackId, setInitialTalkTrackId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -1828,7 +1827,6 @@ export default function ResearchPage() {
   const [selectedIntelId, setSelectedIntelId] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardSnapshot>(EMPTY_DASHBOARD);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const focusMethod = selectedMethod === "All" ? "Challenger" : selectedMethod;
   const dailyTip = getContextualTip("research");
 
   useEffect(() => {
@@ -1881,7 +1879,14 @@ export default function ResearchPage() {
         matchesQuery(legend.id, query) ||
         matchesQuery(legend.name, query) ||
         matchesQuery(legend.title, query) ||
-        matchesQuery(legend.bio, query)
+        matchesQuery(legend.bio, query) ||
+        legend.resources.some((resource) =>
+          matchesQuery(`${resource.title} ${resource.note}`, query),
+        ) ||
+        legend.fieldPlays.some((play) =>
+          matchesQuery(`${play.title} ${play.useWhen} ${play.moves.join(" ")}`, query),
+        ) ||
+        legend.reviewChecklist.some((item) => matchesQuery(item, query))
       );
     });
   }, [query]);
@@ -2162,6 +2167,51 @@ export default function ResearchPage() {
                 <div className={styles.legendSignatureBox} style={{ borderColor: selectedLegend.color }}>
                   <div className={styles.sectionLabel}><Star size={12} /> Signature move</div>
                   <p className={styles.legendSignatureText}>{selectedLegend.signatureMove}</p>
+                </div>
+
+                <div className={styles.legendSection}>
+                  <div className={styles.sectionLabel}><BookOpen size={12} /> Study stack</div>
+                  <div className={styles.legendResourceGrid}>
+                    {selectedLegend.resources.map((resource) => (
+                      <div key={resource.title} className={styles.legendResourceCard}>
+                        <strong style={{ color: selectedLegend.color }}>{resource.title}</strong>
+                        <p>{resource.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.legendSection}>
+                  <div className={styles.sectionLabel}><MessageCircle size={12} /> Field plays</div>
+                  <div className={styles.legendPlayStack}>
+                    {selectedLegend.fieldPlays.map((play) => (
+                      <div key={play.title} className={styles.legendPlayCard}>
+                        <div className={styles.legendPlayHeader}>
+                          <strong>{play.title}</strong>
+                          <span style={{ borderColor: selectedLegend.color, color: selectedLegend.color }}>
+                            {play.useWhen}
+                          </span>
+                        </div>
+                        <ol className={styles.legendMiniList}>
+                          {play.moves.map((move) => (
+                            <li key={move}>{move}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.legendSection}>
+                  <div className={styles.sectionLabel}><Target size={12} /> Deal review checklist</div>
+                  <ul className={styles.legendChecklist}>
+                    {selectedLegend.reviewChecklist.map((item) => (
+                      <li key={item}>
+                        <span className={styles.legendPrincipleDot} style={{ background: selectedLegend.color }} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </article>
               </div>

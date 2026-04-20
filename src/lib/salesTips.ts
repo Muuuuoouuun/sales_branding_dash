@@ -286,6 +286,9 @@ export interface SalesLegend {
   quotes: string[];
   principles: string[];
   signatureMove: string;
+  resources: { title: string; note: string }[];
+  fieldPlays: { title: string; useWhen: string; moves: string[] }[];
+  reviewChecklist: string[];
 }
 
 export const SALES_LEGENDS: SalesLegend[] = [
@@ -311,6 +314,37 @@ export const SALES_LEGENDS: SalesLegend[] = [
       "Commercial Teaching — 인사이트 → 리프레이밍 → 솔루션 연결의 흐름을 설계하라",
     ],
     signatureMove: "Commercial Teaching — 놀라운 인사이트로 시작해 고객의 사고를 재구성하고 자연스럽게 솔루션으로 연결",
+    resources: [
+      { title: "The Challenger Sale", note: "최고 성과 영업사원을 5가지 유형으로 나누고 Challenger가 왜 복잡한 B2B 딜에서 강한지 설명하는 기본서." },
+      { title: "The Challenger Customer", note: "단일 구매자가 아니라 구매 그룹 전체의 합의를 어떻게 움직이는지 다루는 후속 플레이북." },
+      { title: "Commercial Insight Brief", note: "고객의 기존 믿음을 흔드는 시장 변화, 숨은 비용, 반대 사례를 한 장으로 정리하는 내부 자료." },
+    ],
+    fieldPlays: [
+      {
+        title: "Reframe opener",
+        useWhen: "고객이 이미 문제를 안다고 생각하지만 우선순위가 낮을 때",
+        moves: [
+          "고객이 믿고 있는 전제를 한 문장으로 확인한다.",
+          "그 전제가 최근 데이터나 시장 변화 때문에 더 이상 안전하지 않다는 근거를 제시한다.",
+          "제품 설명으로 넘어가기 전에 새로운 운영 기준을 먼저 합의한다.",
+        ],
+      },
+      {
+        title: "Constructive tension close",
+        useWhen: "미팅이 긍정적이지만 다음 단계가 흐릿할 때",
+        moves: [
+          "동의받은 문제와 아직 해결되지 않은 비용을 다시 말한다.",
+          "결정을 미루면 생기는 리스크를 숫자나 일정으로 좁힌다.",
+          "다음 미팅의 참석자와 산출물을 구체적으로 제안한다.",
+        ],
+      },
+    ],
+    reviewChecklist: [
+      "이 딜에서 고객이 새롭게 배운 사실이 있는가?",
+      "우리가 흔든 고객의 기존 가정은 무엇인가?",
+      "그 인사이트가 우리 솔루션으로 자연스럽게 이어지는가?",
+      "다음 단계가 고객의 불편함을 해소하는 행동으로 정의됐는가?",
+    ],
   },
   {
     id: "SPIN",
@@ -334,6 +368,37 @@ export const SALES_LEGENDS: SalesLegend[] = [
       "Need-Payoff로 마무리 — 고객 스스로 솔루션의 가치를 말하게 하라",
     ],
     signatureMove: "Implication 질문 — '이 문제가 계속된다면 조직 전체에 어떤 영향이 올까요?'",
+    resources: [
+      { title: "SPIN Selling", note: "35,000건 이상의 세일즈 콜 분석을 기반으로 질문의 순서와 영향력을 정리한 디스커버리 고전." },
+      { title: "Major Account Sales Strategy", note: "대형 계정에서 의사결정 구조와 장기 영업 사이클을 다루는 Rackham의 확장 자료." },
+      { title: "Question Ladder Sheet", note: "Situation, Problem, Implication, Need-Payoff 질문을 계정별로 미리 작성하는 현장 워크시트." },
+    ],
+    fieldPlays: [
+      {
+        title: "Implication ladder",
+        useWhen: "고객이 문제는 인정하지만 긴급함을 느끼지 못할 때",
+        moves: [
+          "현재 문제가 어디서 반복되는지 Problem 질문으로 좁힌다.",
+          "그 문제가 비용, 일정, 평판, 내부 리소스에 미치는 영향을 순서대로 묻는다.",
+          "고객이 직접 말한 영향만 요약해 다음 단계의 근거로 쓴다.",
+        ],
+      },
+      {
+        title: "Need-payoff handoff",
+        useWhen: "솔루션 설명 직전에 고객의 언어로 가치를 고정해야 할 때",
+        moves: [
+          "해결된다면 가장 먼저 좋아지는 지표를 묻는다.",
+          "그 변화가 팀이나 임원에게 어떤 의미인지 묻는다.",
+          "고객 답변을 제안서의 첫 문단으로 재사용한다.",
+        ],
+      },
+    ],
+    reviewChecklist: [
+      "Situation 질문이 과도하게 길어지지 않았는가?",
+      "Problem이 고객의 말로 정의됐는가?",
+      "Implication 질문이 비용이나 리스크까지 확장됐는가?",
+      "Need-Payoff 답변을 고객이 직접 말했는가?",
+    ],
   },
   {
     id: "MEDDIC",
@@ -357,6 +422,37 @@ export const SALES_LEGENDS: SalesLegend[] = [
       "Champion — 내부에서 권력이 있고 기꺼이 쓰려는 사람을 반드시 육성하라",
     ],
     signatureMove: "Champion 테스트 — '이 딜이 막혔을 때 당신이 직접 나서서 밀어붙일 수 있나요?'",
+    resources: [
+      { title: "MEDDIC Field Notes", note: "Metrics, Economic Buyer, Decision Criteria, Decision Process, Identify Pain, Champion을 딜 리뷰 언어로 정리한 실전 노트." },
+      { title: "MEDDPICC Expansion", note: "Paper Process, Competition까지 포함해 엔터프라이즈 딜의 숨은 지연 요소를 검증하는 확장 프레임." },
+      { title: "Mutual Action Plan Template", note: "고객과 우리 팀의 단계별 책임자, 날짜, 산출물을 한 장으로 맞추는 실행 문서." },
+    ],
+    fieldPlays: [
+      {
+        title: "Champion proof test",
+        useWhen: "담당자가 호의적이지만 내부 영향력이 불확실할 때",
+        moves: [
+          "이 사람이 내부 회의에서 우리 관점을 말한 적이 있는지 확인한다.",
+          "예산권자나 반대자에게 접근할 수 있는지 묻는다.",
+          "막혔을 때 직접 나설 의지가 있는지 작은 부탁으로 테스트한다.",
+        ],
+      },
+      {
+        title: "Decision process map",
+        useWhen: "마감일은 있는데 실제 승인 경로가 보이지 않을 때",
+        moves: [
+          "법무, 보안, 구매, 임원 승인 단계를 순서대로 적는다.",
+          "각 단계의 담당자와 완료 조건을 확인한다.",
+          "확인되지 않은 단계는 forecast confidence에서 제외한다.",
+        ],
+      },
+    ],
+    reviewChecklist: [
+      "Economic Buyer를 직접 만났는가?",
+      "구매 기준과 경쟁 기준이 문서화됐는가?",
+      "Champion이 권력과 의지를 모두 갖췄는가?",
+      "Paper Process의 담당자와 날짜가 확인됐는가?",
+    ],
   },
   {
     id: "Sandler",
@@ -380,6 +476,37 @@ export const SALES_LEGENDS: SalesLegend[] = [
       "Dummy Curve — 전문가처럼 보이려 하지 말고, 모르는 척 더 많이 들어라",
     ],
     signatureMove: "Negative Reverse — '어쩌면 이게 지금 맞지 않을 수도 있겠네요.' (역설적 참여 유도로 진짜 의견을 끌어냄)",
+    resources: [
+      { title: "Sandler Rules", note: "가망 없는 딜을 빨리 걸러내고 상호 합의를 명확히 하는 49가지 현장 규칙." },
+      { title: "You Can't Teach a Kid to Ride a Bike at a Seminar", note: "Sandler 시스템의 기본 철학과 행동 변화 중심 훈련법을 다루는 대표 자료." },
+      { title: "Up-Front Contract Script", note: "미팅 시작과 종료 시 기대, 시간, 결과, 다음 행동을 합의하는 스크립트 템플릿." },
+    ],
+    fieldPlays: [
+      {
+        title: "Up-front contract",
+        useWhen: "미팅 목적이 애매하거나 고객이 탐색만 반복할 때",
+        moves: [
+          "오늘 미팅에서 다룰 범위와 시간을 합의한다.",
+          "미팅 끝에 어떤 결정을 내려야 하는지 미리 말한다.",
+          "양쪽 모두 맞지 않으면 아니오라고 말할 수 있음을 허용한다.",
+        ],
+      },
+      {
+        title: "Negative reverse",
+        useWhen: "고객이 예의상 긍정하지만 진짜 반응을 숨길 때",
+        moves: [
+          "이 제안이 지금 맞지 않을 수도 있다고 먼저 말한다.",
+          "고객이 반박하거나 설명하도록 침묵을 둔다.",
+          "고객이 밝힌 진짜 우려를 다음 질문으로 좁힌다.",
+        ],
+      },
+    ],
+    reviewChecklist: [
+      "고객보다 우리가 딜을 더 원하는 신호가 있었는가?",
+      "Pain, Budget, Decision을 분리해서 확인했는가?",
+      "미팅 시작 전에 기대 결과를 합의했는가?",
+      "아니오를 받아들일 수 있는 명확한 기준이 있는가?",
+    ],
   },
   {
     id: "Outbound",
@@ -403,6 +530,37 @@ export const SALES_LEGENDS: SalesLegend[] = [
       "Niche First — 타겟을 좁혀야 메시지가 날카로워지고 응답률이 올라간다",
     ],
     signatureMove: "Cold Calling 2.0 — 전화 없이 콜드 이메일로 C레벨 임원에게 적합한 담당자를 소개받는 레퍼럴 방식",
+    resources: [
+      { title: "Predictable Revenue", note: "Salesforce 아웃바운드 조직 설계를 바탕으로 SDR, AE, CSM 역할 분리와 반복 가능한 파이프라인을 설명하는 기본서." },
+      { title: "Seeds, Nets, Spears Map", note: "오가닉, 마케팅, 아웃바운드 리드를 분리해 채널별 전환율과 책임자를 관리하는 운영표." },
+      { title: "Cold Email Referral Kit", note: "임원에게 담당자를 소개받기 위한 짧은 이메일, 후속 문장, 계정 리서치 체크리스트." },
+    ],
+    fieldPlays: [
+      {
+        title: "Referral-first outbound",
+        useWhen: "조직 내 정확한 담당자를 모르는 전략 계정을 열 때",
+        moves: [
+          "C레벨에게 직접 제품을 팔지 않고 올바른 담당자 소개를 요청한다.",
+          "왜 이 계정에 연락했는지 한 가지 사업 맥락만 넣는다.",
+          "소개받은 담당자에게는 임원 레퍼럴 맥락으로 대화를 시작한다.",
+        ],
+      },
+      {
+        title: "SDR specialization audit",
+        useWhen: "AE가 발굴과 클로징을 동시에 하느라 파이프라인이 흔들릴 때",
+        moves: [
+          "발굴, 미팅 세팅, 클로징, 확장의 책임자를 분리해 적는다.",
+          "각 역할의 성공 지표를 하나씩만 정한다.",
+          "AE 시간을 신규 발굴보다 클로징과 확장에 재배치한다.",
+        ],
+      },
+    ],
+    reviewChecklist: [
+      "리드 소스가 Seeds, Nets, Spears로 분리돼 있는가?",
+      "SDR과 AE의 책임 경계가 명확한가?",
+      "아웃바운드 메시지가 충분히 좁은 ICP에 맞춰졌는가?",
+      "개인 역량이 아니라 시스템으로 반복 가능한가?",
+    ],
   },
   {
     id: "Prospecting",
@@ -426,6 +584,37 @@ export const SALES_LEGENDS: SalesLegend[] = [
       "Time Blocking — 프로스펙팅 시간을 달력에 먼저 고정하고 비상사태 외엔 절대 건드리지 마라",
     ],
     signatureMove: "Time Blocking — 하루 최소 1~2시간을 프로스펙팅 전용 블록으로 달력에 고정하고 신성불가침 영역으로 지켜라",
+    resources: [
+      { title: "Fanatical Prospecting", note: "파이프라인 공백을 막기 위한 활동량, 멀티채널 접점, 30일 규칙을 다루는 현장형 기본서." },
+      { title: "Sales Gravy Prospecting Blocks", note: "전화, 이메일, 소셜, 리퍼럴을 시간대별로 섞는 주간 프로스펙팅 루틴." },
+      { title: "30-Day Pipeline Rule Sheet", note: "오늘의 발굴 활동이 30일 뒤 파이프라인에 어떤 영향을 주는지 추적하는 체크시트." },
+    ],
+    fieldPlays: [
+      {
+        title: "Golden hour block",
+        useWhen: "바쁜 일정 때문에 발굴이 계속 밀릴 때",
+        moves: [
+          "매일 같은 시간 60~90분을 발굴 전용으로 잠근다.",
+          "그 시간에는 CRM 정리나 제안서 작성 대신 신규 접점만 만든다.",
+          "콜, 이메일, 소셜 터치를 한 세트로 묶어 채널 편향을 줄인다.",
+        ],
+      },
+      {
+        title: "No empty day rule",
+        useWhen: "파이프라인이 얇아지고 활동량이 들쭉날쭉할 때",
+        moves: [
+          "하루 최소 신규 접점 수를 정한다.",
+          "미달한 날은 다음 날 오전 첫 블록에서 갚는다.",
+          "성과보다 활동 누락 원인을 먼저 리뷰한다.",
+        ],
+      },
+    ],
+    reviewChecklist: [
+      "이번 주 프로스펙팅 시간이 달력에 먼저 잡혔는가?",
+      "전화, 이메일, 소셜, 리퍼럴이 섞여 있는가?",
+      "30일 뒤 파이프라인을 채울 신규 접점 수가 충분한가?",
+      "활동량이 감정이 아니라 시스템으로 관리되는가?",
+    ],
   },
   {
     id: "Negotiation",
@@ -449,6 +638,37 @@ export const SALES_LEGENDS: SalesLegend[] = [
       "Accusation Audit — 상대가 할 수 있는 부정적 말을 먼저 꺼내 방어를 무장해제하라",
     ],
     signatureMove: "Late Night FM DJ Voice — 낮고 차분한 목소리 톤으로 상대의 긴장을 낮추고 협상 주도권을 가져와라",
+    resources: [
+      { title: "Never Split the Difference", note: "FBI 협상 경험을 바탕으로 라벨링, 미러링, calibrated question, accusation audit을 세일즈 협상에 적용하는 실전서." },
+      { title: "Black Swan Negotiation Notes", note: "겉으로 드러난 요구 뒤의 숨은 제약과 새로운 정보를 찾기 위한 협상 메모." },
+      { title: "Accusation Audit Prep", note: "상대가 우리에게 품을 수 있는 부정적 생각을 미리 적고 먼저 말하는 준비표." },
+    ],
+    fieldPlays: [
+      {
+        title: "Label and mirror",
+        useWhen: "가격, 일정, 조건 협상에서 상대가 방어적으로 나올 때",
+        moves: [
+          "상대 감정을 '...처럼 들립니다' 형태로 라벨링한다.",
+          "상대의 마지막 핵심 단어를 반복해 더 말하게 한다.",
+          "새 정보가 나오기 전에는 반박하지 않는다.",
+        ],
+      },
+      {
+        title: "Calibrated question close",
+        useWhen: "상대가 불가능한 조건을 요구하거나 책임을 넘길 때",
+        moves: [
+          "'어떻게 하면 그 조건을 맞출 수 있을까요?'처럼 어떻게/무엇 질문을 던진다.",
+          "상대가 직접 제약을 설명하게 만든다.",
+          "현실적인 대안을 상대의 말에서 끌어낸다.",
+        ],
+      },
+    ],
+    reviewChecklist: [
+      "협상 전에 Accusation Audit을 작성했는가?",
+      "상대 감정을 논박하기 전에 먼저 라벨링했는가?",
+      "가격 양보 대신 calibrated question을 사용했는가?",
+      "숨은 제약, 즉 Black Swan 후보를 최소 하나 찾았는가?",
+    ],
   },
 ];
 

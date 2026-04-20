@@ -68,6 +68,51 @@ interface HardwarePipelinePayload {
 // ─── Tab type ─────────────────────────────────────────────────────
 
 type Tab = "deals" | "manager" | "region";
+type InsightTone = "good" | "watch" | "risk" | "neutral";
+
+interface ManagerInsight {
+  name: string;
+  stat: ManagerStat;
+  deals: HardwareDeal[];
+  confirmedRate: number;
+  valueConversion: number;
+  openPipeline: number;
+  weightedPipeline: number;
+  riskCount: number;
+  riskValue: number;
+  topDeal: HardwareDeal | null;
+  mainRegion: string;
+  tone: InsightTone;
+  nextMove: string;
+}
+
+interface RegionInsight {
+  region: string;
+  stat: RegionStat;
+  deals: HardwareDeal[];
+  confirmedRate: number;
+  valueConversion: number;
+  openPipeline: number;
+  weightedPipeline: number;
+  riskCount: number;
+  riskValue: number;
+  kaCount: number;
+  managerCount: number;
+  leadingManager: string;
+  topDeal: HardwareDeal | null;
+  productMix: string;
+  tone: InsightTone;
+  nextMove: string;
+}
+
+interface SpotlightItem {
+  id: string;
+  label: string;
+  title: string;
+  value: string;
+  detail: string;
+  tone: InsightTone;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -84,6 +129,95 @@ function getInitials(name: string): string {
 function toPercent(value: number, total: number): number {
   if (total <= 0) return 0;
   return Math.min(100, Math.max(0, (value / total) * 100));
+}
+
+function safePercent(value: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.round(toPercent(value, total));
+}
+
+function isRiskDeal(deal: HardwareDeal): boolean {
+  return !deal.isConfirmed && deal.probability < 60;
+}
+
+function getTopDeal(deals: HardwareDeal[]): HardwareDeal | null {
+  if (deals.length === 0) return null;
+  return deals.reduce((best, deal) => (deal.amount > best.amount ? deal : best));
+}
+
+function getWeightedPipeline(deals: HardwareDeal[]): number {
+  return deals.reduce((sum, deal) => {
+    const multiplier = deal.isConfirmed ? 1 : deal.probability / 100;
+    return sum + Math.round(deal.amount * multiplier);
+  }, 0);
+}
+
+function getTopValueLabel(
+  deals: HardwareDeal[],
+  key: "manager" | "region" | "type" | "version",
+): string {
+  const totals = new Map<string, number>();
+
+  for (const deal of deals) {
+    const label = deal[key]?.trim() || "미지정";
+    totals.set(label, (totals.get(label) ?? 0) + deal.amount);
+  }
+
+  return (
+    [...totals.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ??
+    "미지정"
+  );
+}
+
+function getTone(valueConversion: number, riskCount: number): InsightTone {
+  if (riskCount > 0 || valueConversion < 35) return "risk";
+  if (valueConversion < 70) return "watch";
+  return "good";
+}
+
+function getToneLabel(tone: InsightTone): string {
+  if (tone === "good") return "안정";
+  if (tone === "watch") return "주시";
+  if (tone === "risk") return "개입";
+  return "중립";
+}
+
+function buildManagerMove(
+  topDeal: HardwareDeal | null,
+  riskCount: number,
+  openPipeline: number,
+  valueConversion: number,
+): string {
+  if (riskCount > 0) {
+    return `확률 60% 미만 딜 ${riskCount}건의 다음 미팅과 의사결정자를 먼저 확인하세요.`;
+  }
+
+  if (openPipeline > 0 && topDeal) {
+    return `${topDeal.account}의 1차 결제일과 확정 조건을 잠그면 전환율을 ${Math.max(valueConversion, 1)}%에서 끌어올릴 수 있습니다.`;
+  }
+
+  return "확정 딜의 납품, 설치, 후속 확장 기회를 체크해 매출 누수를 막으세요.";
+}
+
+function buildRegionMove(
+  topDeal: HardwareDeal | null,
+  riskCount: number,
+  managerCount: number,
+  valueConversion: number,
+): string {
+  if (riskCount > 0) {
+    return `리스크 딜 ${riskCount}건을 지역 리뷰 안건으로 올리고 매니저별 복구 액션을 지정하세요.`;
+  }
+
+  if (managerCount > 1 && valueConversion < 70) {
+    return "담당 매니저가 나뉜 지역입니다. 조건, 납기, 경쟁 상황을 한 번에 맞추는 합동 리뷰가 필요합니다.";
+  }
+
+  if (topDeal) {
+    return `${topDeal.account}를 기준 딜로 삼아 같은 지역의 유사 계정에 제안 패턴을 복제하세요.`;
+  }
+
+  return "지역별 리드 소스를 보강하고 다음 분기 커버리지 후보를 추가하세요.";
 }
 
 // ─── Component ────────────────────────────────────────────────────
@@ -179,6 +313,159 @@ export default function HardwarePipelinePage() {
       ([, a], [, b]) => b.pipeline - a.pipeline
     );
   }, [data]);
+
+  const managerInsights = useMemo<ManagerInsight[]>(() => {
+    if (!data) return [];
+
+    return sortedManagers.map(([name, stat]) => {
+      const managerDeals = data.deals.filter((deal) => deal.manager === name);
+      const riskDeals = managerDeals.filter(isRiskDeal);
+      const openPipeline = Math.max(stat.pipeline - stat.confirmed, 0);
+      const valueConversion = safePercent(stat.confirmed, stat.pipeline);
+      const topDeal = getTopDeal(managerDeals);
+      const riskValue = riskDeals.reduce((sum, deal) => sum + deal.amount, 0);
+      const tone = getTone(valueConversion, riskDeals.length);
+
+      return {
+        name,
+        stat,
+        deals: managerDeals,
+        confirmedRate: safePercent(stat.confirmedCount, stat.count),
+        valueConversion,
+        openPipeline,
+        weightedPipeline: getWeightedPipeline(managerDeals),
+        riskCount: riskDeals.length,
+        riskValue,
+        topDeal,
+        mainRegion: getTopValueLabel(managerDeals, "region"),
+        tone,
+        nextMove: buildManagerMove(topDeal, riskDeals.length, openPipeline, valueConversion),
+      };
+    });
+  }, [data, sortedManagers]);
+
+  const regionInsights = useMemo<RegionInsight[]>(() => {
+    if (!data) return [];
+
+    return sortedRegions.map(([region, stat]) => {
+      const regionDeals = data.deals.filter((deal) => deal.region === region);
+      const riskDeals = regionDeals.filter(isRiskDeal);
+      const managers = new Set(regionDeals.map((deal) => deal.manager).filter(Boolean));
+      const openPipeline = Math.max(stat.pipeline - stat.confirmed, 0);
+      const valueConversion = safePercent(stat.confirmed, stat.pipeline);
+      const topDeal = getTopDeal(regionDeals);
+      const riskValue = riskDeals.reduce((sum, deal) => sum + deal.amount, 0);
+      const tone = getTone(valueConversion, riskDeals.length);
+
+      return {
+        region,
+        stat,
+        deals: regionDeals,
+        confirmedRate: safePercent(
+          regionDeals.filter((deal) => deal.isConfirmed).length,
+          stat.count
+        ),
+        valueConversion,
+        openPipeline,
+        weightedPipeline: getWeightedPipeline(regionDeals),
+        riskCount: riskDeals.length,
+        riskValue,
+        kaCount: regionDeals.filter((deal) => deal.importance === "KA").length,
+        managerCount: managers.size,
+        leadingManager: getTopValueLabel(regionDeals, "manager"),
+        topDeal,
+        productMix: getTopValueLabel(regionDeals, "type"),
+        tone,
+        nextMove: buildRegionMove(topDeal, riskDeals.length, managers.size, valueConversion),
+      };
+    });
+  }, [data, sortedRegions]);
+
+  const managerSpotlights = useMemo<SpotlightItem[]>(() => {
+    if (managerInsights.length === 0) return [];
+
+    const topPipeline = managerInsights[0];
+    const bestConversion = [...managerInsights].sort(
+      (left, right) =>
+        right.valueConversion - left.valueConversion ||
+        right.stat.confirmed - left.stat.confirmed
+    )[0];
+    const riskOwner = [...managerInsights].sort(
+      (left, right) =>
+        right.riskValue - left.riskValue ||
+        right.openPipeline - left.openPipeline
+    )[0];
+
+    return [
+      {
+        id: "top-pipeline",
+        label: "파이프라인 리더",
+        title: topPipeline.name,
+        value: formatRevenue(topPipeline.stat.pipeline),
+        detail: `${topPipeline.stat.count}건 · 주력 지역 ${topPipeline.mainRegion}`,
+        tone: "neutral",
+      },
+      {
+        id: "best-conversion",
+        label: "전환율 베스트",
+        title: bestConversion.name,
+        value: `${bestConversion.valueConversion}%`,
+        detail: `확정 ${formatRevenue(bestConversion.stat.confirmed)} · ${bestConversion.confirmedRate}% 딜 확정`,
+        tone: bestConversion.tone,
+      },
+      {
+        id: "risk-owner",
+        label: "개입 필요",
+        title: riskOwner.name,
+        value: `${riskOwner.riskCount}건`,
+        detail: `오픈 ${formatRevenue(riskOwner.openPipeline)} · 리스크 ${formatRevenue(riskOwner.riskValue)}`,
+        tone: riskOwner.riskCount > 0 ? "risk" : "watch",
+      },
+    ];
+  }, [managerInsights]);
+
+  const regionSpotlights = useMemo<SpotlightItem[]>(() => {
+    if (regionInsights.length === 0) return [];
+
+    const topRegion = regionInsights[0];
+    const bestConversion = [...regionInsights].sort(
+      (left, right) =>
+        right.valueConversion - left.valueConversion ||
+        right.stat.confirmed - left.stat.confirmed
+    )[0];
+    const riskRegion = [...regionInsights].sort(
+      (left, right) =>
+        right.riskValue - left.riskValue ||
+        right.openPipeline - left.openPipeline
+    )[0];
+
+    return [
+      {
+        id: "top-region",
+        label: "최대 지역",
+        title: topRegion.region,
+        value: formatRevenue(topRegion.stat.pipeline),
+        detail: `${topRegion.stat.count}건 · 리딩 매니저 ${topRegion.leadingManager}`,
+        tone: "neutral",
+      },
+      {
+        id: "best-region",
+        label: "확정력 베스트",
+        title: bestConversion.region,
+        value: `${bestConversion.valueConversion}%`,
+        detail: `확정 ${formatRevenue(bestConversion.stat.confirmed)} · KA ${bestConversion.kaCount}건`,
+        tone: bestConversion.tone,
+      },
+      {
+        id: "regional-risk",
+        label: "지역 리스크",
+        title: riskRegion.region,
+        value: `${riskRegion.riskCount}건`,
+        detail: `오픈 ${formatRevenue(riskRegion.openPipeline)} · ${riskRegion.managerCount}명 관여`,
+        tone: riskRegion.riskCount > 0 ? "risk" : "watch",
+      },
+    ];
+  }, [regionInsights]);
 
   // ── Loading state ───────────────────────────────────────────────
 
@@ -352,7 +639,7 @@ export default function HardwarePipelinePage() {
               <Box size={32} className={styles.emptyStateIcon} />
               <span>하드웨어 딜 없음</span>
               {query && (
-                <span>"{query}"에 해당하는 딜을 찾을 수 없습니다.</span>
+                <span>&quot;{query}&quot;에 해당하는 딜을 찾을 수 없습니다.</span>
               )}
             </div>
           ) : (
@@ -455,135 +742,293 @@ export default function HardwarePipelinePage() {
 
       {/* ── Tab: 매니저별 ── */}
       {activeTab === "manager" && (
-        <section>
+        <section className={styles.tabSection}>
           {sortedManagers.length === 0 ? (
             <div className={styles.emptyState}>
               <Users size={32} className={styles.emptyStateIcon} />
               <span>매니저 데이터 없음</span>
             </div>
           ) : (
-            <div className={styles.managerGrid}>
-              {sortedManagers.map(([name, stat]) => {
-                const fillPct = toPercent(stat.confirmed, stat.pipeline);
-                return (
-                  <div key={name} className={styles.managerCard}>
-                    {/* Card header */}
-                    <div className={styles.managerHeader}>
-                      <div className={styles.managerAvatar} aria-hidden>
-                        {getInitials(name)}
-                      </div>
-                      <span className={styles.managerName} title={name}>
-                        {name}
-                      </span>
-                      <span className={styles.managerDealCount}>
-                        {stat.count}건
-                      </span>
-                    </div>
+            <>
+              <div className={styles.tabHeader}>
+                <div>
+                  <span className={styles.sectionKicker}>Manager command center</span>
+                  <h2 className={styles.sectionTitle}>매니저별 파이프라인 운영판</h2>
+                  <p className={styles.sectionSubtitle}>
+                    누가 가장 큰 금액을 들고 있는지, 어디에 개입이 필요한지, 다음 리뷰에서 바로 확인할 수 있게 정리했습니다.
+                  </p>
+                </div>
+                <span className={styles.sectionBadge}>{managerInsights.length}명</span>
+              </div>
 
-                    {/* Stats grid */}
-                    <div className={styles.managerStats}>
-                      <div className={styles.managerStat}>
-                        <span className={styles.managerStatLabel}>파이프라인</span>
-                        <span className={styles.managerStatValue}>
-                          {formatRevenue(stat.pipeline)}
-                        </span>
-                      </div>
-                      <div className={styles.managerStat}>
-                        <span className={styles.managerStatLabel}>확정 매출</span>
-                        <span
-                          className={`${styles.managerStatValue} ${styles.managerStatValueAccent}`}
-                        >
-                          {formatRevenue(stat.confirmed)}
-                        </span>
-                      </div>
-                      <div className={styles.managerStat}>
-                        <span className={styles.managerStatLabel}>전체 딜</span>
-                        <span className={styles.managerStatValue}>
-                          {stat.count}건
-                        </span>
-                      </div>
-                      <div className={styles.managerStat}>
-                        <span className={styles.managerStatLabel}>확정 딜</span>
-                        <span className={styles.managerStatValue}>
-                          {stat.confirmedCount}건
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className={styles.progressBar}>
-                      <div
-                        className={styles.progressFill}
-                        style={{ width: `${fillPct}%` }}
-                        role="progressbar"
-                        aria-valuenow={fillPct}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`확정 비율 ${fillPct.toFixed(0)}%`}
-                      />
-                    </div>
-                    <div className={styles.progressLabel}>
-                      <span>확정 비율</span>
-                      <span className={styles.progressLabelAccent}>
-                        {fillPct.toFixed(0)}%
-                      </span>
-                    </div>
+              <div className={styles.spotlightGrid}>
+                {managerSpotlights.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`${styles.spotlightCard} ${styles[`toneBorder_${item.tone}`]}`}
+                  >
+                    <span className={styles.spotlightLabel}>{item.label}</span>
+                    <div className={styles.spotlightTitle}>{item.title}</div>
+                    <div className={styles.spotlightValue}>{item.value}</div>
+                    <p className={styles.spotlightDetail}>{item.detail}</p>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+
+              <div className={styles.managerGrid}>
+                {managerInsights.map((insight) => {
+                  const fillPct = insight.valueConversion;
+                  return (
+                    <div key={insight.name} className={styles.managerCard}>
+                      <div className={styles.managerHeader}>
+                        <div className={styles.managerAvatar} aria-hidden>
+                          {getInitials(insight.name)}
+                        </div>
+                        <span className={styles.managerName} title={insight.name}>
+                          {insight.name}
+                        </span>
+                        <span
+                          className={`${styles.statusPill} ${styles[`tone_${insight.tone}`]}`}
+                        >
+                          {getToneLabel(insight.tone)}
+                        </span>
+                      </div>
+
+                      <div className={styles.managerStats}>
+                        <div className={styles.managerStat}>
+                          <span className={styles.managerStatLabel}>파이프라인</span>
+                          <span className={styles.managerStatValue}>
+                            {formatRevenue(insight.stat.pipeline)}
+                          </span>
+                        </div>
+                        <div className={styles.managerStat}>
+                          <span className={styles.managerStatLabel}>확정 매출</span>
+                          <span
+                            className={`${styles.managerStatValue} ${styles.managerStatValueAccent}`}
+                          >
+                            {formatRevenue(insight.stat.confirmed)}
+                          </span>
+                        </div>
+                        <div className={styles.managerStat}>
+                          <span className={styles.managerStatLabel}>오픈 금액</span>
+                          <span className={styles.managerStatValue}>
+                            {formatRevenue(insight.openPipeline)}
+                          </span>
+                        </div>
+                        <div className={styles.managerStat}>
+                          <span className={styles.managerStatLabel}>가중 파이프</span>
+                          <span className={styles.managerStatValue}>
+                            {formatRevenue(insight.weightedPipeline)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className={styles.progressBar}>
+                        <div
+                          className={styles.progressFill}
+                          style={{ width: `${fillPct}%` }}
+                          role="progressbar"
+                          aria-valuenow={fillPct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`금액 전환율 ${fillPct}%`}
+                        />
+                      </div>
+                      <div className={styles.progressLabel}>
+                        <span>금액 전환율</span>
+                        <span className={styles.progressLabelAccent}>{fillPct}%</span>
+                      </div>
+
+                      <div className={styles.focusList}>
+                        <div className={styles.focusItem}>
+                          <span>대표 딜</span>
+                          <strong>{insight.topDeal?.account ?? "없음"}</strong>
+                          <em>{insight.topDeal ? formatRevenue(insight.topDeal.amount) : "-"}</em>
+                        </div>
+                        <div className={styles.focusItem}>
+                          <span>주력 지역</span>
+                          <strong>{insight.mainRegion}</strong>
+                          <em>{insight.stat.count}건 · 확정 {insight.confirmedRate}%</em>
+                        </div>
+                        <div className={styles.focusItem}>
+                          <span>리스크</span>
+                          <strong>{insight.riskCount}건</strong>
+                          <em>{formatRevenue(insight.riskValue)}</em>
+                        </div>
+                      </div>
+
+                      <div className={`${styles.actionNote} ${styles[`toneBorder_${insight.tone}`]}`}>
+                        {insight.nextMove}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </section>
       )}
 
       {/* ── Tab: 지역별 ── */}
       {activeTab === "region" && (
-        <section>
+        <section className={styles.tabSection}>
           {sortedRegions.length === 0 ? (
             <div className={styles.emptyState}>
               <MapPin size={32} className={styles.emptyStateIcon} />
               <span>지역 데이터 없음</span>
             </div>
           ) : (
-            <div className={styles.regionTableWrap}>
-            <div className={styles.regionTable} role="table" aria-label="지역별 현황">
-              {/* Head */}
-              <div className={styles.regionHead} role="row">
-                <div className={styles.regionHeadCell} role="columnheader">지역명</div>
-                <div className={styles.regionHeadCell} role="columnheader">딜 수</div>
-                <div className={styles.regionHeadCell} role="columnheader">파이프라인 금액</div>
-                <div className={styles.regionHeadCell} role="columnheader">확정 금액</div>
+            <>
+              <div className={styles.tabHeader}>
+                <div>
+                  <span className={styles.sectionKicker}>Regional coverage</span>
+                  <h2 className={styles.sectionTitle}>지역별 커버리지와 회수 우선순위</h2>
+                  <p className={styles.sectionSubtitle}>
+                    지역별 오픈 금액, KA 분포, 리딩 매니저, 대표 딜을 묶어 현장 리뷰에서 바로 쓸 수 있게 만들었습니다.
+                  </p>
+                </div>
+                <span className={styles.sectionBadge}>{regionInsights.length}개 지역</span>
               </div>
 
-              {/* Rows */}
-              {sortedRegions.map(([region, stat]) => (
-                <div key={region} className={styles.regionRow} role="row">
-                  <div className={styles.regionName} role="cell">
-                    <MapPin size={13} aria-hidden />
-                    {region}
-                  </div>
+              <div className={styles.spotlightGrid}>
+                {regionSpotlights.map((item) => (
                   <div
-                    className={`${styles.regionCell} ${styles.regionCellMuted}`}
-                    role="cell"
+                    key={item.id}
+                    className={`${styles.spotlightCard} ${styles[`toneBorder_${item.tone}`]}`}
                   >
-                    {stat.count}건
+                    <span className={styles.spotlightLabel}>{item.label}</span>
+                    <div className={styles.spotlightTitle}>{item.title}</div>
+                    <div className={styles.spotlightValue}>{item.value}</div>
+                    <p className={styles.spotlightDetail}>{item.detail}</p>
                   </div>
-                  <div
-                    className={`${styles.regionCell} ${styles.regionAmount}`}
-                    role="cell"
-                  >
-                    {formatRevenue(stat.pipeline)}
+                ))}
+              </div>
+
+              <div className={styles.regionGrid}>
+                {regionInsights.map((insight) => (
+                  <div key={insight.region} className={styles.regionCard}>
+                    <div className={styles.regionCardHeader}>
+                      <div>
+                        <div className={styles.regionNameLarge}>
+                          <MapPin size={14} aria-hidden />
+                          {insight.region}
+                        </div>
+                        <div className={styles.regionMetaLine}>
+                          리딩 매니저 {insight.leadingManager} · {insight.managerCount}명 관여
+                        </div>
+                      </div>
+                      <span className={`${styles.statusPill} ${styles[`tone_${insight.tone}`]}`}>
+                        {getToneLabel(insight.tone)}
+                      </span>
+                    </div>
+
+                    <div className={styles.regionMetricGrid}>
+                      <div>
+                        <span>파이프라인</span>
+                        <strong>{formatRevenue(insight.stat.pipeline)}</strong>
+                      </div>
+                      <div>
+                        <span>확정</span>
+                        <strong>{formatRevenue(insight.stat.confirmed)}</strong>
+                      </div>
+                      <div>
+                        <span>오픈</span>
+                        <strong>{formatRevenue(insight.openPipeline)}</strong>
+                      </div>
+                      <div>
+                        <span>가중</span>
+                        <strong>{formatRevenue(insight.weightedPipeline)}</strong>
+                      </div>
+                    </div>
+
+                    <div className={styles.progressBar}>
+                      <div
+                        className={styles.progressFill}
+                        style={{ width: `${insight.valueConversion}%` }}
+                        role="progressbar"
+                        aria-valuenow={insight.valueConversion}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${insight.region} 금액 전환율 ${insight.valueConversion}%`}
+                      />
+                    </div>
+                    <div className={styles.progressLabel}>
+                      <span>금액 전환율</span>
+                      <span className={styles.progressLabelAccent}>
+                        {insight.valueConversion}%
+                      </span>
+                    </div>
+
+                    <div className={styles.regionDetailGrid}>
+                      <div className={styles.focusItem}>
+                        <span>대표 딜</span>
+                        <strong>{insight.topDeal?.account ?? "없음"}</strong>
+                        <em>{insight.topDeal ? formatRevenue(insight.topDeal.amount) : "-"}</em>
+                      </div>
+                      <div className={styles.focusItem}>
+                        <span>주요 유형</span>
+                        <strong>{insight.productMix}</strong>
+                        <em>KA {insight.kaCount}건 · 확정 {insight.confirmedRate}%</em>
+                      </div>
+                      <div className={styles.focusItem}>
+                        <span>리스크</span>
+                        <strong>{insight.riskCount}건</strong>
+                        <em>{formatRevenue(insight.riskValue)}</em>
+                      </div>
+                    </div>
+
+                    <div className={`${styles.actionNote} ${styles[`toneBorder_${insight.tone}`]}`}>
+                      {insight.nextMove}
+                    </div>
                   </div>
-                  <div
-                    className={`${styles.regionCell} ${styles.regionConfirmed}`}
-                    role="cell"
-                  >
-                    {formatRevenue(stat.confirmed)}
+                ))}
+              </div>
+
+              <div className={styles.regionTableWrap}>
+                <div className={styles.regionTable} role="table" aria-label="지역별 상세 현황">
+                  <div className={styles.regionHead} role="row">
+                    <div className={styles.regionHeadCell} role="columnheader">지역명</div>
+                    <div className={styles.regionHeadCell} role="columnheader">딜 수</div>
+                    <div className={styles.regionHeadCell} role="columnheader">오픈 금액</div>
+                    <div className={styles.regionHeadCell} role="columnheader">확정 금액</div>
+                    <div className={styles.regionHeadCell} role="columnheader">리딩 매니저</div>
                   </div>
+
+                  {regionInsights.map((insight) => (
+                    <div key={insight.region} className={styles.regionRow} role="row">
+                      <div className={styles.regionName} role="cell">
+                        <MapPin size={13} aria-hidden />
+                        {insight.region}
+                      </div>
+                      <div
+                        className={`${styles.regionCell} ${styles.regionCellMuted}`}
+                        role="cell"
+                      >
+                        {insight.stat.count}건
+                      </div>
+                      <div
+                        className={`${styles.regionCell} ${styles.regionAmount}`}
+                        role="cell"
+                      >
+                        {formatRevenue(insight.openPipeline)}
+                      </div>
+                      <div
+                        className={`${styles.regionCell} ${styles.regionConfirmed}`}
+                        role="cell"
+                      >
+                        {formatRevenue(insight.stat.confirmed)}
+                      </div>
+                      <div
+                        className={`${styles.regionCell} ${styles.regionCellMuted}`}
+                        role="cell"
+                      >
+                        {insight.leadingManager}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            </div>
+              </div>
+            </>
           )}
         </section>
       )}
