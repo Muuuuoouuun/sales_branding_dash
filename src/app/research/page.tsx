@@ -23,6 +23,7 @@ import type { ActivityStage, DashboardPayload, HotDeal, IndividualData, RegionDa
 
 type ResearchTab = "library" | "patterns" | "intel" | "resources" | "talks";
 type MethodologyId = SalesLegend["id"];
+type LegendDetailTab = "brief" | "practice" | "coach" | "materials";
 
 type MethodologyDetail = {
   tagline: string;
@@ -30,6 +31,21 @@ type MethodologyDetail = {
   useWhen: string;
   playbook: string[];
   questions: string[];
+};
+
+type LegendAdvancedLab = {
+  diagnostic: string;
+  coachingPrompt: string;
+  objectionDrills: {
+    trigger: string;
+    response: string;
+    followUp: string;
+  }[];
+  scorecard: {
+    label: string;
+    target: string;
+    redFlag: string;
+  }[];
 };
 
 type PatternCard = {
@@ -108,6 +124,13 @@ const TABS: Array<{ id: ResearchTab; label: string; icon: React.ReactNode }> = [
   { id: "patterns", label: "Patterns", icon: <Star size={14} /> },
   { id: "intel", label: "Intel", icon: <ShieldAlert size={14} /> },
   { id: "talks", label: "Talk Tracks", icon: <MessageCircle size={14} /> },
+];
+
+const LEGEND_DETAIL_TABS: Array<{ id: LegendDetailTab; label: string; note: string }> = [
+  { id: "brief", label: "Brief", note: "Why / when / core frame" },
+  { id: "practice", label: "Practice", note: "Field plays and objection drills" },
+  { id: "coach", label: "Coach", note: "Scorecard and review checklist" },
+  { id: "materials", label: "Materials", note: "Study stack and reference quotes" },
 ];
 
 const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
@@ -248,6 +271,181 @@ const METHODOLOGY_DETAILS: Record<MethodologyId, MethodologyDetail> = {
     ],
   },
 };
+
+const LEGEND_ADVANCED_LABS: Record<MethodologyId, LegendAdvancedLab> = {
+  Challenger: {
+    diagnostic: "Use this when the buyer agrees politely but has not changed priorities. The test is whether your insight makes the cost of the current path impossible to ignore.",
+    coachingPrompt: "Before the call, ask the rep to name the customer's current belief, the insight that breaks it, and the new action the buyer should take this week.",
+    objectionDrills: [
+      {
+        trigger: "We already know this problem.",
+        response: "Agree, then sharpen the angle: the issue is not awareness, it is the hidden operating cost of leaving the workflow unchanged.",
+        followUp: "What would make this problem expensive enough to move above the current priorities?",
+      },
+      {
+        trigger: "Send us the deck and we will review.",
+        response: "Anchor on a working session instead of a passive review, because the value is in stress-testing the current assumption together.",
+        followUp: "Which assumption should we pressure-test with your operations lead in the next meeting?",
+      },
+    ],
+    scorecard: [
+      { label: "Reframe clarity", target: "One sentence explains the old belief and the new belief.", redFlag: "The pitch begins with product features." },
+      { label: "Commercial tension", target: "The buyer can quantify the cost of inaction.", redFlag: "The buyer only says this is interesting." },
+      { label: "Stakeholder tailoring", target: "Each stakeholder has a role-specific reason to care.", redFlag: "Every persona receives the same message." },
+    ],
+  },
+  SPIN: {
+    diagnostic: "Use this when the buyer has a real issue but the team has not converted it into urgency. The test is whether implication questions make the pain bigger and more measurable.",
+    coachingPrompt: "Review the call plan and remove feature talk until the rep has at least two implication questions and one need-payoff question.",
+    objectionDrills: [
+      {
+        trigger: "This is not urgent right now.",
+        response: "Stay in discovery and expand the implication instead of arguing for urgency.",
+        followUp: "If the current process stays the same for another quarter, where does the cost show up first?",
+      },
+      {
+        trigger: "We only need a quick quote.",
+        response: "Qualify the problem behind the quote before presenting a number.",
+        followUp: "What result would make the quote worth acting on this month?",
+      },
+    ],
+    scorecard: [
+      { label: "Question sequence", target: "Situation, problem, implication, and payoff are visible in order.", redFlag: "The rep jumps from situation to demo." },
+      { label: "Implication depth", target: "The buyer states the downstream business impact.", redFlag: "Pain remains operational but not financial." },
+      { label: "Buyer-owned value", target: "The buyer says why solving it matters.", redFlag: "The seller explains all value claims." },
+    ],
+  },
+  MEDDIC: {
+    diagnostic: "Use this when the forecast depends on a large deal whose evidence is still soft. The test is whether the team can prove economic buyer, criteria, process, pain, and champion quality.",
+    coachingPrompt: "Run the deal as an evidence review: every forecast claim needs a named person, artifact, date, or next action.",
+    objectionDrills: [
+      {
+        trigger: "Procurement will handle the next step.",
+        response: "Separate paper process from decision process and identify who still owns value approval.",
+        followUp: "Who signs because the business outcome matters, not because the paperwork is ready?",
+      },
+      {
+        trigger: "Our sponsor likes us.",
+        response: "Test whether the sponsor is a true champion with power and willingness to sell internally.",
+        followUp: "What has the sponsor done when we were not in the room?",
+      },
+    ],
+    scorecard: [
+      { label: "Economic buyer", target: "Named, mapped, and reached or intentionally bridged.", redFlag: "The team only knows the evaluator." },
+      { label: "Decision criteria", target: "Written and validated with the buyer.", redFlag: "Criteria are inferred from our proposal." },
+      { label: "Champion proof", target: "Champion has power, pain, and action history.", redFlag: "Champion only provides friendly feedback." },
+    ],
+  },
+  Sandler: {
+    diagnostic: "Use this when the buyer is friendly but vague. The test is whether mutual commitment, pain, budget, and decision rules are explicit before the team invests more effort.",
+    coachingPrompt: "Ask the rep to define the up-front contract for the next meeting: purpose, time, mutual agenda, possible no, and decision at the end.",
+    objectionDrills: [
+      {
+        trigger: "We need to think about it.",
+        response: "Use a gentle negative reverse to invite the real concern instead of chasing.",
+        followUp: "It sounds like this may not be the right time. What would need to be true for it to be worth continuing?",
+      },
+      {
+        trigger: "Budget is not clear yet.",
+        response: "Treat budget as a pain and priority conversation, not only a price conversation.",
+        followUp: "If the pain is real, where would budget realistically come from?",
+      },
+    ],
+    scorecard: [
+      { label: "Up-front contract", target: "The meeting has an agreed outcome before it starts.", redFlag: "The rep hopes for a next step." },
+      { label: "Pain ownership", target: "The buyer names the pain in their words.", redFlag: "Pain is assumed by the seller." },
+      { label: "Clean no", target: "The team can disqualify without drama.", redFlag: "Every maybe is treated as pipeline." },
+    ],
+  },
+  General: {
+    diagnostic: "Use this when the team needs a common operating rule more than another theory. The test is whether the idea can be repeated in a pipeline review without explanation.",
+    coachingPrompt: "Convert the lesson into one operating rule, one metric, and one behavior the team can repeat next week.",
+    objectionDrills: [
+      {
+        trigger: "This is too generic for our market.",
+        response: "Translate the principle into a local buyer signal, not a slogan.",
+        followUp: "What observable customer behavior would prove this rule is working here?",
+      },
+      {
+        trigger: "We already track this.",
+        response: "Distinguish tracking from acting: the metric only matters if it changes the next move.",
+        followUp: "What decision should change when this number moves?",
+      },
+    ],
+    scorecard: [
+      { label: "Repeatability", target: "The rule can be taught in five minutes.", redFlag: "Only one person can explain it." },
+      { label: "Action linkage", target: "Metric points to a next action.", redFlag: "Metric is only reported." },
+      { label: "Team adoption", target: "The same language appears in reviews and CRM notes.", redFlag: "The idea lives only in a slide." },
+    ],
+  },
+  Outbound: {
+    diagnostic: "Use this when pipeline depends on individual effort instead of a repeatable outbound system. The test is whether source, role, list, message, and handoff are clearly separated.",
+    coachingPrompt: "Audit one sequence by asking who owns it, which ICP it targets, what referral path it uses, and how AE handoff is measured.",
+    objectionDrills: [
+      {
+        trigger: "Cold outreach does not work in this segment.",
+        response: "Narrow the ICP and shift from broad pitching to referral-led relevance.",
+        followUp: "Which executive can route us to the right owner if the message is specific enough?",
+      },
+      {
+        trigger: "AEs can prospect when they have time.",
+        response: "Make the opportunity cost visible: closing and prospecting require different rhythms.",
+        followUp: "How much active closing time disappears when AEs also own top-of-funnel creation?",
+      },
+    ],
+    scorecard: [
+      { label: "Role clarity", target: "SDR, AE, and CSM handoffs are explicit.", redFlag: "Everyone owns everything." },
+      { label: "ICP focus", target: "Sequence is built for a narrow account segment.", redFlag: "One message covers the whole market." },
+      { label: "Source discipline", target: "Seeds, nets, and spears are measured separately.", redFlag: "All pipeline is blended together." },
+    ],
+  },
+  Prospecting: {
+    diagnostic: "Use this when pipeline is thin or activity has become reactive. The test is whether prospecting time is protected and producing enough new conversations to refill the next 30 days.",
+    coachingPrompt: "Inspect the calendar before the CRM: if prospecting blocks are not protected, the pipeline story is already at risk.",
+    objectionDrills: [
+      {
+        trigger: "I was too busy with active deals.",
+        response: "Separate urgency from importance and protect prospecting as future revenue work.",
+        followUp: "Which block this week is non-negotiable for creating next month's pipeline?",
+      },
+      {
+        trigger: "I reached out but nobody replied.",
+        response: "Move from single-channel attempts to a sequenced pattern across phone, email, social, and referral.",
+        followUp: "What is the next channel and next touch for the ten accounts that matter most?",
+      },
+    ],
+    scorecard: [
+      { label: "Protected time", target: "Prospecting blocks exist before the week begins.", redFlag: "Prospecting happens after everything else." },
+      { label: "Channel mix", target: "At least three channels are used intentionally.", redFlag: "Only email volume is counted." },
+      { label: "30-day coverage", target: "New activity can replenish near-term pipeline.", redFlag: "Current deals hide future gap." },
+    ],
+  },
+  Negotiation: {
+    diagnostic: "Use this when late-stage pressure turns into discounts, delays, or vague objections. The test is whether the team can surface hidden constraints without losing control.",
+    coachingPrompt: "Before the negotiation, write the accusation audit, the calibrated question, and the no-oriented question the rep will use first.",
+    objectionDrills: [
+      {
+        trigger: "Your price is too high.",
+        response: "Label the pressure and use a calibrated question instead of defending the number.",
+        followUp: "It sounds like the economics do not work yet. How are we supposed to make that work without removing the outcome you need?",
+      },
+      {
+        trigger: "We need a bigger concession.",
+        response: "Trade for commitment and reveal the constraint behind the ask.",
+        followUp: "What would this concession need to unlock for the agreement to move today?",
+      },
+    ],
+    scorecard: [
+      { label: "Accusation audit", target: "Likely negatives are named before the buyer weaponizes them.", redFlag: "The rep waits to be surprised." },
+      { label: "Calibrated control", target: "Questions make the buyer solve the constraint with us.", redFlag: "Seller answers every demand." },
+      { label: "Trade discipline", target: "Every concession gets commitment or information.", redFlag: "Discounts are given for goodwill." },
+    ],
+  },
+};
+
+function getLegendLab(id: MethodologyId): LegendAdvancedLab {
+  return LEGEND_ADVANCED_LABS[id];
+}
 
 function matchesQuery(value: string, query: string): boolean {
   return value.toLowerCase().includes(query.toLowerCase());
@@ -1821,6 +2019,7 @@ export default function ResearchPage() {
   }, []);
   const [selectedMethod, setSelectedMethod] = useState<MethodologyId | "All">("All");
   const [selectedLegendId, setSelectedLegendId] = useState<MethodologyId | null>(null);
+  const [legendDetailTab, setLegendDetailTab] = useState<LegendDetailTab>("brief");
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [selectedResourceCategory, setSelectedResourceCategory] = useState<ResourceCategory | "All">("All");
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
@@ -1875,6 +2074,8 @@ export default function ResearchPage() {
         return true;
       }
 
+      const lab = getLegendLab(legend.id);
+
       return (
         matchesQuery(legend.id, query) ||
         matchesQuery(legend.name, query) ||
@@ -1886,7 +2087,14 @@ export default function ResearchPage() {
         legend.fieldPlays.some((play) =>
           matchesQuery(`${play.title} ${play.useWhen} ${play.moves.join(" ")}`, query),
         ) ||
-        legend.reviewChecklist.some((item) => matchesQuery(item, query))
+        legend.reviewChecklist.some((item) => matchesQuery(item, query)) ||
+        matchesQuery(`${lab.diagnostic} ${lab.coachingPrompt}`, query) ||
+        lab.objectionDrills.some((drill) =>
+          matchesQuery(`${drill.trigger} ${drill.response} ${drill.followUp}`, query),
+        ) ||
+        lab.scorecard.some((item) =>
+          matchesQuery(`${item.label} ${item.target} ${item.redFlag}`, query),
+        )
       );
     });
   }, [query]);
@@ -2095,6 +2303,7 @@ export default function ResearchPage() {
 
           {selectedLegend ? (() => {
             const detail = METHODOLOGY_DETAILS[selectedLegend.id];
+            const lab = getLegendLab(selectedLegend.id);
             return (
               <div className={styles.legendStickyWrapper}>
               <article className={styles.legendArticle}>
@@ -2114,105 +2323,195 @@ export default function ResearchPage() {
                   {detail.tagline}
                 </blockquote>
 
-                <div className={styles.legendMetaRow}>
-                  <div className={styles.legendMetaBlock}>
-                    <span className={styles.sectionLabel}><Target size={12} /> Best for</span>
-                    <p className={styles.legendMetaText}>{detail.bestFor}</p>
-                  </div>
-                  <div className={styles.legendMetaBlock}>
-                    <span className={styles.sectionLabel}><Sparkles size={12} /> Use when</span>
-                    <p className={styles.legendMetaText}>{detail.useWhen}</p>
-                  </div>
+                <div className={styles.legendSubTabs} role="tablist" aria-label="Legend detail sections">
+                  {LEGEND_DETAIL_TABS.map((tab) => {
+                    const isActive = legendDetailTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={`${styles.legendSubTab} ${isActive ? styles.legendSubTabActive : ""}`}
+                        style={isActive ? { borderColor: selectedLegend.color, color: selectedLegend.color } : undefined}
+                        onClick={() => setLegendDetailTab(tab.id)}
+                      >
+                        <strong>{tab.label}</strong>
+                        <span>{tab.note}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                <div className={styles.legendSection}>
-                  <div className={styles.sectionLabel}><Brain size={12} /> Core questions</div>
-                  <ol className={styles.legendOrderedList}>
-                    {detail.questions.map((q) => (
-                      <li key={q}>{q}</li>
-                    ))}
-                  </ol>
-                </div>
-
-                <div className={styles.legendSection}>
-                  <div className={styles.sectionLabel}><Sparkles size={12} /> Playbook</div>
-                  <ol className={styles.legendOrderedList}>
-                    {detail.playbook.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ol>
-                </div>
-
-                <div className={styles.legendSection}>
-                  <div className={styles.sectionLabel}><Award size={12} /> Principles</div>
-                  <ul className={styles.legendPrincipleList}>
-                    {selectedLegend.principles.map((p) => (
-                      <li key={p} className={styles.legendPrincipleItem}>
-                        <span className={styles.legendPrincipleDot} style={{ background: selectedLegend.color }} />
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className={styles.legendQuoteStack}>
-                  {selectedLegend.quotes.map((q) => (
-                    <blockquote key={q} className={styles.legendQuoteItem}>
-                      <BadgeInfo size={13} style={{ color: selectedLegend.color, flexShrink: 0 }} />
-                      <span>{q}</span>
-                    </blockquote>
-                  ))}
-                </div>
-
-                <div className={styles.legendSignatureBox} style={{ borderColor: selectedLegend.color }}>
-                  <div className={styles.sectionLabel}><Star size={12} /> Signature move</div>
-                  <p className={styles.legendSignatureText}>{selectedLegend.signatureMove}</p>
-                </div>
-
-                <div className={styles.legendSection}>
-                  <div className={styles.sectionLabel}><BookOpen size={12} /> Study stack</div>
-                  <div className={styles.legendResourceGrid}>
-                    {selectedLegend.resources.map((resource) => (
-                      <div key={resource.title} className={styles.legendResourceCard}>
-                        <strong style={{ color: selectedLegend.color }}>{resource.title}</strong>
-                        <p>{resource.note}</p>
+                {legendDetailTab === "brief" && (
+                  <>
+                    <div className={styles.legendMetaRow}>
+                      <div className={styles.legendMetaBlock}>
+                        <span className={styles.sectionLabel}><Target size={12} /> Best for</span>
+                        <p className={styles.legendMetaText}>{detail.bestFor}</p>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className={styles.legendMetaBlock}>
+                        <span className={styles.sectionLabel}><Sparkles size={12} /> Use when</span>
+                        <p className={styles.legendMetaText}>{detail.useWhen}</p>
+                      </div>
+                    </div>
 
-                <div className={styles.legendSection}>
-                  <div className={styles.sectionLabel}><MessageCircle size={12} /> Field plays</div>
-                  <div className={styles.legendPlayStack}>
-                    {selectedLegend.fieldPlays.map((play) => (
-                      <div key={play.title} className={styles.legendPlayCard}>
-                        <div className={styles.legendPlayHeader}>
-                          <strong>{play.title}</strong>
-                          <span style={{ borderColor: selectedLegend.color, color: selectedLegend.color }}>
-                            {play.useWhen}
-                          </span>
-                        </div>
-                        <ol className={styles.legendMiniList}>
-                          {play.moves.map((move) => (
-                            <li key={move}>{move}</li>
+                    <div className={styles.legendBriefGrid}>
+                      <div className={styles.legendSection}>
+                        <div className={styles.sectionLabel}><Brain size={12} /> Core questions</div>
+                        <ol className={styles.legendOrderedList}>
+                          {detail.questions.map((q) => (
+                            <li key={q}>{q}</li>
                           ))}
                         </ol>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                <div className={styles.legendSection}>
-                  <div className={styles.sectionLabel}><Target size={12} /> Deal review checklist</div>
-                  <ul className={styles.legendChecklist}>
-                    {selectedLegend.reviewChecklist.map((item) => (
-                      <li key={item}>
-                        <span className={styles.legendPrincipleDot} style={{ background: selectedLegend.color }} />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                      <div className={styles.legendSection}>
+                        <div className={styles.sectionLabel}><Sparkles size={12} /> Playbook</div>
+                        <ol className={styles.legendOrderedList}>
+                          {detail.playbook.map((step) => (
+                            <li key={step}>{step}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    </div>
+
+                    <div className={styles.legendSection}>
+                      <div className={styles.sectionLabel}><Award size={12} /> Principles</div>
+                      <ul className={styles.legendPrincipleList}>
+                        {selectedLegend.principles.map((p) => (
+                          <li key={p} className={styles.legendPrincipleItem}>
+                            <span className={styles.legendPrincipleDot} style={{ background: selectedLegend.color }} />
+                            {p}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className={styles.legendSignatureBox} style={{ borderColor: selectedLegend.color }}>
+                      <div className={styles.sectionLabel}><Star size={12} /> Signature move</div>
+                      <p className={styles.legendSignatureText}>{selectedLegend.signatureMove}</p>
+                    </div>
+                  </>
+                )}
+
+                {legendDetailTab === "practice" && (
+                  <>
+                    <div className={styles.legendPracticeStrip}>
+                      <div>
+                        <span>Prep</span>
+                        <strong>{detail.questions[0]}</strong>
+                      </div>
+                      <div>
+                        <span>Live move</span>
+                        <strong>{selectedLegend.fieldPlays[0]?.title ?? selectedLegend.signatureMove}</strong>
+                      </div>
+                      <div>
+                        <span>Exit proof</span>
+                        <strong>{selectedLegend.reviewChecklist[0]}</strong>
+                      </div>
+                    </div>
+
+                    <div className={styles.legendSection}>
+                      <div className={styles.sectionLabel}><MessageCircle size={12} /> Field plays</div>
+                      <div className={styles.legendPlayStack}>
+                        {selectedLegend.fieldPlays.map((play) => (
+                          <div key={play.title} className={styles.legendPlayCard}>
+                            <div className={styles.legendPlayHeader}>
+                              <strong>{play.title}</strong>
+                              <span style={{ borderColor: selectedLegend.color, color: selectedLegend.color }}>
+                                {play.useWhen}
+                              </span>
+                            </div>
+                            <ol className={styles.legendMiniList}>
+                              {play.moves.map((move) => (
+                                <li key={move}>{move}</li>
+                              ))}
+                            </ol>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className={styles.legendSection}>
+                      <div className={styles.sectionLabel}><ShieldAlert size={12} /> Objection lab</div>
+                      <div className={styles.legendLabIntro}>
+                        <strong style={{ color: selectedLegend.color }}>Diagnostic lens</strong>
+                        <p>{lab.diagnostic}</p>
+                      </div>
+                      <div className={styles.legendDrillGrid}>
+                        {lab.objectionDrills.map((drill) => (
+                          <div key={drill.trigger} className={styles.legendDrillCard}>
+                            <span className={styles.legendDrillLabel}>Trigger</span>
+                            <strong>{drill.trigger}</strong>
+                            <span className={styles.legendDrillLabel}>Response</span>
+                            <p>{drill.response}</p>
+                            <span className={styles.legendDrillLabel}>Follow-up</span>
+                            <p>{drill.followUp}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {legendDetailTab === "coach" && (
+                  <>
+                    <div className={styles.legendSection}>
+                      <div className={styles.sectionLabel}><Brain size={12} /> Coaching scorecard</div>
+                      <div className={styles.legendScorecardGrid}>
+                        {lab.scorecard.map((item) => (
+                          <div key={item.label} className={styles.legendScorecardItem}>
+                            <strong>{item.label}</strong>
+                            <p>{item.target}</p>
+                            <em>{item.redFlag}</em>
+                          </div>
+                        ))}
+                      </div>
+                      <p className={styles.legendCoachPrompt}>
+                        <Sparkles size={13} style={{ color: selectedLegend.color, flexShrink: 0 }} />
+                        {lab.coachingPrompt}
+                      </p>
+                    </div>
+
+                    <div className={styles.legendSection}>
+                      <div className={styles.sectionLabel}><Target size={12} /> Deal review checklist</div>
+                      <ul className={styles.legendChecklist}>
+                        {selectedLegend.reviewChecklist.map((item) => (
+                          <li key={item}>
+                            <span className={styles.legendPrincipleDot} style={{ background: selectedLegend.color }} />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+
+                {legendDetailTab === "materials" && (
+                  <>
+                    <div className={styles.legendSection}>
+                      <div className={styles.sectionLabel}><BookOpen size={12} /> Study stack</div>
+                      <div className={styles.legendResourceGrid}>
+                        {selectedLegend.resources.map((resource) => (
+                          <div key={resource.title} className={styles.legendResourceCard}>
+                            <strong style={{ color: selectedLegend.color }}>{resource.title}</strong>
+                            <p>{resource.note}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className={styles.legendQuoteStack}>
+                      {selectedLegend.quotes.map((q) => (
+                        <blockquote key={q} className={styles.legendQuoteItem}>
+                          <BadgeInfo size={13} style={{ color: selectedLegend.color, flexShrink: 0 }} />
+                          <span>{q}</span>
+                        </blockquote>
+                      ))}
+                    </div>
+                  </>
+                )}
               </article>
               </div>
             );

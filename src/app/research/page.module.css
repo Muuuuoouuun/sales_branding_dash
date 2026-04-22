@@ -382,7 +382,69 @@
   word-break: keep-all;
 }
 
+.legendSubTabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.35rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.95rem;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-soft);
+}
+
+.legendSubTab {
+  min-width: 0;
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.legendSubTab:hover {
+  background: var(--surface-2);
+  color: var(--foreground);
+}
+
+.legendSubTab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.legendSubTabActive {
+  background: var(--surface-2);
+}
+
+.legendSubTab strong {
+  color: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.legendSubTab span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-weight: 650;
+  line-height: 1.32;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .legendMetaRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.legendBriefGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
@@ -535,6 +597,40 @@
   gap: 0.65rem;
 }
 
+.legendPracticeStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.legendPracticeStrip div {
+  min-width: 0;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.85rem;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-soft);
+}
+
+.legendPracticeStrip span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legendPracticeStrip strong {
+  display: block;
+  color: var(--foreground);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
 .legendPlayHeader {
   display: grid;
   gap: 0.45rem;
@@ -593,6 +689,94 @@
   font-size: 0.8rem;
   line-height: 1.55;
   word-break: keep-all;
+}
+
+.legendLabIntro {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.85rem;
+  background: var(--surface-2);
+}
+
+.legendLabIntro strong {
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.legendLabIntro p,
+.legendDrillCard p,
+.legendScorecardItem p,
+.legendCoachPrompt {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  line-height: 1.62;
+  word-break: keep-all;
+}
+
+.legendDrillGrid,
+.legendScorecardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.legendScorecardGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.legendDrillCard,
+.legendScorecardItem {
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.85rem;
+  background: var(--surface-2);
+}
+
+.legendDrillCard strong,
+.legendScorecardItem strong {
+  color: var(--foreground);
+  font-size: 0.86rem;
+  font-weight: 850;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.legendDrillLabel {
+  width: fit-content;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legendScorecardItem em {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-style: normal;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.legendCoachPrompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.82rem 0.9rem;
+  border: 1px solid var(--surface-border);
+  border-left: 3px solid var(--primary-border);
+  border-radius: 0.82rem;
+  background: var(--card-bg-glass);
+  color: var(--foreground);
+  font-weight: 650;
 }
 
 .libraryGrid {
@@ -1247,6 +1431,10 @@
     grid-template-columns: 1fr;
   }
 
+  .legendSubTabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .sideRail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1258,6 +1446,10 @@
   .patternGrid,
   .detailGrid,
   .legendChecklist,
+  .legendDrillGrid,
+  .legendScorecardGrid,
+  .legendBriefGrid,
+  .legendPracticeStrip,
   .libraryList {
     grid-template-columns: 1fr;
   }
@@ -1287,6 +1479,10 @@
 
   .tabBar {
     width: 100%;
+  }
+
+  .legendSubTabs {
+    grid-template-columns: 1fr;
   }
 
   .patternFooter,

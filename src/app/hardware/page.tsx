@@ -84,6 +84,12 @@ interface ManagerInsight {
   mainRegion: string;
   tone: InsightTone;
   nextMove: string;
+  priorityScore: number;
+  priorityLabel: string;
+  priorityReasons: string[];
+  reviewFocus: string;
+  coachPrompt: string;
+  proofPoint: string;
 }
 
 interface RegionInsight {
@@ -103,6 +109,12 @@ interface RegionInsight {
   productMix: string;
   tone: InsightTone;
   nextMove: string;
+  priorityScore: number;
+  priorityLabel: string;
+  priorityReasons: string[];
+  reviewFocus: string;
+  coachPrompt: string;
+  proofPoint: string;
 }
 
 interface SpotlightItem {
@@ -180,6 +192,144 @@ function getToneLabel(tone: InsightTone): string {
   if (tone === "watch") return "주시";
   if (tone === "risk") return "개입";
   return "중립";
+}
+
+function getPriorityLabel(score: number): string {
+  if (score >= 75) return "즉시 개입";
+  if (score >= 55) return "이번 주 코칭";
+  if (score >= 35) return "주시";
+  return "유지";
+}
+
+function getPriorityScore(input: {
+  openPipeline: number;
+  riskValue: number;
+  riskCount: number;
+  valueConversion: number;
+  count: number;
+  totalPipeline: number;
+  kaCount?: number;
+  managerCount?: number;
+}): number {
+  const openShare = input.totalPipeline > 0 ? input.openPipeline / input.totalPipeline : 0;
+  const riskShare = input.totalPipeline > 0 ? input.riskValue / input.totalPipeline : 0;
+  const score =
+    openShare * 34 +
+    riskShare * 32 +
+    input.riskCount * 10 +
+    (input.valueConversion < 35 ? 18 : input.valueConversion < 65 ? 9 : 0) +
+    Math.min(input.count * 1.5, 8) +
+    Math.min((input.kaCount ?? 0) * 4, 10) +
+    Math.min(Math.max((input.managerCount ?? 1) - 1, 0) * 2, 6);
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function buildPriorityReasons(input: {
+  topDeal: HardwareDeal | null;
+  openPipeline: number;
+  riskValue: number;
+  riskCount: number;
+  valueConversion: number;
+  kaCount?: number;
+  managerCount?: number;
+}): string[] {
+  const reasons: string[] = [];
+
+  if (input.riskCount > 0) {
+    reasons.push(`저확률 리스크 ${input.riskCount}건 · ${formatRevenue(input.riskValue)}`);
+  }
+
+  if (input.openPipeline > 0) {
+    reasons.push(`미확정 파이프라인 ${formatRevenue(input.openPipeline)}`);
+  }
+
+  if (input.valueConversion < 65) {
+    reasons.push(`금액 전환율 ${input.valueConversion}%로 보강 필요`);
+  }
+
+  if ((input.kaCount ?? 0) > 0) {
+    reasons.push(`KA ${input.kaCount}건 포함`);
+  }
+
+  if ((input.managerCount ?? 1) > 1) {
+    reasons.push(`${input.managerCount}명 관여로 역할 정렬 필요`);
+  }
+
+  if (input.topDeal) {
+    reasons.push(`최대 딜 ${input.topDeal.account}`);
+  }
+
+  return reasons.slice(0, 3);
+}
+
+function buildManagerOperatingPanel(input: {
+  topDeal: HardwareDeal | null;
+  riskCount: number;
+  openPipeline: number;
+  valueConversion: number;
+  mainRegion: string;
+}): Pick<ManagerInsight, "reviewFocus" | "coachPrompt" | "proofPoint"> {
+  if (input.riskCount > 0) {
+    return {
+      reviewFocus: "Risk recovery",
+      coachPrompt: "60% 미만 딜의 의사결정자, 다음 회의, 복구 조건을 한 번에 확인하세요.",
+      proofPoint: "리스크 딜별 다음 미팅 날짜와 고객 측 액션 오너",
+    };
+  }
+
+  if (input.openPipeline > 0 && input.valueConversion < 70) {
+    return {
+      reviewFocus: "Conversion lift",
+      coachPrompt: "미확정 금액이 확정으로 넘어가기 위해 빠진 조건을 딜별로 1개씩만 좁히세요.",
+      proofPoint: `${input.topDeal?.account ?? input.mainRegion}의 결제 조건 또는 구매 프로세스 증거`,
+    };
+  }
+
+  return {
+    reviewFocus: "Scale the motion",
+    coachPrompt: "이미 작동하는 지역/제품 조합을 다른 딜에 복제할 수 있게 스크립트화하세요.",
+    proofPoint: `${input.mainRegion}에서 반복 가능한 제안 문장과 확정 조건`,
+  };
+}
+
+function buildRegionOperatingPanel(input: {
+  topDeal: HardwareDeal | null;
+  riskCount: number;
+  managerCount: number;
+  valueConversion: number;
+  kaCount: number;
+  productMix: string;
+}): Pick<RegionInsight, "reviewFocus" | "coachPrompt" | "proofPoint"> {
+  if (input.riskCount > 0) {
+    return {
+      reviewFocus: "Regional risk lock",
+      coachPrompt: "지역 단위로 리스크 딜을 묶고, 매니저별 복구 액션이 겹치지 않게 정렬하세요.",
+      proofPoint: "리스크 딜별 확률 하락 사유와 고객 측 재확인 일정",
+    };
+  }
+
+  if (input.managerCount > 1 && input.valueConversion < 70) {
+    return {
+      reviewFocus: "Handoff cleanup",
+      coachPrompt: "여러 매니저가 관여한 지역은 조건, 담당자, 다음 액션을 하나의 기준으로 맞추세요.",
+      proofPoint: "공통 가격/조건 기준과 매니저별 담당 계정 리스트",
+    };
+  }
+
+  if (input.kaCount > 0) {
+    return {
+      reviewFocus: "KA expansion",
+      coachPrompt: "KA 딜에서 확인된 제품 조합을 같은 지역의 인접 계정으로 확장하세요.",
+      proofPoint: `${input.productMix} 기반 KA 레퍼런스와 인접 계정 후보`,
+    };
+  }
+
+  return {
+    reviewFocus: "Coverage build",
+    coachPrompt: "현재 리딩 제품과 최대 딜을 기준으로 다음 분기 커버리지 공백을 먼저 채우세요.",
+    proofPoint: `${input.topDeal?.account ?? input.productMix} 이후의 신규 접점 후보`,
+  };
 }
 
 function buildManagerMove(
@@ -325,6 +475,22 @@ export default function HardwarePipelinePage() {
       const topDeal = getTopDeal(managerDeals);
       const riskValue = riskDeals.reduce((sum, deal) => sum + deal.amount, 0);
       const tone = getTone(valueConversion, riskDeals.length);
+      const mainRegion = getTopValueLabel(managerDeals, "region");
+      const priorityScore = getPriorityScore({
+        openPipeline,
+        riskValue,
+        riskCount: riskDeals.length,
+        valueConversion,
+        count: stat.count,
+        totalPipeline: data.totalPipeline,
+      });
+      const operatingPanel = buildManagerOperatingPanel({
+        topDeal,
+        riskCount: riskDeals.length,
+        openPipeline,
+        valueConversion,
+        mainRegion,
+      });
 
       return {
         name,
@@ -337,9 +503,19 @@ export default function HardwarePipelinePage() {
         riskCount: riskDeals.length,
         riskValue,
         topDeal,
-        mainRegion: getTopValueLabel(managerDeals, "region"),
+        mainRegion,
         tone,
         nextMove: buildManagerMove(topDeal, riskDeals.length, openPipeline, valueConversion),
+        priorityScore,
+        priorityLabel: getPriorityLabel(priorityScore),
+        priorityReasons: buildPriorityReasons({
+          topDeal,
+          openPipeline,
+          riskValue,
+          riskCount: riskDeals.length,
+          valueConversion,
+        }),
+        ...operatingPanel,
       };
     });
   }, [data, sortedManagers]);
@@ -356,6 +532,26 @@ export default function HardwarePipelinePage() {
       const topDeal = getTopDeal(regionDeals);
       const riskValue = riskDeals.reduce((sum, deal) => sum + deal.amount, 0);
       const tone = getTone(valueConversion, riskDeals.length);
+      const kaCount = regionDeals.filter((deal) => deal.importance === "KA").length;
+      const productMix = getTopValueLabel(regionDeals, "type");
+      const priorityScore = getPriorityScore({
+        openPipeline,
+        riskValue,
+        riskCount: riskDeals.length,
+        valueConversion,
+        count: stat.count,
+        totalPipeline: data.totalPipeline,
+        kaCount,
+        managerCount: managers.size,
+      });
+      const operatingPanel = buildRegionOperatingPanel({
+        topDeal,
+        riskCount: riskDeals.length,
+        managerCount: managers.size,
+        valueConversion,
+        kaCount,
+        productMix,
+      });
 
       return {
         region,
@@ -370,13 +566,25 @@ export default function HardwarePipelinePage() {
         weightedPipeline: getWeightedPipeline(regionDeals),
         riskCount: riskDeals.length,
         riskValue,
-        kaCount: regionDeals.filter((deal) => deal.importance === "KA").length,
+        kaCount,
         managerCount: managers.size,
         leadingManager: getTopValueLabel(regionDeals, "manager"),
         topDeal,
-        productMix: getTopValueLabel(regionDeals, "type"),
+        productMix,
         tone,
         nextMove: buildRegionMove(topDeal, riskDeals.length, managers.size, valueConversion),
+        priorityScore,
+        priorityLabel: getPriorityLabel(priorityScore),
+        priorityReasons: buildPriorityReasons({
+          topDeal,
+          openPipeline,
+          riskValue,
+          riskCount: riskDeals.length,
+          valueConversion,
+          kaCount,
+          managerCount: managers.size,
+        }),
+        ...operatingPanel,
       };
     });
   }, [data, sortedRegions]);
@@ -465,6 +673,26 @@ export default function HardwarePipelinePage() {
         tone: riskRegion.riskCount > 0 ? "risk" : "watch",
       },
     ];
+  }, [regionInsights]);
+
+  const managerPriorityQueue = useMemo(() => {
+    return [...managerInsights]
+      .sort(
+        (left, right) =>
+          right.priorityScore - left.priorityScore ||
+          right.openPipeline - left.openPipeline
+      )
+      .slice(0, 3);
+  }, [managerInsights]);
+
+  const regionPriorityQueue = useMemo(() => {
+    return [...regionInsights]
+      .sort(
+        (left, right) =>
+          right.priorityScore - left.priorityScore ||
+          right.openPipeline - left.openPipeline
+      )
+      .slice(0, 3);
   }, [regionInsights]);
 
   // ── Loading state ───────────────────────────────────────────────
@@ -775,6 +1003,38 @@ export default function HardwarePipelinePage() {
                 ))}
               </div>
 
+              <div className={styles.priorityQueue}>
+                <div className={styles.priorityQueueHeader}>
+                  <div>
+                    <span className={styles.priorityQueueEyebrow}>Intervention queue</span>
+                    <h3 className={styles.priorityQueueTitle}>매니저 우선순위 Top 3</h3>
+                  </div>
+                  <span className={styles.priorityQueueMeta}>score / 100</span>
+                </div>
+                <div className={styles.priorityQueueList}>
+                  {managerPriorityQueue.map((insight, index) => (
+                    <div
+                      key={insight.name}
+                      className={`${styles.priorityQueueItem} ${styles[`toneBorder_${insight.tone}`]}`}
+                    >
+                      <span className={styles.priorityRank}>{index + 1}</span>
+                      <div className={styles.priorityBody}>
+                        <div className={styles.priorityNameRow}>
+                          <strong className={styles.priorityName}>{insight.name}</strong>
+                          <span className={styles.priorityScore}>{insight.priorityScore}</span>
+                        </div>
+                        <span className={styles.priorityMeta}>{insight.priorityLabel}</span>
+                        <ul className={styles.priorityReasons}>
+                          {insight.priorityReasons.map((reason) => (
+                            <li key={reason}>{reason}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className={styles.managerGrid}>
                 {managerInsights.map((insight) => {
                   const fillPct = insight.valueConversion;
@@ -855,6 +1115,26 @@ export default function HardwarePipelinePage() {
                           <strong>{insight.riskCount}건</strong>
                           <em>{formatRevenue(insight.riskValue)}</em>
                         </div>
+                        <div className={styles.focusItem}>
+                          <span>우선순위</span>
+                          <strong>{insight.priorityScore}/100</strong>
+                          <em>{insight.priorityLabel}</em>
+                        </div>
+                      </div>
+
+                      <div className={styles.operatingPanel}>
+                        <div>
+                          <span>Review focus</span>
+                          <strong>{insight.reviewFocus}</strong>
+                        </div>
+                        <div>
+                          <span>Coach prompt</span>
+                          <p>{insight.coachPrompt}</p>
+                        </div>
+                        <div>
+                          <span>Proof point</span>
+                          <p>{insight.proofPoint}</p>
+                        </div>
                       </div>
 
                       <div className={`${styles.actionNote} ${styles[`toneBorder_${insight.tone}`]}`}>
@@ -902,6 +1182,38 @@ export default function HardwarePipelinePage() {
                     <p className={styles.spotlightDetail}>{item.detail}</p>
                   </div>
                 ))}
+              </div>
+
+              <div className={styles.priorityQueue}>
+                <div className={styles.priorityQueueHeader}>
+                  <div>
+                    <span className={styles.priorityQueueEyebrow}>Coverage queue</span>
+                    <h3 className={styles.priorityQueueTitle}>지역 우선순위 Top 3</h3>
+                  </div>
+                  <span className={styles.priorityQueueMeta}>score / 100</span>
+                </div>
+                <div className={styles.priorityQueueList}>
+                  {regionPriorityQueue.map((insight, index) => (
+                    <div
+                      key={insight.region}
+                      className={`${styles.priorityQueueItem} ${styles[`toneBorder_${insight.tone}`]}`}
+                    >
+                      <span className={styles.priorityRank}>{index + 1}</span>
+                      <div className={styles.priorityBody}>
+                        <div className={styles.priorityNameRow}>
+                          <strong className={styles.priorityName}>{insight.region}</strong>
+                          <span className={styles.priorityScore}>{insight.priorityScore}</span>
+                        </div>
+                        <span className={styles.priorityMeta}>{insight.priorityLabel}</span>
+                        <ul className={styles.priorityReasons}>
+                          {insight.priorityReasons.map((reason) => (
+                            <li key={reason}>{reason}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className={styles.regionGrid}>
@@ -974,6 +1286,26 @@ export default function HardwarePipelinePage() {
                         <span>리스크</span>
                         <strong>{insight.riskCount}건</strong>
                         <em>{formatRevenue(insight.riskValue)}</em>
+                      </div>
+                      <div className={styles.focusItem}>
+                        <span>우선순위</span>
+                        <strong>{insight.priorityScore}/100</strong>
+                        <em>{insight.priorityLabel}</em>
+                      </div>
+                    </div>
+
+                    <div className={styles.operatingPanel}>
+                      <div>
+                        <span>Review focus</span>
+                        <strong>{insight.reviewFocus}</strong>
+                      </div>
+                      <div>
+                        <span>Coach prompt</span>
+                        <p>{insight.coachPrompt}</p>
+                      </div>
+                      <div>
+                        <span>Proof point</span>
+                        <p>{insight.proofPoint}</p>
                       </div>
                     </div>
 
